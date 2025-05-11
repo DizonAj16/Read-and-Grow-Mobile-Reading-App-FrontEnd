@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'routes/app_routes.dart';
+import 'routes/auth_routes.dart';
 import 'theme/text_theme.dart';
 
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
@@ -18,6 +18,7 @@ class MyApp extends StatelessWidget {
       builder: (context, currentTheme, child) {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
+          // Light theme configuration
           theme: ThemeData.light().copyWith(
             colorScheme: ColorScheme.light(
               primary: Color(0xFF2575FC), 
@@ -28,6 +29,7 @@ class MyApp extends StatelessWidget {
             ),
             textTheme: AppTextTheme.textTheme(context),
           ),
+          // Dark theme configuration
           darkTheme: ThemeData.dark().copyWith(
             colorScheme: ColorScheme.dark(
               primary: Color(0xFF1E3A8A), 
@@ -38,9 +40,9 @@ class MyApp extends StatelessWidget {
             ),
             textTheme: AppTextTheme.textTheme(context),
           ),
-          themeMode: currentTheme,
-          initialRoute: AppRoutes.landing,
-          routes: AppRoutes.routes,
+          themeMode: currentTheme, // Use the current theme mode
+          initialRoute: AuthRoutes.landing, // Initial route for the app
+          routes: AuthRoutes.routes, // Define app routes
         );
       },
     );

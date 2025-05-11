@@ -105,6 +105,7 @@ class StudentDashboardPage extends StatelessWidget {
     );
   }
 
+  // Function to build a horizontal card for statistics
   Widget _buildHorizontalCard(
     BuildContext context, {
     required String title,
@@ -130,7 +131,7 @@ class StudentDashboardPage extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(icon, size: 40, color: Colors.white), // Added icon at the top
+            Icon(icon, size: 40, color: Colors.white), // Icon at the top
             SizedBox(height: 10),
             Text(
               title,
@@ -152,6 +153,7 @@ class StudentDashboardPage extends StatelessWidget {
     );
   }
 
+  // Function to build a tile for recent activities
   Widget _buildActivityTile(
     BuildContext context, {
     required String title,

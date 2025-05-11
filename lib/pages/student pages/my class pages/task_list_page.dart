@@ -8,6 +8,7 @@ class TaskListPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Get tasks based on the student's level
     List<Map<String, String>> tasks = _getTasksForLevel(studentLevel);
 
     return ListView.builder(
@@ -26,6 +27,7 @@ class TaskListPage extends StatelessWidget {
     );
   }
 
+  // Function to get tasks based on the student's level
   List<Map<String, String>> _getTasksForLevel(int level) {
     switch (level) {
       case 1:
@@ -74,6 +76,7 @@ class TaskListPage extends StatelessWidget {
     }
   }
 
+  // Function to build a task card
   Widget _buildTaskCard(
     BuildContext context, {
     required String title,
@@ -88,6 +91,7 @@ class TaskListPage extends StatelessWidget {
         padding: const EdgeInsets.all(16.0),
         child: Row(
           children: [
+            // Status icon
             Container(
               width: 45,
               height: 45,
@@ -104,6 +108,7 @@ class TaskListPage extends StatelessWidget {
               ),
             ),
             SizedBox(width: 16),
+            // Task details
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -126,6 +131,7 @@ class TaskListPage extends StatelessWidget {
                 ],
               ),
             ),
+            // Popup menu for task actions
             PopupMenuButton<String>(
               onSelected: (value) {
                 if (value == 'view_task') {

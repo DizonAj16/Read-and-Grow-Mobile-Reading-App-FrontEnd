@@ -14,8 +14,10 @@ class _StudentPageState extends State<StudentPage> {
   final PageController _pageController =
       PageController(); // PageController for smooth transitions
 
+  // List of pages for the bottom navigation bar
   final List<Widget> _pages = [StudentDashboardPage(), MyClassPage()];
 
+  // Function to handle tab selection in the bottom navigation bar
   void _onTabTapped(int index) {
     setState(() {
       _currentIndex = index;
@@ -31,6 +33,7 @@ class _StudentPageState extends State<StudentPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        // AppBar with dynamic title based on the selected tab
         title: Text(
           _currentIndex == 0 ? "Student Dashboard" : "Tasks/Activities",
           style: TextStyle(color: Colors.white),
@@ -38,6 +41,7 @@ class _StudentPageState extends State<StudentPage> {
         backgroundColor: Theme.of(context).colorScheme.primary,
         iconTheme: IconThemeData(color: Colors.white),
         actions: [
+          // Profile and logout menu
           PopupMenuButton<String>(
             icon: CircleAvatar(
               radius: 20,
@@ -47,6 +51,7 @@ class _StudentPageState extends State<StudentPage> {
             tooltip: "Student Profile",
             onSelected: (value) {
               if (value == 'logout') {
+                // Show logout confirmation dialog
                 showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
@@ -149,7 +154,7 @@ class _StudentPageState extends State<StudentPage> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: _onTabTapped,
+        onTap: _onTabTapped, // Handle tab selection
         items: [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "Dashboard"),
           BottomNavigationBarItem(

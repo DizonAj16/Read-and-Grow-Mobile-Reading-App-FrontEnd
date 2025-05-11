@@ -7,6 +7,7 @@ class TeacherDashboardPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Floating action button to create a new class
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           _showCreateClassDialog(context);
@@ -21,6 +22,7 @@ class TeacherDashboardPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Welcome message
             Text(
               "Welcome, Teacher!",
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -28,6 +30,7 @@ class TeacherDashboardPage extends StatelessWidget {
               ),
             ),
             SizedBox(height: 20),
+            // Horizontal scrollable cards for statistics
             SizedBox(
               height: 150, // Updated height for the horizontal scrollable cards
               child: ListView(
@@ -164,6 +167,7 @@ class TeacherDashboardPage extends StatelessWidget {
     );
   }
 
+  // Function to show a dialog for creating a new class
   void _showCreateClassDialog(BuildContext context) {
     final TextEditingController classNameController = TextEditingController();
     final TextEditingController classSectionController =
@@ -249,6 +253,7 @@ class TeacherDashboardPage extends StatelessWidget {
     );
   }
 
+  // Function to build a horizontal card with statistics
   Widget _buildHorizontalCard(
     BuildContext context, {
     required String title,
@@ -296,6 +301,7 @@ class TeacherDashboardPage extends StatelessWidget {
   }
 }
 
+// Widget to display a student in the list
 class StudentListTile extends StatelessWidget {
   final String name;
   final String section;
@@ -375,6 +381,7 @@ class StudentListTile extends StatelessWidget {
   }
 }
 
+// Widget to display a class card
 class ClassCard extends StatelessWidget {
   final String className;
   final String section; // Added section property

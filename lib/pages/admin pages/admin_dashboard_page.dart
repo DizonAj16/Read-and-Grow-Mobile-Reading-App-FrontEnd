@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 class AdminDashboardPage extends StatelessWidget {
   const AdminDashboardPage({super.key});
 
+  // Function to show a dialog for creating a teacher account
   void _showCreateTeacherDialog(BuildContext context) {
     final TextEditingController nameController = TextEditingController();
     final TextEditingController positionController = TextEditingController();
@@ -22,6 +23,7 @@ class AdminDashboardPage extends StatelessWidget {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Input field for teacher name
               TextField(
                 controller: nameController,
                 decoration: InputDecoration(
@@ -32,6 +34,7 @@ class AdminDashboardPage extends StatelessWidget {
                 ),
               ),
               SizedBox(height: 16),
+              // Input field for teacher position
               TextField(
                 controller: positionController,
                 decoration: InputDecoration(
@@ -42,6 +45,7 @@ class AdminDashboardPage extends StatelessWidget {
                 ),
               ),
               SizedBox(height: 16),
+              // Input field for password
               TextField(
                 controller: passwordController,
                 obscureText: true,
@@ -63,7 +67,7 @@ class AdminDashboardPage extends StatelessWidget {
             ),
             ElevatedButton(
               onPressed: () {
-                // Handle teacher account creation logic here
+                // Handle teacher account creation logic
                 String name = nameController.text.trim();
                 String position = positionController.text.trim();
                 String password = passwordController.text.trim();
@@ -98,6 +102,7 @@ class AdminDashboardPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SizedBox(height: 20),
+            // Button to view teacher list
             ElevatedButton(
               onPressed: () {
                 // Handle view teacher list logic
@@ -105,6 +110,7 @@ class AdminDashboardPage extends StatelessWidget {
               child: Text("View Teacher List"),
             ),
             SizedBox(height: 20),
+            // Button to view student list
             ElevatedButton(
               onPressed: () {
                 // Handle view student list logic
@@ -114,6 +120,7 @@ class AdminDashboardPage extends StatelessWidget {
           ],
         ),
       ),
+      // Floating action button to create a teacher account
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showCreateTeacherDialog(context),
         backgroundColor: Theme.of(context).colorScheme.primary,

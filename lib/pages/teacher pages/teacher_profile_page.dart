@@ -7,6 +7,7 @@ class TeacherProfilePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        // AppBar with the title "Teacher Profile"
         title: Text("Teacher Profile", style: TextStyle(color: Colors.white)),
         backgroundColor: Theme.of(context).colorScheme.primary,
         iconTheme: IconThemeData(color: Colors.white),
@@ -16,6 +17,7 @@ class TeacherProfilePage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            // Profile picture with a hero animation
             Hero(
               tag: 'teacher-profile-image',
               child: CircleAvatar(
@@ -32,6 +34,7 @@ class TeacherProfilePage extends StatelessWidget {
               ),
             ),
             SizedBox(height: 20),
+            // Teacher's name
             Text(
               "John Doe",
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -40,6 +43,7 @@ class TeacherProfilePage extends StatelessWidget {
                   ),
             ),
             SizedBox(height: 10),
+            // Teacher's designation
             Text(
               "Grade 5 Teacher",
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -47,6 +51,7 @@ class TeacherProfilePage extends StatelessWidget {
                   ),
             ),
             SizedBox(height: 30),
+            // Contact information
             ListTile(
               leading: Icon(Icons.email, color: Theme.of(context).colorScheme.primary),
               title: Text("johndoe@example.com"),

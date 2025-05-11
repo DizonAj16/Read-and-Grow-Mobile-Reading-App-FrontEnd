@@ -10,6 +10,7 @@ class _StudentListPageState extends State<StudentListPage> {
   final List<Map<String, dynamic>> _students = List.generate(
     20,
     (index) {
+      // Generate random student data
       final random = Random();
       final firstNames = ["Alice", "Bob", "Charlie", "Diana", "Eve", "Frank", "Grace", "Hank", "Ivy", "Jack"];
       final lastNames = ["Johnson", "Smith", "Davis", "Evans", "Brown", "Wilson", "Taylor", "Anderson", "Thomas", "Moore"];
@@ -26,7 +27,7 @@ class _StudentListPageState extends State<StudentListPage> {
   );
 
   int _currentPage = 0;
-  final int _studentsPerPage = 6;
+  final int _studentsPerPage = 6; // Number of students per page
   final PageController _pageController = PageController();
 
   @override
@@ -36,6 +37,7 @@ class _StudentListPageState extends State<StudentListPage> {
 
     return Column(
       children: [
+        // Display total number of students
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: Text(
@@ -43,6 +45,7 @@ class _StudentListPageState extends State<StudentListPage> {
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
         ),
+        // PageView to display students in a paginated manner
         Expanded(
           child: PageView.builder(
             controller: _pageController,
@@ -80,6 +83,7 @@ class _StudentListPageState extends State<StudentListPage> {
             },
           ),
         ),
+        // Pagination indicators
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 8.0),
           child: Row(
@@ -112,6 +116,7 @@ class _StudentListPageState extends State<StudentListPage> {
     );
   }
 
+  // Function to build a student card
   Widget _buildStudentCard(BuildContext context, {required String name, required String avatarLetter, required Color avatarColor}) {
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -145,6 +150,7 @@ class _StudentListPageState extends State<StudentListPage> {
               ),
             ),
           ),
+          // Popup menu for student actions
           Positioned(
             top: 8,
             right: 8,

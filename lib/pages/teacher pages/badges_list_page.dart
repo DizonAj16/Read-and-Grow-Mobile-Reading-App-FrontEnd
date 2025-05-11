@@ -10,6 +10,7 @@ class BadgesListPage extends StatefulWidget {
 class _BadgesListPageState extends State<BadgesListPage> {
   String? _selectedBadge;
 
+  // List of badges with their names and colors
   final List<Map<String, dynamic>> _badges = [
     {"name": "Iron", "color": Colors.grey},
     {"name": "Bronze", "color": Colors.brown},
@@ -25,6 +26,7 @@ class _BadgesListPageState extends State<BadgesListPage> {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        // Horizontal scrollable list of badges
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
@@ -42,6 +44,7 @@ class _BadgesListPageState extends State<BadgesListPage> {
                   ),
                   selected: isSelected,
                   onSelected: (selected) {
+                    // Update the selected badge
                     setState(() {
                       _selectedBadge = selected ? badge["name"] : null;
                     });
@@ -53,6 +56,7 @@ class _BadgesListPageState extends State<BadgesListPage> {
             }).toList(),
           ),
         ),
+        // Display a message when no badge is selected
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(16.0),

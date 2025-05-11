@@ -11,6 +11,7 @@ class Activity1Page extends StatefulWidget {
 class _Activity1PageState extends State<Activity1Page> {
   int _currentPage = 0;
 
+  // List of pages for the activity
   final List<Widget> _pages = [
     const AgFamilyPage(),
     const MatchPicturesPage(),
@@ -19,6 +20,7 @@ class _Activity1PageState extends State<Activity1Page> {
     const ReadingPage(), // Add the fifth page
   ];
 
+  // Function to navigate to the previous page
   void _goToPreviousPage() {
     if (_currentPage > 0) {
       setState(() {
@@ -27,6 +29,7 @@ class _Activity1PageState extends State<Activity1Page> {
     }
   }
 
+  // Function to navigate to the next page
   void _goToNextPage() {
     if (_currentPage < _pages.length - 1) {
       setState(() {
@@ -42,7 +45,9 @@ class _Activity1PageState extends State<Activity1Page> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
+            // Display the current page
             Expanded(child: _pages[_currentPage]),
+            // Navigation buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -74,6 +79,7 @@ class _Activity1PageState extends State<Activity1Page> {
   }
 }
 
+// Widget for the "Ag Family" page
 class AgFamilyPage extends StatelessWidget {
   const AgFamilyPage({super.key});
 
@@ -95,6 +101,7 @@ class AgFamilyPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Display an image for the "Ag Family"
         Container(
           height: 150,
           width: double.infinity,
@@ -110,6 +117,7 @@ class AgFamilyPage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 20),
+        // Display a grid of words
         Expanded(
           child: GridView.builder(
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -129,6 +137,7 @@ class AgFamilyPage extends StatelessWidget {
   }
 }
 
+// Widget for the "Match Pictures" page
 class MatchPicturesPage extends StatelessWidget {
   const MatchPicturesPage({super.key});
 
@@ -146,6 +155,7 @@ class MatchPicturesPage extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
+        // Instructions for the activity
         Text(
           "Match the pictures with the correct words.",
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -154,6 +164,7 @@ class MatchPicturesPage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 20),
+        // List of items to match
         Expanded(
           child: ListView.builder(
             itemCount: matchItems.length,
@@ -496,11 +507,13 @@ class ReadingPage extends StatelessWidget {
   }
 }
 
+// Widget for displaying a word card
 class WordCard extends StatelessWidget {
   final String word;
 
   const WordCard({super.key, required this.word});
 
+  // Function to get a random color for the card
   Color _getRandomColor() {
     final colors = [
       Colors.red,

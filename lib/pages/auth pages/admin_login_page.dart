@@ -13,6 +13,7 @@ class AdminLoginPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        // AppBar with theme toggle button
         backgroundColor: Theme.of(context).colorScheme.primary,
         iconTheme: IconThemeData(color: Colors.white),
         actions: [
@@ -26,6 +27,7 @@ class AdminLoginPage extends StatelessWidget {
           ),
           child: IntrinsicHeight(
             child: Container(
+              // Gradient background for the login page
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
@@ -41,6 +43,7 @@ class AdminLoginPage extends StatelessWidget {
                   Column(
                     children: [
                       SizedBox(height: 50),
+                      // Admin icon
                       CircleAvatar(
                         radius: 80,
                         backgroundColor: Colors.white,
@@ -51,6 +54,7 @@ class AdminLoginPage extends StatelessWidget {
                         ),
                       ),
                       SizedBox(height: 5),
+                      // Page title
                       Text(
                         "Admin Login",
                         style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -63,6 +67,7 @@ class AdminLoginPage extends StatelessWidget {
                   ),
                   Expanded(
                     child: Container(
+                      // Login form container
                       padding: EdgeInsets.all(20),
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.surface,
@@ -74,8 +79,10 @@ class AdminLoginPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           SizedBox(height: 20),
+                          // Password input field
                           PasswordTextField(labelText: "Password"),
                           SizedBox(height: 20),
+                          // Login button
                           LoginButton(
                             text: "Login",
                             onPressed: () {
@@ -85,9 +92,11 @@ class AdminLoginPage extends StatelessWidget {
                                   builder: (context) => AdminPage(),
                                 ),
                                 (route) => false, // Removes all previous routes
-                              );                            },
+                              );
+                            },
                           ),
                           Spacer(),
+                          // Button to navigate to teacher/student login page
                           TextButton(
                             onPressed: () {
                               Navigator.of(context).push(PageTransition(page: LoginPage()));

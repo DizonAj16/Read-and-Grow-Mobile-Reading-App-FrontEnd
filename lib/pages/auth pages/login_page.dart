@@ -17,6 +17,7 @@ class LoginPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        // AppBar with theme toggle button
         backgroundColor: Theme.of(context).colorScheme.primary,
         iconTheme: IconThemeData(color: Colors.white),
         actions: [ThemeToggleButton(iconColor: Colors.white)],
@@ -28,6 +29,7 @@ class LoginPage extends StatelessWidget {
           ),
           child: IntrinsicHeight(
             child: Container(
+              // Gradient background for the login page
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
@@ -43,6 +45,7 @@ class LoginPage extends StatelessWidget {
                   Column(
                     children: [
                       SizedBox(height: 50),
+                      // User icon
                       CircleAvatar(
                         radius: 80,
                         backgroundColor: Colors.white,
@@ -53,6 +56,7 @@ class LoginPage extends StatelessWidget {
                         ),
                       ),
                       SizedBox(height: 5),
+                      // Page title
                       Text(
                         "Login",
                         style: Theme.of(context).textTheme.headlineMedium
@@ -64,6 +68,7 @@ class LoginPage extends StatelessWidget {
                   ),
                   Expanded(
                     child: Container(
+                      // Login form container
                       padding: EdgeInsets.all(20),
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.surface,
@@ -75,10 +80,13 @@ class LoginPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           SizedBox(height: 20),
+                          // Email input field
                           EmailTextField(labelText: "Email"),
                           SizedBox(height: 20),
+                          // Password input field
                           PasswordTextField(labelText: "Password"),
                           SizedBox(height: 10),
+                          // Forgot password button
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
@@ -90,6 +98,7 @@ class LoginPage extends StatelessWidget {
                               ),
                             ),
                           ),
+                          // Login button
                           LoginButton(
                             text: "Login",
                             onPressed: () {
@@ -103,6 +112,7 @@ class LoginPage extends StatelessWidget {
                             },
                           ),
                           SizedBox(height: 10),
+                          // Sign-up section
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -130,6 +140,7 @@ class LoginPage extends StatelessWidget {
                             ],
                           ),
                           Spacer(),
+                          // Button to navigate to admin login page
                           TextButton(
                             onPressed: () {
                               Navigator.of(

@@ -6,6 +6,7 @@ class StudentSubmissionsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Display a simple message for the Student Submissions page
       body: Center(
         child: Text(
           "This is the Student Submissions page.",

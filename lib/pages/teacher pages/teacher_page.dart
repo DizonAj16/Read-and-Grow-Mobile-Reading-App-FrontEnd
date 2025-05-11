@@ -17,6 +17,7 @@ class _TeacherPageState extends State<TeacherPage> {
   String _currentTitle = "Teacher Dashboard";
   String _currentRoute = '/dashboard'; // Track the current route
 
+  // Function to navigate to a specific route and update the title
   void _navigateTo(String route, String title) {
     setState(() {
       _currentTitle = title;
@@ -30,6 +31,7 @@ class _TeacherPageState extends State<TeacherPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        // AppBar with dynamic title and search button
         title: Text(_currentTitle, style: TextStyle(color: Colors.white)),
         backgroundColor: Theme.of(context).colorScheme.primary,
         iconTheme: IconThemeData(color: Colors.white),
@@ -38,6 +40,7 @@ class _TeacherPageState extends State<TeacherPage> {
         ],
       ),
       drawer: Drawer(
+        // Drawer with navigation options
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
@@ -48,6 +51,7 @@ class _TeacherPageState extends State<TeacherPage> {
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 child: GestureDetector(
+                  // Navigate to the teacher profile page
                   onTap: () {
                     Navigator.push(
                       context,
@@ -86,6 +90,7 @@ class _TeacherPageState extends State<TeacherPage> {
                 ),
               ),
             ),
+            // Navigation options in the drawer
             ListTile(
               leading: Icon(Icons.home),
               title: Text('Dashboard'),
@@ -144,6 +149,7 @@ class _TeacherPageState extends State<TeacherPage> {
               leading: Icon(Icons.logout_sharp),
               title: Text('Log out'),
               onTap: () {
+                // Navigate to the login page
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const LoginPage()),
@@ -154,6 +160,7 @@ class _TeacherPageState extends State<TeacherPage> {
         ),
       ),
       body: Navigator(
+        // Navigator to handle page transitions
         key: _navigatorKey,
         initialRoute: '/dashboard',
         onGenerateRoute: (RouteSettings settings) {
