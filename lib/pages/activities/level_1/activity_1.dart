@@ -48,7 +48,10 @@ class _Activity1PageState extends State<Activity1Page> {
               children: [
                 ElevatedButton(
                   onPressed: _currentPage > 0 ? _goToPreviousPage : null,
-                  child: const Text("Previous"),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Icon(Icons.arrow_back_ios_new_sharp, size: 50),
+                  ),
                 ),
                 Text(
                   "Page ${_currentPage + 1} of ${_pages.length}",
@@ -57,7 +60,10 @@ class _Activity1PageState extends State<Activity1Page> {
                 ElevatedButton(
                   onPressed:
                       _currentPage < _pages.length - 1 ? _goToNextPage : null,
-                  child: const Text("Next"),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Icon(Icons.arrow_forward_ios_sharp, size: 50),
+                  ),
                 ),
               ],
             ),

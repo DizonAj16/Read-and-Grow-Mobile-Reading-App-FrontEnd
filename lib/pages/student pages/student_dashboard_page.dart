@@ -36,7 +36,7 @@ class StudentDashboardPage extends StatelessWidget {
                 _buildHorizontalCard(
                   context,
                   title: "Completed Tasks",
-                  value: "15",
+                  value: "0",
                   gradientColors: [Colors.blue, Colors.lightBlueAccent],
                   icon: Icons.check_circle,
                 ),
@@ -44,7 +44,7 @@ class StudentDashboardPage extends StatelessWidget {
                 _buildHorizontalCard(
                   context,
                   title: "Pending Tasks",
-                  value: "5",
+                  value: "11",
                   gradientColors: [Colors.orange, Colors.deepOrangeAccent],
                   icon: Icons.pending_actions,
                 ),
@@ -52,14 +52,14 @@ class StudentDashboardPage extends StatelessWidget {
                 _buildHorizontalCard(
                   context,
                   title: "Badges Earned",
-                  value: "10",
+                  value: "0",
                   gradientColors: [Colors.green, Colors.lightGreenAccent],
                   icon: Icons.emoji_events,
                 ),
                 _buildHorizontalCard(
                   context,
                   title: "Current Badge",
-                  value: "Iron",
+                  value: "N/A",
                   gradientColors: [Colors.blue, Colors.lightBlueAccent],
                   icon: Icons.emoji_events,
                 ),

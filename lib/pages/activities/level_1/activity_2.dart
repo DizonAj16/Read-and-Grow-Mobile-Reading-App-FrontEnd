@@ -45,7 +45,10 @@ class _Activity2PageState extends State<Activity2Page> {
               children: [
                 ElevatedButton(
                   onPressed: _currentPage > 0 ? _goToPreviousPage : null,
-                  child: const Text("Previous"),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Icon(Icons.arrow_back_ios_new_sharp, size: 50),
+                  ),
                 ),
                 Text(
                   "Page ${_currentPage + 1} of ${_pages.length}",
@@ -54,7 +57,10 @@ class _Activity2PageState extends State<Activity2Page> {
                 ElevatedButton(
                   onPressed:
                       _currentPage < _pages.length - 1 ? _goToNextPage : null,
-                  child: const Text("Next"),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Icon(Icons.arrow_forward_ios_sharp, size: 50),
+                  ),
                 ),
               ],
             ),
@@ -77,15 +83,13 @@ class CatAndRatPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Center(
-                  child: Text(
-                    "Cat and Rat",
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
+                Text(
+                  "Cat and Rat",
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
                   ),
                 ),
               ],
@@ -124,7 +128,7 @@ class CatAndRatPage extends StatelessWidget {
         // Word list positioned in the upper right
         Positioned(
           top: 50,
-          right: 16,
+          right: 5,
           child: Container(
             width: 150,
             decoration: BoxDecoration(
@@ -135,10 +139,7 @@ class CatAndRatPage extends StatelessWidget {
               ),
             ),
             padding: const EdgeInsets.all(8.0),
-            child: Wrap(
-              spacing: 16.0,
-              runSpacing: 8.0,
-              alignment: WrapAlignment.center,
+            child: Column(
               children: [
                 Row(
                   children: [
@@ -186,8 +187,6 @@ class MatchingExercisePage extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
             "Cat and Rat (exercises)",
@@ -274,7 +273,7 @@ class FillInTheBlanksPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(8.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

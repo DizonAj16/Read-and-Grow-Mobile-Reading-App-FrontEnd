@@ -1,3 +1,4 @@
+import '../admin pages/admin_page.dart';
 import '../student%20pages/student_page.dart';
 import 'package:flutter/material.dart';
 import '../../widgets/email_text_field.dart';
@@ -133,7 +134,7 @@ class LoginPage extends StatelessWidget {
                             onPressed: () {
                               Navigator.of(
                                 context,
-                              ).push(PageTransition(page: AdminLoginPage()));
+                              ).push(PageTransition(page: AdminLoginPage())); // Navigate to AdminLoginPage
                             },
                             child: Text(
                               "Admin Login",

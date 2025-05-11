@@ -66,10 +66,7 @@ flutter:
     - assets/animation/
     - assets/placeholder/
     - assets/activity_images/
-
-
-
-     
+    - lib/pages/admin pages/ # Add admin pages directory
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -3,6 +3,7 @@ import '../../widgets/password_text_field.dart';
 import '../../widgets/login_button.dart';
 import '../../widgets/page_transition.dart';
 import '../../widgets/theme_toggle_button.dart';
+import '../admin pages/admin_page.dart';
 import 'login_page.dart';
 
 class AdminLoginPage extends StatelessWidget {
@@ -78,7 +79,7 @@ class AdminLoginPage extends StatelessWidget {
                           LoginButton(
                             text: "Login",
                             onPressed: () {
-                              // Add admin login logic here
+                              Navigator.of(context).push(PageTransition(page: AdminPage())); // Navigate to AdminPage
                             },
                           ),
                           Spacer(),
