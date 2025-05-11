@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'student_dashboard_page.dart';
-import 'my_class_page.dart';
+import 'my class pages/my_class_page.dart';
 
 class StudentPage extends StatefulWidget {
   const StudentPage({super.key});
@@ -47,8 +47,26 @@ class _StudentPageState extends State<StudentPage> {
             tooltip: "Student Profile",
             onSelected: (value) {
               if (value == 'logout') {
-                // Handle logout logic here
-                Navigator.of(context).pushReplacementNamed('/login');
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text("Confirm Logout"),
+                    content: Text("Are you sure you want to log out?"),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context), // Close dialog
+                        child: Text("Cancel"),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context); // Close dialog
+                          Navigator.of(context).pushReplacementNamed('/login'); // Navigate to login
+                        },
+                        child: Text("Logout"),
+                      ),
+                    ],
+                  ),
+                );
               }
             },
             itemBuilder: (BuildContext context) => [

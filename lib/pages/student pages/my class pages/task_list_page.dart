@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../activities/activity_controller.dart';
+import '../../activities/activity_controller.dart';
 
 class TaskListPage extends StatelessWidget {
   final int studentLevel;

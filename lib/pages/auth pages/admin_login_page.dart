@@ -79,8 +79,13 @@ class AdminLoginPage extends StatelessWidget {
                           LoginButton(
                             text: "Login",
                             onPressed: () {
-                              Navigator.of(context).push(PageTransition(page: AdminPage())); // Navigate to AdminPage
-                            },
+                              Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => AdminPage(),
+                                ),
+                                (route) => false, // Removes all previous routes
+                              );                            },
                           ),
                           Spacer(),
                           TextButton(
