@@ -29,7 +29,7 @@ class StudentDashboardPage extends StatelessWidget {
 
           // Horizontal Cards Section
           SizedBox(
-            height: 150,
+            height: 180,
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [

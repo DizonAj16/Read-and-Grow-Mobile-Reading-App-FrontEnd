@@ -62,7 +62,7 @@ class TeacherDashboardPage extends StatelessWidget {
                   SizedBox(width: 16),
                   _buildHorizontalCard(
                     context,
-                    title: "Student Ranks",
+                    title: "Rankings",
                     value: "Top 10",
                     gradientColors: [Colors.orange, Colors.deepOrangeAccent],
                     icon: Icons.star, // Added icon
@@ -170,34 +170,38 @@ class TeacherDashboardPage extends StatelessWidget {
   // Function to show a dialog for creating a new class
   void _showCreateClassDialog(BuildContext context) {
     final TextEditingController classNameController = TextEditingController();
-    final TextEditingController classSectionController =
-        TextEditingController();
+    final TextEditingController classSectionController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Column(
             children: [
+              Icon(
+                Icons.class_,
+                color: Theme.of(context).colorScheme.primary,
+                size: 50,
+              ),
+              SizedBox(height: 8),
               Text(
-                "Create Class",
+                "Create New Class",
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Theme.of(context).colorScheme.primary,
                 ),
+                textAlign: TextAlign.center,
               ),
               Divider(
                 thickness: 1,
                 color: Colors.grey.shade300,
-              ), // Divider below the title
+              ),
             ],
           ),
-          content: SizedBox(
-            width:
-                MediaQuery.of(context).size.width * 0.9, // 80% of screen width
-            height:
-                MediaQuery.of(context).size.height *
-                0.15, // 40% of screen height
+          content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -205,8 +209,9 @@ class TeacherDashboardPage extends StatelessWidget {
                   controller: classNameController,
                   decoration: InputDecoration(
                     labelText: "Class Name",
+                    prefixIcon: Icon(Icons.edit),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(15),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                 ),
@@ -215,29 +220,44 @@ class TeacherDashboardPage extends StatelessWidget {
                   controller: classSectionController,
                   decoration: InputDecoration(
                     labelText: "Class Section",
+                    prefixIcon: Icon(Icons.group),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(15),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                 ),
               ],
             ),
           ),
+          actionsAlignment: MainAxisAlignment.center,
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(context); // Close the dialog
               },
-              child: Text("Cancel"),
+              child: Text(
+                "Cancel",
+                style: TextStyle(color: Colors.grey),
+              ),
             ),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
               onPressed: () {
                 // Handle class creation logic here
                 String className = classNameController.text.trim();
                 String classSection = classSectionController.text.trim();
+
                 if (className.isNotEmpty && classSection.isNotEmpty) {
                   // Perform class creation logic
                   Navigator.pop(context); // Close the dialog
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Class created successfully!")),
+                  );
                 } else {
                   // Show error if fields are empty
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -245,7 +265,7 @@ class TeacherDashboardPage extends StatelessWidget {
                   );
                 }
               },
-              child: Text("Create"),
+              child: Text("Create", style: TextStyle(color: Colors.white)),
             ),
           ],
         );
@@ -317,7 +337,15 @@ class StudentListTile extends StatelessWidget {
   });
 
   Color _getRandomColor() {
-    final colors = [Colors.red, Colors.blue, Colors.green, Colors.orange, Colors.purple, Colors.teal, Colors.pink];
+    final colors = [
+      Colors.red,
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.teal,
+      Colors.pink,
+    ];
     return colors[Random().nextInt(colors.length)];
   }
 

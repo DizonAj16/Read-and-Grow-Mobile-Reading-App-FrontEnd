@@ -1,0 +1,2 @@
+C:/deped_reading_app_refactor/android/app/.cxx/Debug/5t4y3z5x/arm64-v8a/CMakeFiles/edit_cache.dir
+C:/deped_reading_app_refactor/android/app/.cxx/Debug/5t4y3z5x/arm64-v8a/CMakeFiles/rebuild_cache.dir

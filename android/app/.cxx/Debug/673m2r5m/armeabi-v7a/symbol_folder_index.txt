@@ -1,0 +1,1 @@
+C:\deped_reading_app_laravel\build\app\intermediates\cxx\Debug\673m2r5m\obj\armeabi-v7a

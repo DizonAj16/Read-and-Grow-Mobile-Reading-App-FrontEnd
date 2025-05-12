@@ -1,0 +1,2 @@
+C:/deped_reading_app_firebase/android/app/.cxx/Debug/5xg3r6m7/x86/CMakeFiles/edit_cache.dir
+C:/deped_reading_app_firebase/android/app/.cxx/Debug/5xg3r6m7/x86/CMakeFiles/rebuild_cache.dir

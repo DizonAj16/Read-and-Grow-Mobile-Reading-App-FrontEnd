@@ -1,0 +1,2 @@
+C:/deped_reading_app/android/app/.cxx/Debug/2f4t5p5r/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/deped_reading_app/android/app/.cxx/Debug/2f4t5p5r/armeabi-v7a/CMakeFiles/rebuild_cache.dir

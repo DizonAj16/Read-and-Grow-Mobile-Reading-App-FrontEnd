@@ -1,0 +1,2 @@
+C:/deped_reading_app_laravel/android/app/.cxx/Debug/673m2r5m/x86/CMakeFiles/edit_cache.dir
+C:/deped_reading_app_laravel/android/app/.cxx/Debug/673m2r5m/x86/CMakeFiles/rebuild_cache.dir

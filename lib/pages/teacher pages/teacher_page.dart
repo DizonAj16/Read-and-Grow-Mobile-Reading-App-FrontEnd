@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../auth pages/login_page.dart';
 import 'pupil_submissions_and_report_page.dart';
 import 'teacher_dashboard_page.dart';
 import 'badges_list_page.dart';
@@ -15,16 +14,84 @@ class TeacherPage extends StatefulWidget {
 class _TeacherPageState extends State<TeacherPage> {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   String _currentTitle = "Teacher Dashboard";
-  String _currentRoute = '/dashboard'; // Track the current route
+  String _currentRoute = '/dashboard';
+
+  // Function to show a confirmation dialog for logout
+  void _showLogoutConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Column(
+              children: [
+                Icon(
+                  Icons.logout,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 50,
+                ),
+                SizedBox(height: 8),
+                Text(
+                  "Are you sure?",
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+            content: Text(
+              "You are about to log out. Make sure to save your work before leaving.",
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.black87),
+              textAlign: TextAlign.center,
+            ),
+            actionsAlignment: MainAxisAlignment.center,
+            actions: [
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () => Navigator.pop(context), // Close dialog
+                child: Text("Stay", style: TextStyle(color: Colors.white)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    '/login',
+                    (Route<dynamic> route) => false,
+                  ); // Navigate to login
+                },
+                child: Text("Log Out", style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+    );
+  }
 
   // Function to navigate to a specific route and update the title
   void _navigateTo(String route, String title) {
-    setState(() {
-      _currentTitle = title;
-      _currentRoute = route; // Update the current route
-    });
-    Navigator.pop(context); // Close the drawer
-    _navigatorKey.currentState?.pushReplacementNamed(route);
+    if (_currentRoute != route) {
+      setState(() {
+        _currentTitle = title;
+        _currentRoute = route; // Update the current route
+      });
+      Navigator.pop(context); // Close the drawer
+      _navigatorKey.currentState?.pushReplacementNamed(route);
+    }
   }
 
   @override
@@ -61,9 +128,6 @@ class _TeacherPageState extends State<TeacherPage> {
                     );
                   },
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    mainAxisAlignment:
-                        MainAxisAlignment.center, // Center content vertically
                     children: [
                       Hero(
                         tag: 'teacher-profile-image',
@@ -99,7 +163,6 @@ class _TeacherPageState extends State<TeacherPage> {
                 context,
               ).colorScheme.primary.withOpacity(0.1),
               shape: RoundedRectangleBorder(
-                // Add border radius to the selected tile
                 borderRadius: BorderRadius.horizontal(
                   right: Radius.circular(30),
                 ),
@@ -117,7 +180,6 @@ class _TeacherPageState extends State<TeacherPage> {
                 context,
               ).colorScheme.primary.withOpacity(0.1),
               shape: RoundedRectangleBorder(
-                // Add border radius to the selected tile
                 borderRadius: BorderRadius.horizontal(
                   right: Radius.circular(30),
                 ),
@@ -135,7 +197,6 @@ class _TeacherPageState extends State<TeacherPage> {
                 context,
               ).colorScheme.primary.withOpacity(0.1),
               shape: RoundedRectangleBorder(
-                // Add border radius to the selected tile
                 borderRadius: BorderRadius.horizontal(
                   right: Radius.circular(30),
                 ),
@@ -148,13 +209,10 @@ class _TeacherPageState extends State<TeacherPage> {
             ListTile(
               leading: Icon(Icons.logout_sharp),
               title: Text('Log out'),
-              onTap: () {
-                // Navigate to the login page
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginPage()),
-                );
-              }, // Close the drawer
+              onTap:
+                  () => _showLogoutConfirmation(
+                    context,
+                  ), // Show logout confirmation
             ),
           ],
         ),
@@ -170,7 +228,7 @@ class _TeacherPageState extends State<TeacherPage> {
               page = BadgesListPage();
               break;
             case '/submissions':
-              page = StudentSubmissionsPage(); // Add this page
+              page = StudentSubmissionsPage();
               break;
             case '/dashboard':
             default:

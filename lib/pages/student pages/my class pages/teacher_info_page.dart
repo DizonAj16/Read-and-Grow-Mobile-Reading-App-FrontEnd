@@ -16,7 +16,7 @@ class TeacherInfoPage extends StatelessWidget {
           SizedBox(height: 16),
           // Display teacher's name
           Text(
-            "Teacher Name",
+            "Teacher",
             style: Theme.of(context).textTheme.headlineMedium,
           ),
           SizedBox(height: 8),
@@ -24,6 +24,14 @@ class TeacherInfoPage extends StatelessWidget {
           Text(
             "Email: teacher@example.com",
             style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          SizedBox(height: 8),
+          // Display teacher's position
+          Text(
+            "Position: Senior Teacher",
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontStyle: FontStyle.italic,
+            ),
           ),
         ],
       ),

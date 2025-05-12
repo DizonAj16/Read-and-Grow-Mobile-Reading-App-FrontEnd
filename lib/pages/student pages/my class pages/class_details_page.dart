@@ -14,19 +14,18 @@ class ClassDetailsPage extends StatefulWidget {
 
 class _ClassDetailsPageState extends State<ClassDetailsPage> {
   int _currentIndex = 0;
-
-  // List of pages for the bottom navigation bar
-  final List<Widget> _pages = [
-    StudentListPage(),
-    TaskListPage(),
-    TeacherInfoPage(),
-  ];
+  final PageController _pageController = PageController();
 
   // Function to handle tab selection in the bottom navigation bar
   void _onTabTapped(int index) {
     setState(() {
       _currentIndex = index;
     });
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
 
   @override
@@ -38,7 +37,19 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
         backgroundColor: Theme.of(context).colorScheme.primary,
         iconTheme: IconThemeData(color: Colors.white),
       ),
-      body: _pages[_currentIndex], // Display the selected page
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        children: [
+          StudentListPage(),
+          TaskListPage(),
+          TeacherInfoPage(),
+        ],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onTabTapped, // Handle tab selection

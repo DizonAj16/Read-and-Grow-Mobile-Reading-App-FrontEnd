@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 
 class Activity2Page extends StatefulWidget {
   const Activity2Page({super.key});
@@ -71,8 +72,43 @@ class _Activity2PageState extends State<Activity2Page> {
   }
 }
 
-class CatAndRatPage extends StatelessWidget {
+class CatAndRatPage extends StatefulWidget {
   const CatAndRatPage({super.key});
+
+  @override
+  _CatAndRatPageState createState() => _CatAndRatPageState();
+}
+
+class _CatAndRatPageState extends State<CatAndRatPage> {
+  final String _storyText = "A cat sat. "
+      "He sat on a hat. "
+      "It was red. "
+      "The hat was on the mat. "
+      "That cat sat and sat. "
+      "He saw a rat. "
+      "That cat ran!";
+
+  final String _wordList = "cat, mat, hat, sat, rat, ran";
+
+  final FlutterTts _flutterTts = FlutterTts();
+
+  Future<void> _speakWordList() async {
+    await _flutterTts.setLanguage("en-US");
+    await _flutterTts.setSpeechRate(0.4); // Adjust speech rate for kids
+    await _flutterTts.speak(_wordList);
+  }
+
+  Future<void> _speakStory() async {
+    await _flutterTts.setLanguage("en-US");
+    await _flutterTts.setSpeechRate(0.3);
+    await _flutterTts.speak(_storyText);
+  }
+
+  @override
+  void dispose() {
+    _flutterTts.stop();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -97,15 +133,12 @@ class CatAndRatPage extends StatelessWidget {
             const SizedBox(height: 100),
             Row(
               children: [
-                Text(
-                  "A cat sat.\n"
-                  "He sat on a hat.\n"
-                  "It was red.\n"
-                  "The hat was on the mat.\n"
-                  "That cat sat and sat.\n"
-                  "He saw a rat.\n"
-                  "That cat ran!",
-                  style: TextStyle(fontSize: 20, color: Colors.black),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    _storyText,
+                    style: TextStyle(fontSize: 20, color: Colors.black),
+                  ),
                 ),
                 Expanded(
                   flex: 1,
@@ -130,7 +163,7 @@ class CatAndRatPage extends StatelessWidget {
           top: 50,
           right: 5,
           child: Container(
-            width: 150,
+            width: 170,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
@@ -165,6 +198,36 @@ class CatAndRatPage extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ),
+        // TTS button for word list at the top left
+        Positioned(
+          top: 60,
+          left: 140,
+          child: FloatingActionButton(
+            heroTag: "wordListButton", // Unique heroTag for this button
+            onPressed: _speakWordList,
+            child: Icon(Icons.volume_up, size: 30),
+            mini: true,
+          ),
+        ),
+        // Guide text above the text-to-speech button
+        Positioned(
+          bottom: 120,
+          right: 20,
+          child: Text(
+            "Tap this sound button to hear the story.",
+            style: TextStyle(fontSize: 16, color: Colors.black),
+          ),
+        ),
+        // Text-to-speech button
+        Positioned(
+          bottom: 50,
+          right: 20,
+          child: FloatingActionButton(
+            heroTag: "storyButton", // Unique heroTag for this button
+            onPressed: _speakStory,
+            child: Icon(Icons.volume_up, size: 30),
           ),
         ),
         Align(

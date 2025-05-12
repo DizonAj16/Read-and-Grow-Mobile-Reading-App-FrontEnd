@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
+import 'package:flutter_tts/flutter_tts.dart';
 
 class Activity1Page extends StatefulWidget {
   const Activity1Page({super.key});
@@ -80,56 +81,87 @@ class _Activity1PageState extends State<Activity1Page> {
 }
 
 // Widget for the "Ag Family" page
-class AgFamilyPage extends StatelessWidget {
+class AgFamilyPage extends StatefulWidget {
   const AgFamilyPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final agFamilyWords = [
-      'bag',
-      'jag',
-      'tag',
-      'nag',
-      'sag',
-      'dag',
-      'mag',
-      'rag',
-      'lag',
-      'wag',
-    ];
+  _AgFamilyPageState createState() => _AgFamilyPageState();
+}
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+class _AgFamilyPageState extends State<AgFamilyPage> {
+  final List<String> agFamilyWords = [
+    'bag',
+    'jag',
+    'tag',
+    'nag',
+    'sag',
+    'dag',
+    'mag',
+    'rag',
+    'lag',
+    'wag',
+  ];
+
+  final FlutterTts _flutterTts = FlutterTts();
+
+  Future<void> _speakWords() async {
+    await _flutterTts.setLanguage("en-US");
+    await _flutterTts.setSpeechRate(0.4); // Adjust speech rate for kids
+    await _flutterTts.speak(agFamilyWords.join(", "));
+  }
+
+  @override
+  void dispose() {
+    _flutterTts.stop();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
       children: [
-        // Display an image for the "Ag Family"
-        Container(
-          height: 150,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: Colors.grey[200],
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Center(
-            child: Image.asset(
-              "assets/activity_images/ag-family.png",
-              fit: BoxFit.cover,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Display an image for the "Ag Family"
+            Container(
+              height: 150,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Image.asset(
+                  "assets/activity_images/ag-family.png",
+                  fit: BoxFit.cover,
+                ),
+              ),
             ),
-          ),
+            const SizedBox(height: 20),
+            // Display a grid of words
+            Expanded(
+              child: GridView.builder(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 5.0,
+                  mainAxisSpacing: 5.0,
+                  childAspectRatio: 2.0,
+                ),
+                itemCount: agFamilyWords.length,
+                itemBuilder: (context, index) {
+                  return WordCard(word: agFamilyWords[index]);
+                },
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 20),
-        // Display a grid of words
-        Expanded(
-          child: GridView.builder(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 5.0,
-              mainAxisSpacing: 5.0,
-              childAspectRatio: 2.0,
-            ),
-            itemCount: agFamilyWords.length,
-            itemBuilder: (context, index) {
-              return WordCard(word: agFamilyWords[index]);
-            },
+        Positioned(
+          top: 0,
+          right: 10,
+          child: FloatingActionButton(
+            onPressed: _speakWords,
+            child: Icon(Icons.volume_up, size: 30),
           ),
         ),
       ],
@@ -462,44 +494,83 @@ class FillInTheBlanksPage extends StatelessWidget {
   }
 }
 
-class ReadingPage extends StatelessWidget {
+class ReadingPage extends StatefulWidget {
   const ReadingPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final List<String> sentences = [
-      "The bag is on the cab.",
-      "Gab is on the cab.",
-      "Gab's bag has a jam.",
-      "Gab's bag has a jam and a cam.",
-    ];
+  _ReadingPageState createState() => _ReadingPageState();
+}
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+class _ReadingPageState extends State<ReadingPage> {
+  final List<String> sentences = [
+    "The bag is on the cab.",
+    "Gab is on the cab.",
+    "Gab's bag has a jam.",
+    "Gab's bag has a jam and a cam.",
+  ];
+
+  final FlutterTts _flutterTts = FlutterTts();
+
+  Future<void> _speakSentences() async {
+    await _flutterTts.setLanguage("en-US");
+    await _flutterTts.setSpeechRate(0.3); // Reduced speech rate for kids
+    await _flutterTts.speak(sentences.join(" "));
+  }
+
+  @override
+  void dispose() {
+    _flutterTts.stop();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
       children: [
-        Text(
-          "Read the sentences below:",
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: Colors.deepPurple,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Read the sentences below:",
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.deepPurple,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: ListView.builder(
+                itemCount: sentences.length,
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: Text(
+                      sentences[index],
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+        Positioned(
+          bottom: 120,
+          right: 20,
+          child: Text(
+            "Tap this sound button to hear \n the sentences.",
+            style: TextStyle(fontSize: 16, color: Colors.black),
           ),
         ),
-        const SizedBox(height: 20),
-        Expanded(
-          child: ListView.builder(
-            itemCount: sentences.length,
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Text(
-                  sentences[index],
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              );
-            },
+        Positioned(
+          bottom: 50,
+          right: 20,
+          child: FloatingActionButton(
+            onPressed: _speakSentences,
+            child: Icon(Icons.volume_up, size: 30),
           ),
         ),
       ],

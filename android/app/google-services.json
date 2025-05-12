@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "195580050111",
+    "project_id": "deped-reading-app",
+    "storage_bucket": "deped-reading-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:195580050111:android:57667748dac1b3c80ba40a",
+        "android_client_info": {
+          "package_name": "com.example.deped_reading_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA5YLR3R0UQFwPkajTUnRcnu5P0K8WY8mg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

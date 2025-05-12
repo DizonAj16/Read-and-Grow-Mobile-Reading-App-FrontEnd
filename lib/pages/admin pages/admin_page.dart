@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'admin_dashboard_page.dart';
+import 'admin_profile_page.dart';
 
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
@@ -9,19 +10,25 @@ class AdminPage extends StatefulWidget {
 }
 
 class _AdminPageState extends State<AdminPage> {
+  final PageController _pageController = PageController();
   int _currentIndex = 0;
 
-  // List of pages for the bottom navigation bar
+  // List of pages for the PageView
   final List<Widget> _pages = [
     AdminDashboardPage(),
-    LogoutPage(),
+    AdminProfilePage(),
   ];
 
-  // Function to handle tab selection in the bottom navigation bar
+  // Function to handle page transitions
   void _onTabTapped(int index) {
     setState(() {
       _currentIndex = index;
     });
+    _pageController.animateToPage(
+      index,
+      duration: Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
 
   @override
@@ -30,61 +37,31 @@ class _AdminPageState extends State<AdminPage> {
       appBar: AppBar(
         // AppBar with dynamic title based on the selected tab
         title: Text(
-          _currentIndex == 0 ? "Admin Dashboard" : "Logout",
+          _currentIndex == 0 ? "Admin Dashboard" : "Admin Profile",
           style: TextStyle(color: Colors.white),
         ),
         backgroundColor: Theme.of(context).colorScheme.primary,
         iconTheme: IconThemeData(color: Colors.white),
       ),
-      body: _pages[_currentIndex], // Display the selected page
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        children: _pages,
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onTabTapped, // Handle tab selection
         items: [
           BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Dashboard"),
-          BottomNavigationBarItem(icon: Icon(Icons.logout), label: "Logout"),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
         ],
         selectedItemColor: Theme.of(context).colorScheme.primary,
         unselectedItemColor: Colors.grey,
         showUnselectedLabels: true,
-      ),
-    );
-  }
-}
-
-class LogoutPage extends StatelessWidget {
-  const LogoutPage({super.key});
-
-  // Function to show a confirmation dialog for logout
-  void _showLogoutConfirmation(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text("Confirm Logout"),
-        content: Text("Are you sure you want to log out?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context), // Close dialog
-            child: Text("Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context); // Close dialog
-              Navigator.of(context).pushReplacementNamed('/login'); // Navigate to login
-            },
-            child: Text("Logout"),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: ElevatedButton(
-        onPressed: () => _showLogoutConfirmation(context), // Show logout confirmation
-        child: Text("Logout"),
       ),
     );
   }
