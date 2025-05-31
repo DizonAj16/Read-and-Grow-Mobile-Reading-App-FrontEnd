@@ -10,16 +10,18 @@ class AdminPage extends StatefulWidget {
 }
 
 class _AdminPageState extends State<AdminPage> {
+  // Controls page navigation in PageView
   final PageController _pageController = PageController();
+  // Tracks the currently selected tab index
   int _currentIndex = 0;
 
-  // List of pages for the PageView
+  // Pages displayed in the PageView
   final List<Widget> _pages = [
     AdminDashboardPage(),
     AdminProfilePage(),
   ];
 
-  // Function to handle page transitions
+  // Handles tab selection and animates to the selected page
   void _onTabTapped(int index) {
     setState(() {
       _currentIndex = index;
@@ -35,7 +37,7 @@ class _AdminPageState extends State<AdminPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // AppBar with dynamic title based on the selected tab
+        // Displays title based on selected tab
         title: Text(
           _currentIndex == 0 ? "Admin Dashboard" : "Admin Profile",
           style: TextStyle(color: Colors.white),
@@ -45,6 +47,7 @@ class _AdminPageState extends State<AdminPage> {
       ),
       body: PageView(
         controller: _pageController,
+        // Updates current index when page is changed via swipe
         onPageChanged: (index) {
           setState(() {
             _currentIndex = index;
@@ -54,7 +57,7 @@ class _AdminPageState extends State<AdminPage> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: _onTabTapped, // Handle tab selection
+        onTap: _onTabTapped, // Triggers tab/page change
         items: [
           BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Dashboard"),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),

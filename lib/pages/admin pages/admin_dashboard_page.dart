@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class AdminDashboardPage extends StatelessWidget {
   const AdminDashboardPage({super.key});
 
-  // Function to show a dialog for creating a teacher account
+  // Shows a dialog for creating a new teacher account
   void _showCreateTeacherAccountDialog(BuildContext context) {
     final TextEditingController nameController = TextEditingController();
     final TextEditingController emailController = TextEditingController();
@@ -19,12 +19,14 @@ class AdminDashboardPage extends StatelessWidget {
           ),
           title: Column(
             children: [
+              // Icon at the top of the dialog
               Icon(
                 Icons.person_add,
                 color: Theme.of(context).colorScheme.primary,
                 size: 50,
               ),
               SizedBox(height: 8),
+              // Dialog title
               Text(
                 "Create Teacher Account",
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -33,6 +35,7 @@ class AdminDashboardPage extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
+              // Divider below the title
               Divider(thickness: 1, color: Colors.grey.shade300),
             ],
           ),
@@ -40,6 +43,7 @@ class AdminDashboardPage extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Full Name input field
                 TextField(
                   controller: nameController,
                   decoration: InputDecoration(
@@ -51,6 +55,7 @@ class AdminDashboardPage extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: 16),
+                // Email Address input field
                 TextField(
                   controller: emailController,
                   decoration: InputDecoration(
@@ -62,6 +67,7 @@ class AdminDashboardPage extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: 16),
+                // Password input field
                 TextField(
                   controller: passwordController,
                   obscureText: true,
@@ -74,6 +80,7 @@ class AdminDashboardPage extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: 16),
+                // Position input field
                 TextField(
                   controller: positionController,
                   decoration: InputDecoration(
@@ -89,12 +96,14 @@ class AdminDashboardPage extends StatelessWidget {
           ),
           actionsAlignment: MainAxisAlignment.center,
           actions: [
+            // Cancel button closes the dialog
             TextButton(
               onPressed: () {
-                Navigator.pop(context); // Close the dialog
+                Navigator.pop(context);
               },
               child: Text("Cancel", style: TextStyle(color: Colors.grey)),
             ),
+            // Create button validates input and shows a snackbar
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.primary,
@@ -103,17 +112,17 @@ class AdminDashboardPage extends StatelessWidget {
                 ),
               ),
               onPressed: () {
-                // Handle teacher account creation logic here
                 String name = nameController.text.trim();
                 String email = emailController.text.trim();
                 String password = passwordController.text.trim();
                 String position = positionController.text.trim();
 
+                // Check if all fields are filled
                 if (name.isNotEmpty &&
                     email.isNotEmpty &&
                     password.isNotEmpty &&
                     position.isNotEmpty) {
-                  // Perform account creation logic
+                  // TODO: Add teacher account creation logic here
                   Navigator.pop(context); // Close the dialog
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -121,7 +130,7 @@ class AdminDashboardPage extends StatelessWidget {
                     ),
                   );
                 } else {
-                  // Show error if fields are empty
+                  // Show error if any field is empty
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text("Please fill in all fields")),
                   );
@@ -144,25 +153,25 @@ class AdminDashboardPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SizedBox(height: 20),
-            // Button to view teacher list
+            // Button to view the list of teachers
             ElevatedButton(
               onPressed: () {
-                // Handle view teacher list logic
+                // TODO: Implement view teacher list logic
               },
               child: Text("View Teacher List"),
             ),
             SizedBox(height: 20),
-            // Button to view student list
+            // Button to view the list of students
             ElevatedButton(
               onPressed: () {
-                // Handle view student list logic
+                // TODO: Implement view student list logic
               },
               child: Text("View Student List"),
             ),
           ],
         ),
       ),
-      // Floating action button to create a teacher account
+      // Floating action button to open the create teacher dialog
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showCreateTeacherAccountDialog(context),
         backgroundColor: Theme.of(context).colorScheme.primary,

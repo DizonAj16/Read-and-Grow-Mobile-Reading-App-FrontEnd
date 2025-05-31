@@ -9,7 +9,7 @@ class TaskListPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Get tasks based on the student's level
+    // Get the list of tasks for the current student level
     List<Map<String, String>> tasks = _getTasksForLevel(studentLevel);
 
     return ListView.builder(
@@ -17,12 +17,14 @@ class TaskListPage extends StatelessWidget {
       itemCount: tasks.length,
       itemBuilder: (context, index) {
         final task = tasks[index];
+        // Display each task as a TaskCard with status and view action
         return TaskCard(
           title: task['title']!,
           status: task['status']!,
           statusColor:
               task['status'] == "Completed" ? Colors.green : Colors.orange,
           onViewTask: () {
+            // Navigate to ActivityController with slide transition
             Navigator.push(
               context,
               PageRouteBuilder(
@@ -58,7 +60,7 @@ class TaskListPage extends StatelessWidget {
     );
   }
 
-  // Function to get tasks based on the student's level
+  // Returns a list of tasks based on the student's level
   List<Map<String, String>> _getTasksForLevel(int level) {
     switch (level) {
       case 1:

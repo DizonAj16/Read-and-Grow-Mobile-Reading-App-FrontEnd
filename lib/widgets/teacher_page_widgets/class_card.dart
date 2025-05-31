@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// TeacherDashboardClassCard displays a class card with background image, class info, and actions.
 class TeacherDashboardClassCard extends StatelessWidget {
   final String className;
   final String section;
@@ -22,6 +23,7 @@ class TeacherDashboardClassCard extends StatelessWidget {
         decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
         child: Stack(
           children: [
+            // Background image for the class card
             Positioned.fill(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
@@ -31,6 +33,7 @@ class TeacherDashboardClassCard extends StatelessWidget {
                 ),
               ),
             ),
+            // Gradient overlay for better text visibility
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
@@ -46,11 +49,13 @@ class TeacherDashboardClassCard extends StatelessWidget {
                 ),
               ),
             ),
+            // Class details and teacher info
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Class name
                   Text(
                     className,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -58,6 +63,7 @@ class TeacherDashboardClassCard extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                         ),
                   ),
+                  // Section name
                   Text(
                     section,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -66,6 +72,7 @@ class TeacherDashboardClassCard extends StatelessWidget {
                         ),
                   ),
                   Spacer(),
+                  // Student count and teacher name
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -93,6 +100,7 @@ class TeacherDashboardClassCard extends StatelessWidget {
                 ],
               ),
             ),
+            // Popup menu for class actions (view, edit, delete)
             Positioned(
               top: 8,
               right: 8,

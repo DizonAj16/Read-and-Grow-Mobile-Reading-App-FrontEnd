@@ -16,7 +16,7 @@ class _TeacherPageState extends State<TeacherPage> {
   String _currentTitle = "Teacher Dashboard";
   String _currentRoute = '/dashboard';
 
-  // Function to show a confirmation dialog for logout
+  // Shows a confirmation dialog for logout
   void _showLogoutConfirmation(BuildContext context) {
     showDialog(
       context: context,
@@ -27,6 +27,7 @@ class _TeacherPageState extends State<TeacherPage> {
             ),
             title: Column(
               children: [
+                // Logout icon and title
                 Icon(
                   Icons.logout,
                   color: Theme.of(context).colorScheme.primary,
@@ -43,6 +44,7 @@ class _TeacherPageState extends State<TeacherPage> {
                 ),
               ],
             ),
+            // Dialog message
             content: Text(
               "You are about to log out. Make sure to save your work before leaving.",
               style: Theme.of(
@@ -52,6 +54,7 @@ class _TeacherPageState extends State<TeacherPage> {
             ),
             actionsAlignment: MainAxisAlignment.center,
             actions: [
+              // Stay button
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
@@ -62,6 +65,7 @@ class _TeacherPageState extends State<TeacherPage> {
                 onPressed: () => Navigator.pop(context), // Close dialog
                 child: Text("Stay", style: TextStyle(color: Colors.white)),
               ),
+              // Log out button
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.error,
@@ -82,7 +86,7 @@ class _TeacherPageState extends State<TeacherPage> {
     );
   }
 
-  // Function to navigate to a specific route and update the title
+  // Navigates to a specific route and updates the title
   void _navigateTo(String route, String title) {
     if (_currentRoute != route) {
       setState(() {
@@ -112,13 +116,13 @@ class _TeacherPageState extends State<TeacherPage> {
           padding: EdgeInsets.zero,
           children: [
             SizedBox(
-              height: 250, // Adjust the height of the DrawerHeader
+              height: 250, // DrawerHeader height
               child: DrawerHeader(
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 child: GestureDetector(
-                  // Navigate to the teacher profile page
+                  // Navigate to the teacher profile page on tap
                   onTap: () {
                     Navigator.push(
                       context,
@@ -129,6 +133,7 @@ class _TeacherPageState extends State<TeacherPage> {
                   },
                   child: Column(
                     children: [
+                      // Teacher profile avatar with Hero animation
                       Hero(
                         tag: 'teacher-profile-image',
                         child: CircleAvatar(
@@ -145,6 +150,7 @@ class _TeacherPageState extends State<TeacherPage> {
                         ),
                       ),
                       SizedBox(height: 10),
+                      // Teacher name label
                       Text(
                         'Teacher',
                         style: TextStyle(color: Colors.white, fontSize: 24),
@@ -154,7 +160,7 @@ class _TeacherPageState extends State<TeacherPage> {
                 ),
               ),
             ),
-            // Navigation options in the drawer
+            // Dashboard navigation option
             ListTile(
               leading: Icon(Icons.home),
               title: Text('Dashboard'),
@@ -172,6 +178,7 @@ class _TeacherPageState extends State<TeacherPage> {
               ), // Adjust padding for selected
               onTap: () => _navigateTo('/dashboard', 'Teacher Dashboard'),
             ),
+            // Badges list navigation option
             ListTile(
               leading: Icon(Icons.task_rounded),
               title: Text('Badges List'),
@@ -189,6 +196,7 @@ class _TeacherPageState extends State<TeacherPage> {
               ), // Adjust padding for selected
               onTap: () => _navigateTo('/badges', 'Badges List'),
             ),
+            // Pupil submissions/reports navigation option
             ListTile(
               leading: Icon(Icons.assignment),
               title: Text('Pupil Submissions/Reports'),
@@ -206,6 +214,7 @@ class _TeacherPageState extends State<TeacherPage> {
               ), // Adjust padding for selected
               onTap: () => _navigateTo('/submissions', 'Student Submissions'),
             ),
+            // Log out option
             ListTile(
               leading: Icon(Icons.logout_sharp),
               title: Text('Log out'),
@@ -218,7 +227,7 @@ class _TeacherPageState extends State<TeacherPage> {
         ),
       ),
       body: Navigator(
-        // Navigator to handle page transitions
+        // Nested navigator to handle page transitions within teacher section
         key: _navigatorKey,
         initialRoute: '/dashboard',
         onGenerateRoute: (RouteSettings settings) {

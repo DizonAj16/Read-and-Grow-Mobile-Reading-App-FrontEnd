@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// TeacherDashboardHorizontalCard displays a statistic in a horizontal card format for teachers.
 class TeacherDashboardHorizontalCard extends StatelessWidget {
   final String title;
   final String value;
@@ -33,8 +34,10 @@ class TeacherDashboardHorizontalCard extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            // Statistic icon
             Icon(icon, size: 40, color: Colors.white),
             SizedBox(height: 10),
+            // Statistic title
             Text(
               title,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -43,6 +46,7 @@ class TeacherDashboardHorizontalCard extends StatelessWidget {
                   ),
             ),
             SizedBox(height: 5),
+            // Statistic value
             Text(
               value,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: Colors.white),

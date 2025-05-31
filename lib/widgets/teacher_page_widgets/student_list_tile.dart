@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 
+// TeacherDashboardStudentListTile displays a student in the teacher dashboard list with avatar, name, section, and level.
 class TeacherDashboardStudentListTile extends StatelessWidget {
   final String name;
   final String section;
@@ -15,6 +16,7 @@ class TeacherDashboardStudentListTile extends StatelessWidget {
     required this.avatarLetter,
   }) : super(key: key);
 
+  // Generates a random color for the avatar background
   Color _getRandomColor() {
     final colors = [
       Colors.red,
@@ -39,6 +41,7 @@ class TeacherDashboardStudentListTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Row(
             children: [
+              // Student avatar with random color
               CircleAvatar(
                 backgroundColor: _getRandomColor(),
                 child: Text(
@@ -47,6 +50,7 @@ class TeacherDashboardStudentListTile extends StatelessWidget {
                 ),
               ),
               SizedBox(width: 16),
+              // Student name, section, and level
               Expanded(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -67,6 +71,7 @@ class TeacherDashboardStudentListTile extends StatelessWidget {
                   ],
                 ),
               ),
+              // More actions button (placeholder)
               IconButton(
                 icon: Icon(
                   Icons.more_horiz,

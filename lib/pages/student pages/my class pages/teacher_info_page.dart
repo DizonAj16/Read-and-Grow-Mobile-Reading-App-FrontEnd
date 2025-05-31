@@ -7,14 +7,14 @@ class TeacherInfoPage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Display teacher's profile picture
+          // Teacher's profile avatar
           CircleAvatar(
             radius: 50,
             backgroundColor: Theme.of(context).colorScheme.primary,
             child: Icon(Icons.person, size: 50, color: Colors.white),
           ),
           SizedBox(height: 16),
-          // Display teacher's name
+          // Teacher's display name
           Text(
             "Teacher",
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -22,13 +22,13 @@ class TeacherInfoPage extends StatelessWidget {
             ),
           ),
           SizedBox(height: 8),
-          // Display teacher's email
+          // Teacher's email address
           Text(
             "Email: teacher@example.com",
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           SizedBox(height: 8),
-          // Display teacher's position
+          // Teacher's position/title
           Text(
             "Position: Senior Teacher",
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(

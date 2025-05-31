@@ -27,6 +27,7 @@ class _BadgesListPageState extends State<BadgesListPage> {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
+      // Grid of badge cards
       child: GridView.builder(
         itemCount: _badges.length,
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -39,6 +40,7 @@ class _BadgesListPageState extends State<BadgesListPage> {
           final badge = _badges[index];
           final isSelected = _selectedBadge == badge["name"];
           return GestureDetector(
+            // On tap, navigate to badge detail page with fade transition
             onTap: () {
               Navigator.of(context).push(
                 PageRouteBuilder(
@@ -55,6 +57,7 @@ class _BadgesListPageState extends State<BadgesListPage> {
                 ),
               );
             },
+            // Hero animation for badge card
             child: Hero(
               tag: badge["name"],
               child: Card(
@@ -74,6 +77,7 @@ class _BadgesListPageState extends State<BadgesListPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    // Badge icon in a colored circle
                     CircleAvatar(
                       backgroundColor: badge["color"].withOpacity(0.7),
                       radius: 32,
@@ -84,6 +88,7 @@ class _BadgesListPageState extends State<BadgesListPage> {
                       ),
                     ),
                     const SizedBox(height: 12),
+                    // Badge name
                     Text(
                       badge["name"],
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -91,6 +96,7 @@ class _BadgesListPageState extends State<BadgesListPage> {
                             fontWeight: FontWeight.bold,
                           ),
                     ),
+                    // Check icon if selected
                     if (isSelected)
                       Padding(
                         padding: const EdgeInsets.only(top: 8.0),

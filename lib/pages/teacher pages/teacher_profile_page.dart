@@ -51,17 +51,19 @@ class TeacherProfilePage extends StatelessWidget {
                   ),
             ),
             SizedBox(height: 30),
-            // Contact information
+            // Contact information: email
             ListTile(
               leading: Icon(Icons.email, color: Theme.of(context).colorScheme.primary),
               title: Text("johndoe@example.com"),
             ),
             Divider(),
+            // Contact information: phone
             ListTile(
               leading: Icon(Icons.phone, color: Theme.of(context).colorScheme.primary),
               title: Text("+1 234 567 890"),
             ),
             Divider(),
+            // School information
             ListTile(
               leading: Icon(Icons.school, color: Theme.of(context).colorScheme.primary),
               title: Text("Elementary School"),

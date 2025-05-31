@@ -8,21 +8,25 @@ class ChooseRolePage extends StatelessWidget {
   final bool showLogin;
   const ChooseRolePage({super.key, this.showLogin = true});
 
+  // Returns a list of role options based on login/signup mode
   List<Map<String, dynamic>> _roleOptions(BuildContext context) {
     if (showLogin) {
       return [
+        // Student login option
         _roleOption(
           icon: Icons.school_outlined,
           label: 'Student',
           color: Colors.blue,
           onTap: () => Navigator.of(context).push(_slideRoute(LoginPage())),
         ),
+        // Teacher login option
         _roleOption(
           icon: Icons.person_2_outlined,
           label: 'Teacher',
           color: Colors.orange,
           onTap: () => Navigator.of(context).push(_slideRoute(LoginPage())),
         ),
+        // Admin login option
         _roleOption(
           icon: Icons.admin_panel_settings_outlined,
           label: 'Admin',
@@ -32,12 +36,14 @@ class ChooseRolePage extends StatelessWidget {
       ];
     } else {
       return [
+        // Student sign up option
         _roleOption(
           icon: Icons.school_outlined,
           label: 'Student',
           color: Colors.blue,
           onTap: () => Navigator.of(context).push(_slideRoute(SignUpPage())),
         ),
+        // Teacher sign up option
         _roleOption(
           icon: Icons.person_2_outlined,
           label: 'Teacher',
@@ -48,6 +54,7 @@ class ChooseRolePage extends StatelessWidget {
     }
   }
 
+  // Creates a slide transition route for navigation
   static Route _slideRoute(Widget page) {
     return PageRouteBuilder(
       pageBuilder: (context, animation, secondaryAnimation) => page,
@@ -64,6 +71,7 @@ class ChooseRolePage extends StatelessWidget {
     );
   }
 
+  // Helper to create a role option map
   static Map<String, dynamic> _roleOption({
     required IconData icon,
     required String label,
@@ -91,6 +99,7 @@ class ChooseRolePage extends StatelessWidget {
       body: Container(
         width: double.infinity,
         decoration: BoxDecoration(
+          // Gradient background for the whole page
           gradient: LinearGradient(
             colors: [
               Theme.of(context).colorScheme.primary,
@@ -103,6 +112,7 @@ class ChooseRolePage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            // Page title changes based on login/signup mode
             Text(
               showLogin ? "Login as" : "Sign Up as",
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -110,6 +120,7 @@ class ChooseRolePage extends StatelessWidget {
                   ),
             ),
             const SizedBox(height: 30),
+            // List of role selection cards
             ...options.map(
               (option) => Padding(
                 padding: const EdgeInsets.only(bottom: 24.0),

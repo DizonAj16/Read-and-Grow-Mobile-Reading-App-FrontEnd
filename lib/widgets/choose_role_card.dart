@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// ChooseRoleCard displays a selectable card for choosing a user role (student, teacher, admin)
 class ChooseRoleCard extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -21,7 +22,7 @@ class ChooseRoleCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
+        onTap: onTap, // Handles tap to select role
         child: Container(
           width: 260,
           padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
@@ -32,8 +33,10 @@ class ChooseRoleCard extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              // Role icon
               Icon(icon, color: color, size: 36),
               const SizedBox(width: 18),
+              // Role label
               Text(
                 label,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(

@@ -12,7 +12,7 @@ class MyClassPage extends StatelessWidget {
         child: Column(
           children: [
             SizedBox(height: 16),
-            // Title for the page
+            // Page title
             Text(
               "My Class",
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -21,7 +21,7 @@ class MyClassPage extends StatelessWidget {
               ),
             ),
             SizedBox(height: 16),
-            // Display a class card
+            // Single class card display
             ClassCard(
               className: "English 1",
               sectionName: "Grade 1 - Section A",
@@ -35,7 +35,7 @@ class MyClassPage extends StatelessWidget {
   }
 }
 
-// Widget to display a class card
+// Widget for displaying a class card with details and actions
 class ClassCard extends StatelessWidget {
   final String className;
   final String sectionName;
@@ -60,7 +60,7 @@ class ClassCard extends StatelessWidget {
         decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
         child: Stack(
           children: [
-            // Background image for the card with Hero
+            // Background image with Hero animation for transitions
             Hero(
               tag: 'class-bg-$className',
               child: ClipRRect(
@@ -73,7 +73,7 @@ class ClassCard extends StatelessWidget {
                 ),
               ),
             ),
-            // Gradient overlay for the card
+            // Gradient overlay for better text visibility
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
@@ -89,7 +89,7 @@ class ClassCard extends StatelessWidget {
                 ),
               ),
             ),
-            // Popup menu for class actions
+            // Popup menu for class actions (e.g., view details)
             Positioned(
               top: 8,
               right: 8,
@@ -130,12 +130,13 @@ class ClassCard extends StatelessWidget {
                 icon: Icon(Icons.more_vert, color: Colors.white),
               ),
             ),
-            // Class details
+            // Class details: name, section, teacher
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [ 
+                  // Class name with Hero animation
                   Hero(
                     tag: 'class-title-$className',
                     child: Material(
@@ -149,6 +150,7 @@ class ClassCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  // Section name
                   Text(
                     sectionName,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -157,6 +159,7 @@ class ClassCard extends StatelessWidget {
                         ),
                   ),
                   Spacer(),
+                  // Teacher info row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [

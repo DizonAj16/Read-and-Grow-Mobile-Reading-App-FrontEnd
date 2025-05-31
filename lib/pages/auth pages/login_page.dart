@@ -11,9 +11,11 @@ import 'sign_up_page.dart';
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
 
+  // Builds the header with avatar and title
   Widget _buildHeader(BuildContext context) => Column(
         children: [
           const SizedBox(height: 50),
+          // User avatar icon
           CircleAvatar(
             radius: 80,
             backgroundColor: Theme.of(context).colorScheme.onPrimary,
@@ -24,6 +26,7 @@ class LoginPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 5),
+          // Page title
           Text(
             "Login",
             style: Theme.of(context).textTheme.headlineMedium
@@ -34,6 +37,7 @@ class LoginPage extends StatelessWidget {
         ],
       );
 
+  // Builds the login form with email, password, and actions
   Widget _buildLoginForm(BuildContext context) => Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
@@ -46,10 +50,13 @@ class LoginPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: 20),
+            // Email input field
             EmailTextField(labelText: "Email"),
             const SizedBox(height: 20),
+            // Password input field
             PasswordTextField(labelText: "Password"),
             const SizedBox(height: 10),
+            // Forgot password link
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
@@ -61,6 +68,7 @@ class LoginPage extends StatelessWidget {
                 ),
               ),
             ),
+            // Login button navigates to StudentPage
             LoginButton(
               text: "Login",
               onPressed: () {
@@ -74,6 +82,7 @@ class LoginPage extends StatelessWidget {
               },
             ),
             const SizedBox(height: 10),
+            // Sign up prompt and button
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -99,8 +108,10 @@ class LoginPage extends StatelessWidget {
         ),
       );
 
+  // Builds the background with image and gradient overlay
   Widget _buildBackground(BuildContext context) => Stack(
         children: [
+          // Background image with color filter
           ColorFiltered(
             colorFilter: ColorFilter.mode(
               Theme.of(context).colorScheme.primary.withOpacity(0.7),
@@ -116,6 +127,7 @@ class LoginPage extends StatelessWidget {
               ),
             ),
           ),
+          // Gradient overlay
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -138,12 +150,15 @@ class LoginPage extends StatelessWidget {
         backgroundColor: Theme.of(context).colorScheme.primary,
         iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
         actions: [
+          // Theme toggle button in the app bar
           ThemeToggleButton(iconColor: Theme.of(context).colorScheme.onPrimary),
         ],
       ),
       body: Stack(
         children: [
+          // Page background
           _buildBackground(context),
+          // Scrollable content with header and login form
           SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(
@@ -153,6 +168,7 @@ class LoginPage extends StatelessWidget {
                 child: Column(
                   children: [
                     _buildHeader(context),
+                    // Expands login form to fill remaining space
                     Expanded(child: _buildLoginForm(context)),
                   ],
                 ),

@@ -11,26 +11,26 @@ class StudentPage extends StatefulWidget {
 }
 
 class _StudentPageState extends State<StudentPage> {
-  int _currentIndex = 0; // Track the current index of the bottom navigation bar
+  int _currentIndex = 0; // Tracks selected tab index
   final PageController _pageController =
-      PageController(); // PageController for smooth transitions
+      PageController(); // Controls page transitions
 
-  // List of pages for the bottom navigation bar
+  // List of main pages for navigation
   final List<Widget> _pages = [StudentDashboardPage(), MyClassPage()];
 
-  // Function to handle tab selection in the bottom navigation bar
+  // Handles tab selection and animates to the selected page
   void _onTabTapped(int index) {
     setState(() {
       _currentIndex = index;
     });
     _pageController.animateToPage(
       index,
-      duration: Duration(milliseconds: 300), // Smooth transition duration
-      curve: Curves.easeInOut, // Smooth transition curve
+      duration: Duration(milliseconds: 300), // Animation duration
+      curve: Curves.easeInOut, // Animation curve
     );
   }
 
-  // Method to show the logout confirmation dialog
+  // Shows logout confirmation dialog
   void _showLogoutDialog() {
     showDialog(
       context: context,
@@ -42,16 +42,16 @@ class _StudentPageState extends State<StudentPage> {
               builder: (context) => LandingPage(),
             ),
             (Route<dynamic> route) => false,
-          ); // Navigate to login
+          ); // Navigate to landing page
         },
       ),
     );
   }
 
-  // Method to build the AppBar widget
+  // Builds the AppBar with dynamic title and actions
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      // AppBar with dynamic title based on the selected tab
+      // Title changes based on selected tab
       title: Text(
         _currentIndex == 0 ? "Student Dashboard" : "Tasks/Activities",
         style: TextStyle(color: Colors.white),
@@ -59,8 +59,9 @@ class _StudentPageState extends State<StudentPage> {
       backgroundColor: Theme.of(context).colorScheme.primary,
       iconTheme: IconThemeData(color: Colors.white),
       actions: [
-        // Profile and logout menu
+        // Profile popup menu with logout option
         _ProfilePopupMenu(onLogout: _showLogoutDialog),
+        // Placeholder for additional actions
         IconButton(onPressed: () {}, icon: Icon(Icons.more_vert)),
       ],
     );
@@ -72,6 +73,7 @@ class _StudentPageState extends State<StudentPage> {
       appBar: _buildAppBar(),
       body: PageView(
         controller: _pageController,
+        // Updates current index when page is changed via swipe
         onPageChanged: (index) {
           setState(() {
             _currentIndex = index;
@@ -79,6 +81,7 @@ class _StudentPageState extends State<StudentPage> {
         },
         children: _pages,
       ),
+      // Bottom navigation bar for switching between pages
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onTabTapped, // Handle tab selection
@@ -94,7 +97,7 @@ class _StudentPageState extends State<StudentPage> {
   }
 }
 
-// Modularized PopupMenu for profile and logout
+// Popup menu for profile and logout actions
 class _ProfilePopupMenu extends StatelessWidget {
   final VoidCallback onLogout;
   const _ProfilePopupMenu({required this.onLogout});
@@ -102,6 +105,7 @@ class _ProfilePopupMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<String>(
+      // Profile avatar as menu icon
       icon: CircleAvatar(
         radius: 20,
         backgroundColor: const Color.fromARGB(255, 191, 8, 8),
@@ -114,6 +118,7 @@ class _ProfilePopupMenu extends StatelessWidget {
         }
       },
       itemBuilder: (BuildContext context) => [
+        // Profile info section in popup
         PopupMenuItem(
           value: 'profile',
           child: SizedBox(
@@ -158,6 +163,7 @@ class _ProfilePopupMenu extends StatelessWidget {
             ),
           ),
         ),
+        // Logout option in popup
         PopupMenuItem(
           value: 'logout',
           child: Row(
@@ -183,7 +189,7 @@ class _ProfilePopupMenu extends StatelessWidget {
   }
 }
 
-// Modularized Logout Dialog
+// Dialog for logout confirmation
 class _LogoutDialog extends StatelessWidget {
   final VoidCallback onStay;
   final VoidCallback onLogout;
@@ -195,12 +201,14 @@ class _LogoutDialog extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Column(
         children: [
+          // Logout icon at top of dialog
           Icon(
             Icons.logout,
             color: Theme.of(context).colorScheme.primary,
             size: 50,
           ),
           SizedBox(height: 8),
+          // Dialog title
           Text(
             "Are you leaving?",
             style: Theme.of(context)
@@ -211,6 +219,7 @@ class _LogoutDialog extends StatelessWidget {
           ),
         ],
       ),
+      // Dialog message
       content: Text(
         "We hope to see you again soon! Are you sure you want to log out?",
         style: Theme.of(context)
@@ -221,6 +230,7 @@ class _LogoutDialog extends StatelessWidget {
       ),
       actionsAlignment: MainAxisAlignment.center,
       actions: [
+        // Stay button closes dialog
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.green,
@@ -231,6 +241,7 @@ class _LogoutDialog extends StatelessWidget {
           onPressed: onStay,
           child: Text("Stay", style: TextStyle(color: Colors.white)),
         ),
+        // Logout button triggers logout callback
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: Theme.of(context).colorScheme.error,

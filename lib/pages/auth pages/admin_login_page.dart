@@ -7,9 +7,11 @@ import '../admin pages/admin_page.dart';
 class AdminLoginPage extends StatelessWidget {
   const AdminLoginPage({super.key});
 
+  // Builds the header section with avatar and title
   Widget _buildHeader(BuildContext context) => Column(
         children: [
           const SizedBox(height: 50),
+          // Admin avatar icon
           CircleAvatar(
             radius: 80,
             backgroundColor: Colors.white,
@@ -20,6 +22,7 @@ class AdminLoginPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 5),
+          // Page title
           Text(
             "Admin Login",
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -31,6 +34,7 @@ class AdminLoginPage extends StatelessWidget {
         ],
       );
 
+  // Builds the login form with password field and login button
   Widget _buildLoginForm(BuildContext context) => Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
@@ -43,8 +47,10 @@ class AdminLoginPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: 20),
+            // Password input field
             PasswordTextField(labelText: "Password"),
             const SizedBox(height: 20),
+            // Login button navigates to AdminPage
             LoginButton(
               text: "Login",
               onPressed: () {
@@ -61,6 +67,7 @@ class AdminLoginPage extends StatelessWidget {
         ),
       );
 
+  // Builds the gradient background for the page
   Widget _buildBackground(BuildContext context) => Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -81,12 +88,15 @@ class AdminLoginPage extends StatelessWidget {
         backgroundColor: Theme.of(context).colorScheme.primary,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
+          // Theme toggle button in the app bar
           ThemeToggleButton(iconColor: Colors.white),
         ],
       ),
       body: Stack(
         children: [
+          // Gradient background
           _buildBackground(context),
+          // Scrollable content with header and login form
           SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(
@@ -96,6 +106,7 @@ class AdminLoginPage extends StatelessWidget {
                 child: Column(
                   children: [
                     _buildHeader(context),
+                    // Expands login form to fill remaining space
                     Expanded(child: _buildLoginForm(context)),
                   ],
                 ),

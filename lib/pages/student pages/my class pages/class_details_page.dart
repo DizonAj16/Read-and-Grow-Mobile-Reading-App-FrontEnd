@@ -16,7 +16,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
   int _currentIndex = 0;
   final PageController _pageController = PageController();
 
-  // Function to handle tab selection in the bottom navigation bar
+  // Handles tab selection and animates to the selected page
   void _onTabTapped(int index) {
     setState(() {
       _currentIndex = index;
@@ -32,6 +32,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: NestedScrollView(
+        // Builds the sliver app bar with class title and background
         headerSliverBuilder: (context, innerBoxIsScrolled) => [
           SliverAppBar(
             expandedHeight: 180,
@@ -40,6 +41,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
             iconTheme: IconThemeData(color: Colors.white),
             flexibleSpace: FlexibleSpaceBar(
               centerTitle: true,
+              // Animated class title using Hero
               title: Hero(
                 tag: 'class-title-${widget.className}',
                 child: Material(
@@ -59,6 +61,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
                   ),
                 ),
               ),
+              // Background image with gradient overlay
               background: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -94,10 +97,11 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
             ),
           ),
         ],
+        // PageView for switching between tasks, students, and teacher info
         body: PageView(
           controller: _pageController,
           onPageChanged: (index) {
-            // Only call setState if the index is different to avoid scheduling builds during layout/paint
+            // Only update state if index changes to avoid unnecessary builds
             if (_currentIndex != index) {
               setState(() {
                 _currentIndex = index;
@@ -105,12 +109,13 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
             }
           },
           children: [
-            TaskListPage(),
-            StudentListPage(),
-            TeacherInfoPage(),
+            TaskListPage(),      // Tasks tab
+            StudentListPage(),   // Students tab
+            TeacherInfoPage(),   // Teacher info tab
           ],
         ),
       ),
+      // Bottom navigation bar for tab switching
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onTabTapped, // Handle tab selection

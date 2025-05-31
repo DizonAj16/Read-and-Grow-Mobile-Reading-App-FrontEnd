@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// StudentDashboardHorizontalCard displays a statistic in a horizontal card format.
 class StudentDashboardHorizontalCard extends StatelessWidget {
   final String title;
   final String value;
@@ -7,45 +8,43 @@ class StudentDashboardHorizontalCard extends StatelessWidget {
   final IconData icon;
 
   const StudentDashboardHorizontalCard({
-    Key? key,
+    super.key,
     required this.title,
     required this.value,
     required this.gradientColors,
     required this.icon,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Container(
-        width: 180,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: gradientColors,
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        padding: const EdgeInsets.all(10.0),
+    return Container(
+      width: 160,
+      margin: const EdgeInsets.only(right: 8),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: gradientColors),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(icon, size: 40, color: Colors.white),
-            SizedBox(height: 10),
+            Icon(icon, color: Colors.white, size: 40),
+            const SizedBox(height: 16),
+            Text(
+              value,
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 8),
             Text(
               title,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            SizedBox(height: 5),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: Colors.white),
+                    color: Colors.white70,
+                  ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),

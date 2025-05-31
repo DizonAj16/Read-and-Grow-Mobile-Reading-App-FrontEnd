@@ -7,6 +7,7 @@ class StudentListPage extends StatefulWidget {
 }
 
 class _StudentListPageState extends State<StudentListPage> {
+  // Generate a list of random students for demo purposes
   final List<Map<String, dynamic>> _students = List.generate(20, (index) {
     // Generate random student data
     final random = Random();
@@ -64,7 +65,7 @@ class _StudentListPageState extends State<StudentListPage> {
 
     return Column(
       children: [
-        // Display total number of students
+        // Display total number of students at the top
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: Text(
@@ -74,7 +75,7 @@ class _StudentListPageState extends State<StudentListPage> {
             ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
         ),
-        // PageView to display students in a paginated manner
+        // PageView for paginated student grid
         Expanded(
           child: PageView.builder(
             controller: _pageController,
@@ -91,6 +92,7 @@ class _StudentListPageState extends State<StudentListPage> {
                       .take(_studentsPerPage)
                       .toList();
 
+              // Grid of student cards for the current page
               return GridView.builder(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16.0,
@@ -116,7 +118,7 @@ class _StudentListPageState extends State<StudentListPage> {
             },
           ),
         ),
-        // Pagination indicators
+        // Pagination indicators (dots) for page navigation
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 8.0),
           child: Row(
@@ -150,7 +152,7 @@ class _StudentListPageState extends State<StudentListPage> {
     );
   }
 
-  // Function to build a student card
+  // Builds a card widget for each student with avatar, name, and actions
   Widget _buildStudentCard(
     BuildContext context, {
     required String name,
@@ -162,6 +164,7 @@ class _StudentListPageState extends State<StudentListPage> {
       elevation: 2,
       child: Stack(
         children: [
+          // Student avatar and name
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Center(
@@ -189,7 +192,7 @@ class _StudentListPageState extends State<StudentListPage> {
               ),
             ),
           ),
-          // Popup menu for student actions
+          // Popup menu for student actions (e.g., view profile)
           Positioned(
             top: 8,
             right: 8,
@@ -218,13 +221,13 @@ class _StudentListPageState extends State<StudentListPage> {
                                 ),
                                 SizedBox(height: 16),
                                 Text(
-                                  name, // Ensure the name is passed here
+                                  name, // Student name in dialog
                                   style: Theme.of(context).textTheme.headlineSmall
                                       ?.copyWith(fontWeight: FontWeight.bold),
                                 ),
                                 SizedBox(height: 8),
                                 Text(
-                                  "Current Level: 1", // Replace with dynamic level if available
+                                  "Current Level: 1", // Placeholder for student level
                                   style: Theme.of(context).textTheme.bodyMedium,
                                   textAlign: TextAlign.center,
                                 ),

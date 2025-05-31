@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+// EmailTextField is a reusable widget for email input with icon and styling
 class EmailTextField extends StatelessWidget {
   final String labelText;
   final IconData? prefixIcon;
 
+  // Accepts label text and optional icon (defaults to email icon)
   const EmailTextField({
     super.key,
     required this.labelText,
@@ -13,11 +15,13 @@ class EmailTextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TextField(
+      // Input decoration for consistent look and feel
       decoration: InputDecoration(
         labelText: labelText,
         labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface),
         filled: true,
         fillColor: const Color.fromARGB(52, 158, 158, 158),
+        // Icon at the start of the field
         prefixIcon: Icon(prefixIcon, color: Theme.of(context).colorScheme.onSurface),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(12)),

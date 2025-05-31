@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// PasswordTextField is a reusable widget for password input with show/hide toggle
 class PasswordTextField extends StatefulWidget {
   final String labelText;
 
@@ -13,29 +14,33 @@ class PasswordTextField extends StatefulWidget {
 }
 
 class _PasswordTextFieldState extends State<PasswordTextField> {
+  // Tracks whether the password is obscured (hidden)
   late bool _isObscured;
 
   @override
   void initState() {
     super.initState();
-    _isObscured = true;
+    _isObscured = true; // Password is hidden by default
   }
 
   @override
   Widget build(BuildContext context) {
     return TextField(
-      obscureText: _isObscured,
+      obscureText: _isObscured, // Controls text visibility
       decoration: InputDecoration(
         labelText: widget.labelText,
         labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface),
         filled: true,
         fillColor: const Color.fromARGB(52, 158, 158, 158),
+        // Lock icon at the start
         prefixIcon: Icon(Icons.lock, color: Theme.of(context).colorScheme.onSurface),
+        // Eye icon to toggle password visibility
         suffixIcon: IconButton(
           icon: Icon(
             _isObscured ? Icons.visibility_off : Icons.visibility,
             color: Theme.of(context).colorScheme.onSurface,
           ),
+          // Toggle password visibility on press
           onPressed: () {
             setState(() {
               _isObscured = !_isObscured;

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class AdminProfilePage extends StatelessWidget {
   const AdminProfilePage({super.key});
 
-  // Function to show a confirmation dialog for logout
+  // Shows a confirmation dialog before logging out
   void _showLogoutConfirmation(BuildContext context) {
     showDialog(
       context: context,
@@ -13,12 +13,14 @@ class AdminProfilePage extends StatelessWidget {
         ),
         title: Column(
           children: [
+            // Logout icon at the top of the dialog
             Icon(
               Icons.logout,
               color: Theme.of(context).colorScheme.error,
               size: 50,
             ),
             SizedBox(height: 8),
+            // Dialog title
             Text(
               "Are you sure?",
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -29,6 +31,7 @@ class AdminProfilePage extends StatelessWidget {
             ),
           ],
         ),
+        // Dialog message
         content: Text(
           "You are about to log out of your admin account. Make sure to save your work before leaving.",
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -38,6 +41,7 @@ class AdminProfilePage extends StatelessWidget {
         ),
         actionsAlignment: MainAxisAlignment.center,
         actions: [
+          // Button to stay logged in (closes dialog)
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
@@ -48,6 +52,7 @@ class AdminProfilePage extends StatelessWidget {
             onPressed: () => Navigator.pop(context), // Close dialog
             child: Text("Stay", style: TextStyle(color: Colors.white)),
           ),
+          // Button to confirm logout (closes dialog and navigates to login/home)
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.error,
@@ -75,14 +80,14 @@ class AdminProfilePage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Profile picture
+            // Profile avatar
             CircleAvatar(
               radius: 80,
               backgroundColor: Theme.of(context).colorScheme.primary,
               child: Icon(Icons.person, size: 80, color: Colors.white),
             ),
             SizedBox(height: 20),
-            // Admin name
+            // Admin display name
             Text(
               "Admin",
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -92,14 +97,14 @@ class AdminProfilePage extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 10),
-            // Admin email
+            // Admin email address
             Text(
               "admin@example.com",
               style: Theme.of(context).textTheme.bodyLarge,
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 30),
-            // Logout button
+            // Logout button triggers confirmation dialog
             ElevatedButton.icon(
               onPressed:
                   () => _showLogoutConfirmation(

@@ -25,7 +25,7 @@ class TeacherDashboardPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Welcome message
+            // Welcome message for teacher
             Text(
               "Welcome, Teacher!",
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -33,12 +33,13 @@ class TeacherDashboardPage extends StatelessWidget {
               ),
             ),
             SizedBox(height: 20),
-            // Horizontal scrollable cards for statistics
+            // Horizontal scrollable cards for teacher statistics
             SizedBox(
-              height: 150, // Updated height for the horizontal scrollable cards
+              height: 150, // Height for the horizontal cards
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 children: [
+                  // Students count card
                   TeacherDashboardHorizontalCard(
                     title: "Students",
                     value: "100",
@@ -46,6 +47,7 @@ class TeacherDashboardPage extends StatelessWidget {
                     icon: Icons.people,
                   ),
                   SizedBox(width: 16),
+                  // Sections count card
                   TeacherDashboardHorizontalCard(
                     title: "Sections",
                     value: "3",
@@ -53,6 +55,7 @@ class TeacherDashboardPage extends StatelessWidget {
                     icon: Icons.class_,
                   ),
                   SizedBox(width: 16),
+                  // My Classes count card
                   TeacherDashboardHorizontalCard(
                     title: "My Classes",
                     value: "25",
@@ -60,6 +63,7 @@ class TeacherDashboardPage extends StatelessWidget {
                     icon: Icons.school,
                   ),
                   SizedBox(width: 16),
+                  // Rankings card
                   TeacherDashboardHorizontalCard(
                     title: "Rankings",
                     value: "Top 10",
@@ -70,6 +74,7 @@ class TeacherDashboardPage extends StatelessWidget {
               ),
             ),
             SizedBox(height: 20),
+            // Student list section
             Text(
               "Student List",
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -77,6 +82,7 @@ class TeacherDashboardPage extends StatelessWidget {
               ),
             ),
             SizedBox(height: 10),
+            // List of students (sample)
             Column(
               children: [
                 TeacherDashboardStudentListTile(
@@ -103,6 +109,7 @@ class TeacherDashboardPage extends StatelessWidget {
                   level: "3",
                   avatarLetter: "D",
                 ),
+                // See more button for student list
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
@@ -120,6 +127,7 @@ class TeacherDashboardPage extends StatelessWidget {
               ],
             ),
             SizedBox(height: 20),
+            // My Classes section
             Text(
               "My Classes",
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -127,6 +135,7 @@ class TeacherDashboardPage extends StatelessWidget {
               ),
             ),
             SizedBox(height: 10),
+            // List of teacher's classes (sample)
             Column(
               children: [
                 TeacherDashboardClassCard(
@@ -144,6 +153,7 @@ class TeacherDashboardPage extends StatelessWidget {
                   section: "Grade 3 - Section C",
                   studentCount: 20,
                 ),
+                // See more button for class list
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
@@ -166,7 +176,7 @@ class TeacherDashboardPage extends StatelessWidget {
     );
   }
 
-  // Function to show a dialog for creating a new class
+  // Shows a dialog for creating a new class
   void _showCreateClassDialog(BuildContext context) {
     final TextEditingController classNameController = TextEditingController();
     final TextEditingController classSectionController = TextEditingController();
@@ -180,6 +190,7 @@ class TeacherDashboardPage extends StatelessWidget {
           ),
           title: Column(
             children: [
+              // Dialog icon and title
               Icon(
                 Icons.class_,
                 color: Theme.of(context).colorScheme.primary,
@@ -204,6 +215,7 @@ class TeacherDashboardPage extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Class name input
                 TextField(
                   controller: classNameController,
                   decoration: InputDecoration(
@@ -215,6 +227,7 @@ class TeacherDashboardPage extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: 16),
+                // Class section input
                 TextField(
                   controller: classSectionController,
                   decoration: InputDecoration(
@@ -230,6 +243,7 @@ class TeacherDashboardPage extends StatelessWidget {
           ),
           actionsAlignment: MainAxisAlignment.center,
           actions: [
+            // Cancel button
             TextButton(
               onPressed: () {
                 Navigator.pop(context); // Close the dialog
@@ -239,6 +253,7 @@ class TeacherDashboardPage extends StatelessWidget {
                 style: TextStyle(color: Colors.grey),
               ),
             ),
+            // Create button
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.primary,

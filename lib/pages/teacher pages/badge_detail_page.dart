@@ -10,12 +10,13 @@ class BadgeDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // Use theme color for icon
+        // AppBar with themed back icon
         iconTheme: IconThemeData(color: Theme.of(context).colorScheme.primary),
       ),
       body: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          // Hero animation for badge card
           Hero(
             tag: tag,
             child: Card(
@@ -31,16 +32,17 @@ class BadgeDetailPage extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    // Badge icon in a circle
                     CircleAvatar(
                       backgroundColor: Colors.white.withOpacity(0.2),
                       radius: 60,
-                      // Use theme color for the badge icon
                       child: Icon(
                         badge["icon"],
                         size: 64,
                       ),
                     ),
                     const SizedBox(height: 32),
+                    // Badge name
                     Text(
                       badge["name"],
                       style: Theme.of(
@@ -51,6 +53,7 @@ class BadgeDetailPage extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 16),
+                    // Badge description
                     Text(
                       "This is the ${badge["name"]} badge.",
                       style: Theme.of(

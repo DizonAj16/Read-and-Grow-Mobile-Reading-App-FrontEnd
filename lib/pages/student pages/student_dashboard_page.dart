@@ -12,7 +12,7 @@ class StudentDashboardPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Welcome Section
+          // Welcome section with greeting and subtitle
           Text(
             "Welcome, Student!",
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -29,12 +29,13 @@ class StudentDashboardPage extends StatelessWidget {
           ),
           SizedBox(height: 20),
 
-          // Horizontal Cards Section
+          // Horizontal cards showing dashboard stats
           SizedBox(
-            height: 180,
+            height: 200,
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
+                // Completed tasks card
                 StudentDashboardHorizontalCard(
                   title: "Completed Tasks",
                   value: "0",
@@ -42,6 +43,7 @@ class StudentDashboardPage extends StatelessWidget {
                   icon: Icons.check_circle,
                 ),
                 SizedBox(width: 16),
+                // Pending tasks card
                 StudentDashboardHorizontalCard(
                   title: "Pending Tasks",
                   value: "11",
@@ -49,6 +51,7 @@ class StudentDashboardPage extends StatelessWidget {
                   icon: Icons.pending_actions,
                 ),
                 SizedBox(width: 16),
+                // Badges earned card
                 StudentDashboardHorizontalCard(
                   title: "Badges Earned",
                   value: "0",
@@ -56,6 +59,7 @@ class StudentDashboardPage extends StatelessWidget {
                   icon: Icons.emoji_events,
                 ),
                 SizedBox(width: 16),
+                // Current badge card
                 StudentDashboardHorizontalCard(
                   title: "Current Badge",
                   value: "N/A",
@@ -67,7 +71,7 @@ class StudentDashboardPage extends StatelessWidget {
           ),
           SizedBox(height: 20),
 
-          // Recent Activities Section
+          // Recent activities section title
           Text(
             "Recent Activities",
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -76,18 +80,22 @@ class StudentDashboardPage extends StatelessWidget {
             ),
           ),
           SizedBox(height: 10),
+          // List of recent activity tiles
           Column(
             children: [
+              // Activity: Completed reading task
               StudentDashboardActivityTile(
                 title: "Completed Reading Task",
                 subtitle: "Story: The Tortoise and the Hare",
                 icon: Icons.book,
               ),
+              // Activity: Earned a badge
               StudentDashboardActivityTile(
                 title: "Earned a Badge",
                 subtitle: "Gold Badge for Reading Excellence",
                 icon: Icons.emoji_events,
               ),
+              // Activity: Submitted assignment
               StudentDashboardActivityTile(
                 title: "Submitted Assignment",
                 subtitle: "Math Worksheet 1",
