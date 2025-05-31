@@ -2,11 +2,111 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'routes/auth_routes.dart';
 
+ThemeData buildLightTheme(BuildContext context) {
+  return ThemeData.light().copyWith(
+    colorScheme: ColorScheme.light(
+      primary: const Color(0xFFE53935),
+      secondary: const Color(0xFFFFD600),
+      surface: const Color(0xFFFFFFFF),
+      background: const Color(0xFFFFFFFF),
+      onPrimary: const Color(0xFFFFFFFF),
+      onSecondary: const Color(0xFF000000),
+      onSurface: const Color(0xFF000000),
+      onBackground: const Color(0xFF000000),
+      error: const Color(0xFFE53935),
+    ),
+    textTheme: GoogleFonts.poppinsTextTheme(
+      Theme.of(context).textTheme.copyWith(
+        headlineLarge: const TextStyle(
+          fontSize: 32,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFFE53935),
+        ),
+        headlineMedium: const TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF1976D2),
+        ),
+        headlineSmall: const TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.w500,
+          color: Color(0xFF388E3C),
+        ),
+        bodyLarge: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w400,
+          color: Color(0xFF000000),
+        ),
+        bodyMedium: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w400,
+          color: Color(0xFF388E3C),
+        ),
+        bodySmall: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w300,
+          color: Color(0xFF1976D2),
+        ),
+      ),
+    ),
+  );
+}
+
+ThemeData buildDarkTheme(BuildContext context) {
+  return ThemeData.dark().copyWith(
+    colorScheme: ColorScheme.dark(
+      primary: const Color(0xFFE53935),
+      secondary: const Color(0xFFFFD600),
+      surface: const Color(0xFF222222),
+      background: const Color(0xFF121212),
+      onPrimary: const Color(0xFFFFFFFF),
+      onSecondary: const Color(0xFF000000),
+      onSurface: const Color(0xFFFFFFFF),
+      onBackground: const Color(0xFFFFFFFF),
+      error: const Color(0xFFE53935),
+    ),
+    textTheme: GoogleFonts.poppinsTextTheme(
+      Theme.of(context).textTheme.copyWith(
+        headlineLarge: const TextStyle(
+          fontSize: 32,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFFFFD600),
+        ),
+        headlineMedium: const TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFFE53935),
+        ),
+        headlineSmall: const TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.w500,
+          color: Color(0xFF388E3C),
+        ),
+        bodyLarge: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w400,
+          color: Color(0xFFFFFFFF),
+        ),
+        bodyMedium: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w400,
+          color: Color(0xFF1976D2),
+        ),
+        bodySmall: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w300,
+          color: Color(0xFFFFD600),
+        ),
+      ),
+    ),
+  );
+}
+
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized(); // Ensures plugins are initialized
-  runApp(MyApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -19,97 +119,11 @@ class MyApp extends StatelessWidget {
       builder: (context, currentTheme, child) {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
-          // Light theme configuration
-          theme: ThemeData.light().copyWith(
-            colorScheme: ColorScheme.light(
-              primary: Color(0xFF2575FC), 
-              secondary: Color(0xFF6A11CB), 
-              surface: Colors.white, 
-              onPrimary: Colors.white, 
-              onSurface: Colors.black, 
-            ),
-            textTheme: GoogleFonts.poppinsTextTheme(
-              Theme.of(context).textTheme.copyWith(
-                headlineLarge: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-                headlineMedium: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-                headlineSmall: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black54,
-                ),
-                bodyLarge: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.black87,
-                ),
-                bodyMedium: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.black54,
-                ),
-                bodySmall: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w300,
-                  color: Colors.black45,
-                ),
-              ),
-            ),
-          ),
-          // Dark theme configuration
-          darkTheme: ThemeData.dark().copyWith(
-            colorScheme: ColorScheme.dark(
-              primary: Color(0xFF1E3A8A), 
-              secondary: Color(0xFF8E24AA), 
-              surface: Color(0xFF121212), 
-              onPrimary: Colors.black, 
-              onSurface: Colors.white, 
-            ),
-            textTheme: GoogleFonts.poppinsTextTheme(
-              Theme.of(context).textTheme.copyWith(
-                headlineLarge: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-                headlineMedium: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white70,
-                ),
-                headlineSmall: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white60,
-                ),
-                bodyLarge: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.white70,
-                ),
-                bodyMedium: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.white60,
-                ),
-                bodySmall: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w300,
-                  color: Colors.white54,
-                ),
-              ),
-            ),
-          ),
-          themeMode: currentTheme, // Use the current theme mode
-          initialRoute: AuthRoutes.landing, // Initial route for the app
-          routes: AuthRoutes.routes, // Define app routes
+          theme: buildLightTheme(context),
+          darkTheme: buildDarkTheme(context),
+          themeMode: currentTheme,
+          initialRoute: AuthRoutes.landing,
+          routes: AuthRoutes.routes,
         );
       },
     );

@@ -17,7 +17,9 @@ class TeacherInfoPage extends StatelessWidget {
           // Display teacher's name
           Text(
             "Teacher",
-            style: Theme.of(context).textTheme.headlineMedium,
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              color: Theme.of(context).colorScheme.primary,
+            ),
           ),
           SizedBox(height: 8),
           // Display teacher's email

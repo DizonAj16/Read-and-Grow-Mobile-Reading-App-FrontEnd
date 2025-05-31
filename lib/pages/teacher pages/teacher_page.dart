@@ -71,9 +71,9 @@ class _TeacherPageState extends State<TeacherPage> {
                 ),
                 onPressed: () {
                   Navigator.of(context).pushNamedAndRemoveUntil(
-                    '/login',
+                    '/',
                     (Route<dynamic> route) => false,
-                  ); // Navigate to login
+                  );
                 },
                 child: Text("Log Out", style: TextStyle(color: Colors.white)),
               ),

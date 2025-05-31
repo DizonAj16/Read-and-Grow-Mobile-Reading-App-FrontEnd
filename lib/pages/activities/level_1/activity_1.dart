@@ -192,7 +192,7 @@ class MatchPicturesPage extends StatelessWidget {
           "Match the pictures with the correct words.",
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
             fontWeight: FontWeight.bold,
-            color: Colors.deepPurple,
+            color: Theme.of(context).colorScheme.primary,
           ),
         ),
         const SizedBox(height: 20),
@@ -244,7 +244,7 @@ class MatchPicturesPage extends StatelessWidget {
                                 context,
                               ).textTheme.headlineSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
-                                color: Colors.deepPurple,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                             ),
                           ),
@@ -288,7 +288,7 @@ class MatchWordsToPicturesPage extends StatelessWidget {
           "-ag Word Family: Match the word with the correct picture.",
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
             fontWeight: FontWeight.bold,
-            color: Colors.deepPurple,
+            color: Theme.of(context).colorScheme.primary,
           ),
         ),
         const SizedBox(height: 20),
@@ -306,7 +306,7 @@ class MatchWordsToPicturesPage extends StatelessWidget {
                       child: Container(
                         height: 80,
                         padding: const EdgeInsets.all(8.0),
-                        child: Card(
+                        child: Card(color: Theme.of(context).colorScheme.primary,
                           elevation: 2,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -317,8 +317,7 @@ class MatchWordsToPicturesPage extends StatelessWidget {
                               style: Theme.of(
                                 context,
                               ).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.deepPurple,
+                                fontWeight: FontWeight.bold, color: Colors.white
                               ),
                             ),
                           ),
@@ -382,7 +381,7 @@ class FillInTheBlanksPage extends StatelessWidget {
           "Fill in the blank with the correct letter.",
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
             fontWeight: FontWeight.bold,
-            color: Colors.deepPurple,
+            color: Theme.of(context).colorScheme.primary,
           ),
         ),
         const SizedBox(height: 20),
@@ -429,7 +428,7 @@ class FillInTheBlanksPage extends StatelessWidget {
                                 context,
                               ).textTheme.headlineSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
-                                color: Colors.deepPurple,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                             ),
                           ),
@@ -440,7 +439,7 @@ class FillInTheBlanksPage extends StatelessWidget {
                               context,
                             ).textTheme.headlineSmall?.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: Colors.deepPurple,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                           ),
                         ],
@@ -455,9 +454,10 @@ class FillInTheBlanksPage extends StatelessWidget {
         Center(
           child: Text(
             "Options:",
-            style: Theme.of(
-              context,
-            ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.primary,
+            ),
           ),
         ),
         const SizedBox(height: 10),
@@ -471,7 +471,7 @@ class FillInTheBlanksPage extends StatelessWidget {
                         label: Text(
                           option,
                           style: TextStyle(
-                            color: Colors.deepPurple,
+                            color: Theme.of(context).colorScheme.primary,
                             fontWeight: FontWeight.bold,
                             fontSize: 24,
                           ),
@@ -534,7 +534,7 @@ class _ReadingPageState extends State<ReadingPage> {
               "Read the sentences below:",
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: Colors.deepPurple,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
             const SizedBox(height: 20),

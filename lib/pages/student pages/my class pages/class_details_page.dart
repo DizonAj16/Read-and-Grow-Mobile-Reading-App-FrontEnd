@@ -31,31 +31,92 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        // AppBar with the class name as the title
-        title: Text(widget.className, style: TextStyle(color: Colors.white)),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        iconTheme: IconThemeData(color: Colors.white),
-      ),
-      body: PageView(
-        controller: _pageController,
-        onPageChanged: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        children: [
-          StudentListPage(),
-          TaskListPage(),
-          TeacherInfoPage(),
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          SliverAppBar(
+            expandedHeight: 180,
+            pinned: true,
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            iconTheme: IconThemeData(color: Colors.white),
+            flexibleSpace: FlexibleSpaceBar(
+              centerTitle: true,
+              title: Hero(
+                tag: 'class-title-${widget.className}',
+                child: Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    child: Text(
+                      widget.className,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 26,
+                        letterSpacing: 1.2,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ),
+              background: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Hero(
+                    tag: 'class-bg-${widget.className}',
+                    child: ColorFiltered(
+                      colorFilter: ColorFilter.mode(
+                        Colors.black.withOpacity(0.25),
+                        BlendMode.darken,
+                      ),
+                      child: Image.asset(
+                        'assets/background/classroombg.jpg',
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.black.withOpacity(0.7),
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.5),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        stops: [0.0, 0.6, 1.0],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
+        body: PageView(
+          controller: _pageController,
+          onPageChanged: (index) {
+            // Only call setState if the index is different to avoid scheduling builds during layout/paint
+            if (_currentIndex != index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            }
+          },
+          children: [
+            TaskListPage(),
+            StudentListPage(),
+            TeacherInfoPage(),
+          ],
+        ),
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onTabTapped, // Handle tab selection
         items: [
-          BottomNavigationBarItem(icon: Icon(Icons.people), label: "Students"),
           BottomNavigationBarItem(icon: Icon(Icons.task), label: "Tasks"),
+          BottomNavigationBarItem(icon: Icon(Icons.people), label: "Students"),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Teacher"),
         ],
         selectedItemColor: Theme.of(context).colorScheme.primary,

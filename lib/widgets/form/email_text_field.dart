@@ -15,9 +15,9 @@ class EmailTextField extends StatelessWidget {
     return TextField(
       decoration: InputDecoration(
         labelText: labelText,
-        labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface), // Updated
+        labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface),
         filled: true,
-        fillColor: const Color.fromARGB(102, 158, 158, 158),
+        fillColor: const Color.fromARGB(52, 158, 158, 158),
         prefixIcon: Icon(prefixIcon, color: Theme.of(context).colorScheme.onSurface),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(12)),

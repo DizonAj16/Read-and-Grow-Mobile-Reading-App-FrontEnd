@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import 'class_details_page.dart';
 
 class MyClassPage extends StatelessWidget {
@@ -27,6 +26,7 @@ class MyClassPage extends StatelessWidget {
               className: "English 1",
               sectionName: "Grade 1 - Section A",
               teacherName: "Teacher Name",
+              backgroundImage: 'assets/background/classroombg.jpg',
             ),
           ],
         ),
@@ -40,12 +40,14 @@ class ClassCard extends StatelessWidget {
   final String className;
   final String sectionName;
   final String teacherName;
+  final String backgroundImage;
 
   const ClassCard({
     super.key,
     required this.className,
     required this.sectionName,
     required this.teacherName,
+    required this.backgroundImage,
   });
 
   @override
@@ -58,13 +60,16 @@ class ClassCard extends StatelessWidget {
         decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
         child: Stack(
           children: [
-            // Background image for the card
-            Positioned.fill(
+            // Background image for the card with Hero
+            Hero(
+              tag: 'class-bg-$className',
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: Image.asset(
-                  'assets/background/classroombg.jpg',
+                  backgroundImage,
                   fit: BoxFit.cover,
+                  height: 150,
+                  width: double.infinity,
                 ),
               ),
             ),
@@ -75,8 +80,8 @@ class ClassCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                   gradient: LinearGradient(
                     colors: [
-                      Colors.black.withOpacity(0.6), // Darker at the top
-                      Colors.transparent, // Transparent at the bottom
+                      Colors.black.withOpacity(0.6),
+                      Colors.transparent,
                     ],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
@@ -93,8 +98,16 @@ class ClassCard extends StatelessWidget {
                   if (value == 'view') {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (context) => ClassDetailsPage(className: className),
+                      PageRouteBuilder(
+                        transitionDuration: Duration(milliseconds: 600),
+                        pageBuilder: (context, animation, secondaryAnimation) =>
+                            ClassDetailsPage(className: className),
+                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: child,
+                          );
+                        },
                       ),
                     );
                   }
@@ -122,20 +135,26 @@ class ClassCard extends StatelessWidget {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    className,
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
+                children: [ 
+                  Hero(
+                    tag: 'class-title-$className',
+                    child: Material(
+                      color: Colors.transparent,
+                      child: Text(
+                        className,
+                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
                     ),
                   ),
                   Text(
                     sectionName,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Colors.white70,
-                      fontWeight: FontWeight.w500,
-                    ),
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w500,
+                        ),
                   ),
                   Spacer(),
                   Row(

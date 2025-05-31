@@ -27,9 +27,9 @@ class _PasswordTextFieldState extends State<PasswordTextField> {
       obscureText: _isObscured,
       decoration: InputDecoration(
         labelText: widget.labelText,
-        labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface), // Updated
+        labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface),
         filled: true,
-        fillColor: const Color.fromARGB(102, 158, 158, 158),
+        fillColor: const Color.fromARGB(52, 158, 158, 158),
         prefixIcon: Icon(Icons.lock, color: Theme.of(context).colorScheme.onSurface),
         suffixIcon: IconButton(
           icon: Icon(

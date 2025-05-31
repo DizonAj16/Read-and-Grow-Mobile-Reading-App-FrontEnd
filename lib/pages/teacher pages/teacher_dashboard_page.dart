@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
+import '../../widgets/teacher_page_widgets/horizontal_card.dart';
+import '../../widgets/teacher_page_widgets/student_list_tile.dart';
+import '../../widgets/teacher_page_widgets/class_card.dart';
 
 class TeacherDashboardPage extends StatelessWidget {
   const TeacherDashboardPage({super.key});
@@ -36,36 +39,32 @@ class TeacherDashboardPage extends StatelessWidget {
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 children: [
-                  _buildHorizontalCard(
-                    context,
+                  TeacherDashboardHorizontalCard(
                     title: "Students",
                     value: "100",
                     gradientColors: [Colors.blue, Colors.lightBlueAccent],
-                    icon: Icons.people, // Added icon
+                    icon: Icons.people,
                   ),
                   SizedBox(width: 16),
-                  _buildHorizontalCard(
-                    context,
+                  TeacherDashboardHorizontalCard(
                     title: "Sections",
                     value: "3",
                     gradientColors: [Colors.green, Colors.lightGreenAccent],
-                    icon: Icons.class_, // Added icon
+                    icon: Icons.class_,
                   ),
                   SizedBox(width: 16),
-                  _buildHorizontalCard(
-                    context,
+                  TeacherDashboardHorizontalCard(
                     title: "My Classes",
                     value: "25",
                     gradientColors: [Colors.purple, Colors.deepPurpleAccent],
-                    icon: Icons.school, // Added icon
+                    icon: Icons.school,
                   ),
                   SizedBox(width: 16),
-                  _buildHorizontalCard(
-                    context,
+                  TeacherDashboardHorizontalCard(
                     title: "Rankings",
                     value: "Top 10",
                     gradientColors: [Colors.orange, Colors.deepOrangeAccent],
-                    icon: Icons.star, // Added icon
+                    icon: Icons.star,
                   ),
                 ],
               ),
@@ -80,25 +79,25 @@ class TeacherDashboardPage extends StatelessWidget {
             SizedBox(height: 10),
             Column(
               children: [
-                StudentListTile(
+                TeacherDashboardStudentListTile(
                   name: "Alice Johnson",
                   section: "1A",
                   level: "1",
                   avatarLetter: "A",
                 ),
-                StudentListTile(
+                TeacherDashboardStudentListTile(
                   name: "Bob Smith",
                   section: "2B",
                   level: "2",
                   avatarLetter: "B",
                 ),
-                StudentListTile(
+                TeacherDashboardStudentListTile(
                   name: "Charlie Davis",
                   section: "3C",
                   level: "1",
                   avatarLetter: "C",
                 ),
-                StudentListTile(
+                TeacherDashboardStudentListTile(
                   name: "Diana Evans",
                   section: "1A",
                   level: "3",
@@ -130,19 +129,19 @@ class TeacherDashboardPage extends StatelessWidget {
             SizedBox(height: 10),
             Column(
               children: [
-                ClassCard(
+                TeacherDashboardClassCard(
                   className: "English 1",
-                  section: "Grade 1 - Section A", // Added section
+                  section: "Grade 1 - Section A",
                   studentCount: 30,
                 ),
-                ClassCard(
+                TeacherDashboardClassCard(
                   className: "English 2",
-                  section: "Grade 2 - Section B", // Added section
+                  section: "Grade 2 - Section B",
                   studentCount: 25,
                 ),
-                ClassCard(
+                TeacherDashboardClassCard(
                   className: "English 3",
-                  section: "Grade 3 - Section C", // Added section
+                  section: "Grade 3 - Section C",
                   studentCount: 20,
                 ),
                 Align(
@@ -209,7 +208,7 @@ class TeacherDashboardPage extends StatelessWidget {
                   controller: classNameController,
                   decoration: InputDecoration(
                     labelText: "Class Name",
-                    prefixIcon: Icon(Icons.edit),
+                    prefixIcon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary,),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -220,7 +219,7 @@ class TeacherDashboardPage extends StatelessWidget {
                   controller: classSectionController,
                   decoration: InputDecoration(
                     labelText: "Class Section",
-                    prefixIcon: Icon(Icons.group),
+                    prefixIcon: Icon(Icons.group, color: Theme.of(context).colorScheme.primary,),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -270,299 +269,6 @@ class TeacherDashboardPage extends StatelessWidget {
           ],
         );
       },
-    );
-  }
-
-  // Function to build a horizontal card with statistics
-  Widget _buildHorizontalCard(
-    BuildContext context, {
-    required String title,
-    required String value,
-    required List<Color> gradientColors,
-    required IconData icon, // Added icon parameter
-  }) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 4,
-      child: Container(
-        width: 150,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: gradientColors,
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        padding: const EdgeInsets.all(10.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 40, color: Colors.white), // Added icon at the top
-            SizedBox(height: 10),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            SizedBox(height: 5),
-            Text(
-              value,
-              style: Theme.of(
-                context,
-              ).textTheme.headlineMedium?.copyWith(color: Colors.white),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// Widget to display a student in the list
-class StudentListTile extends StatelessWidget {
-  final String name;
-  final String section;
-  final String level;
-  final String avatarLetter;
-
-  const StudentListTile({
-    super.key,
-    required this.name,
-    required this.section,
-    required this.level,
-    required this.avatarLetter,
-  });
-
-  Color _getRandomColor() {
-    final colors = [
-      Colors.red,
-      Colors.blue,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.teal,
-      Colors.pink,
-    ];
-    return colors[Random().nextInt(colors.length)];
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 100, // Adjust the height of the card
-      child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 16.0,
-          ), // Add padding inside the card
-          child: Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: _getRandomColor(),
-                child: Text(
-                  avatarLetter,
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
-              SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment:
-                      MainAxisAlignment.center, // Center content vertically
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      "Section: $section | Level: $level",
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                icon: Icon(
-                  Icons.more_horiz,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                onPressed: () {
-                  // Handle action button logic
-                },
-                tooltip: "More Actions",
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// Widget to display a class card
-class ClassCard extends StatelessWidget {
-  final String className;
-  final String section; // Added section property
-  final int studentCount;
-
-  const ClassCard({
-    super.key,
-    required this.className,
-    required this.section, // Added section parameter
-
-    required this.studentCount,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        height: 150,
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.asset(
-                  'assets/background/classroombg.jpg',
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  gradient: LinearGradient(
-                    colors: [
-                      Colors.black.withOpacity(0.6), // Darker at the top
-                      Colors.transparent, // Transparent at the bottom
-                    ],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    className,
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    "$section", // Display the section
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Colors.white70,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Spacer(),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.people, color: Colors.white),
-                          SizedBox(width: 8),
-                          Text(
-                            "$studentCount Students",
-                            style: Theme.of(context).textTheme.bodyLarge
-                                ?.copyWith(color: Colors.white),
-                          ),
-                        ],
-                      ),
-                      Text(
-                        "Teacher Name",
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Colors.white,
-                          fontSize: 16, // Adjusted font size for alignment
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Positioned(
-              top: 8,
-              right: 8,
-              child: PopupMenuButton<String>(
-                onSelected: (value) {
-                  if (value == 'edit') {
-                    // Handle edit class logic
-                  } else if (value == 'delete') {
-                    // Handle delete class logic
-                  }
-                },
-                itemBuilder:
-                    (BuildContext context) => [
-                      PopupMenuItem(
-                        value: 'view',
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.visibility,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            SizedBox(width: 8),
-                            Text('View Class'),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: 'edit',
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.edit,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            SizedBox(width: 8),
-                            Text('Edit Class'),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.delete,
-                              color: Theme.of(context).colorScheme.error,
-                            ),
-                            SizedBox(width: 8),
-                            Text('Delete Class'),
-                          ],
-                        ),
-                      ),
-                    ],
-                icon: Icon(Icons.more_vert, color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

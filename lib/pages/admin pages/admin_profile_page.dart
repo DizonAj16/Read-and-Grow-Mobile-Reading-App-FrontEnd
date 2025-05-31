@@ -57,7 +57,7 @@ class AdminProfilePage extends StatelessWidget {
             ),
             onPressed: () {
               Navigator.pop(context); // Close dialog
-              Navigator.of(context).pushReplacementNamed('/login'); // Navigate to login
+              Navigator.of(context).pushReplacementNamed('/');
             },
             child: Text("Log Out", style: TextStyle(color: Colors.white),)
           ),

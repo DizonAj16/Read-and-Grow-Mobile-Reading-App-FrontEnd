@@ -44,7 +44,7 @@ class AdminDashboardPage extends StatelessWidget {
                   controller: nameController,
                   decoration: InputDecoration(
                     labelText: "Full Name",
-                    prefixIcon: Icon(Icons.person),
+                    prefixIcon: Icon(Icons.person, color: Theme.of(context).colorScheme.primary,),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -55,7 +55,7 @@ class AdminDashboardPage extends StatelessWidget {
                   controller: emailController,
                   decoration: InputDecoration(
                     labelText: "Email Address",
-                    prefixIcon: Icon(Icons.email),
+                    prefixIcon: Icon(Icons.email, color: Theme.of(context).colorScheme.primary,),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -67,7 +67,7 @@ class AdminDashboardPage extends StatelessWidget {
                   obscureText: true,
                   decoration: InputDecoration(
                     labelText: "Password",
-                    prefixIcon: Icon(Icons.lock),
+                    prefixIcon: Icon(Icons.lock, color: Theme.of(context).colorScheme.primary,),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -78,7 +78,7 @@ class AdminDashboardPage extends StatelessWidget {
                   controller: positionController,
                   decoration: InputDecoration(
                     labelText: "Position",
-                    prefixIcon: Icon(Icons.work),
+                    prefixIcon: Icon(Icons.work, color: Theme.of(context).colorScheme.primary,),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),

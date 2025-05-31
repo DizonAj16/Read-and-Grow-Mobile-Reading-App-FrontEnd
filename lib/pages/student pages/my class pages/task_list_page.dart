@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../activities/activity_controller.dart';
+import '../../../widgets/student_page_widgets/task_card.dart'; // Import the new widget
 
 class TaskListPage extends StatelessWidget {
   final int studentLevel;
@@ -16,12 +17,42 @@ class TaskListPage extends StatelessWidget {
       itemCount: tasks.length,
       itemBuilder: (context, index) {
         final task = tasks[index];
-        return _buildTaskCard(
-          context,
+        return TaskCard(
           title: task['title']!,
           status: task['status']!,
           statusColor:
               task['status'] == "Completed" ? Colors.green : Colors.orange,
+          onViewTask: () {
+            Navigator.push(
+              context,
+              PageRouteBuilder(
+                pageBuilder:
+                    (context, animation, secondaryAnimation) =>
+                        ActivityController(activityTitle: task['title']!),
+                transitionsBuilder: (
+                  context,
+                  animation,
+                  secondaryAnimation,
+                  child,
+                ) {
+                  const begin = Offset(1.0, 0.0);
+                  const end = Offset.zero;
+                  const curve = Curves.easeInOut;
+
+                  var tween = Tween(
+                    begin: begin,
+                    end: end,
+                  ).chain(CurveTween(curve: curve));
+                  var offsetAnimation = animation.drive(tween);
+
+                  return SlideTransition(
+                    position: offsetAnimation,
+                    child: child,
+                  );
+                },
+              ),
+            );
+          },
         );
       },
     );
@@ -74,125 +105,5 @@ class TaskListPage extends StatelessWidget {
       default:
         return [];
     }
-  }
-
-  // Function to build a task card
-  Widget _buildTaskCard(
-    BuildContext context, {
-    required String title,
-    required String status,
-    required Color statusColor,
-  }) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 2,
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Container(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            // Status icon
-            Container(
-              width: 45,
-              height: 45,
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.8),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                status == "Completed"
-                    ? Icons.check_circle
-                    : Icons.pending_actions,
-                color: Colors.white,
-                size: 25,
-              ),
-            ),
-            SizedBox(width: 16),
-            // Task details
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    status,
-                    style: TextStyle(
-                      color: statusColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Popup menu for task actions
-            PopupMenuButton<String>(
-              onSelected: (value) {
-                if (value == 'view_task') {
-                  Navigator.push(
-                    context,
-                    PageRouteBuilder(
-                      pageBuilder:
-                          (context, animation, secondaryAnimation) =>
-                              ActivityController(activityTitle: title),
-                      transitionsBuilder: (
-                        context,
-                        animation,
-                        secondaryAnimation,
-                        child,
-                      ) {
-                        const begin = Offset(
-                          1.0,
-                          0.0,
-                        ); // Slide in from the right
-                        const end = Offset.zero;
-                        const curve = Curves.easeInOut;
-
-                        var tween = Tween(
-                          begin: begin,
-                          end: end,
-                        ).chain(CurveTween(curve: curve));
-                        var offsetAnimation = animation.drive(tween);
-
-                        return SlideTransition(
-                          position: offsetAnimation,
-                          child: child,
-                        );
-                      },
-                    ),
-                  );
-                }
-              },
-              itemBuilder:
-                  (BuildContext context) => [
-                    PopupMenuItem(
-                      value: 'view_task',
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.visibility,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                          SizedBox(width: 8),
-                          Text('View Task'),
-                        ],
-                      ),
-                    ),
-                  ],
-              icon: Icon(
-                Icons.more_vert,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
