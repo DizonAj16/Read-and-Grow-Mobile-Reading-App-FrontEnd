@@ -1,16 +1,54 @@
-# deped_reading_app_laravel
+# 📖 Read and Grow Mobile Reading App
 
-A new Flutter project.
+_Read and Grow_ is a mobile reading app currently under development. It is an **Information Technology Capstone Project** aimed at helping elementary students improve their reading skills through stories, quizzes, and progress tracking.
 
-## Getting Started
+---
 
-This project is a starting point for a Flutter application.
+## 🚧 Project Status
 
-A few resources to get you started if this is your first Flutter project:
+**In Development**  
+This app is part of our BSIT Capstone Project and is not yet complete.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+---
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 🎯 Project Goals
+
+- Help students practice reading with stories.
+- Include quizzes to test reading comprehension.
+- Allow students to earn badges as rewards.
+- Record student progress.
+- Allow teachers to view student performance.
+
+---
+
+## 🛠️ Tech Stack
+
+- **Flutter** – Frontend (Mobile App)
+- **Laravel** – Backend (API, Database)
+
+---
+
+## 📱 Features (Planned)
+
+- Role-Based Authentication (Teacher, Student and Admin)
+- Task levels
+- Read-aloud with audio recording
+- Multiple types of quizzes
+- Badge system 
+- Student progress tracking
+- Student dashboard
+- Teacher dashboard
+- Admin dashboard
+
+---
+
+## 📌 Notes
+
+- This app is for academic use only.
+- More features and updates will be added as development continues.
+
+---
+
+## 👥 Developers
+
+Developed by BSIT students as a Capstone Project at ZPPSU.
