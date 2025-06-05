@@ -3,6 +3,7 @@ import 'package:deped_reading_app_laravel/pages/auth%20pages/teacher_signup_page
 import 'package:flutter/material.dart';
 import 'login_page.dart';
 import 'admin_login_page.dart';
+import '../../widgets/navigation/page_transition.dart';
 
 class ChooseRolePage extends StatelessWidget {
   final bool showLogin;
@@ -17,21 +18,21 @@ class ChooseRolePage extends StatelessWidget {
           icon: Icons.school_outlined,
           label: 'Student',
           color: Colors.blue,
-          onTap: () => Navigator.of(context).push(_slideRoute(LoginPage())),
+          onTap: () => Navigator.of(context).push(PageTransition(page: LoginPage())),
         ),
         // Teacher login option
         _roleOption(
           icon: Icons.person_2_outlined,
           label: 'Teacher',
           color: Colors.orange,
-          onTap: () => Navigator.of(context).push(_slideRoute(LoginPage())),
+          onTap: () => Navigator.of(context).push(PageTransition(page: LoginPage())),
         ),
         // Admin login option
         _roleOption(
           icon: Icons.admin_panel_settings_outlined,
           label: 'Admin',
           color: Colors.green,
-          onTap: () => Navigator.of(context).push(_slideRoute(AdminLoginPage())),
+          onTap: () => Navigator.of(context).push(PageTransition(page: AdminLoginPage())),
         ),
       ];
     } else {
@@ -41,34 +42,17 @@ class ChooseRolePage extends StatelessWidget {
           icon: Icons.school_outlined,
           label: 'Student',
           color: Colors.blue,
-          onTap: () => Navigator.of(context).push(_slideRoute(StudentSignUpPage())),
+          onTap: () => Navigator.of(context).push(PageTransition(page: StudentSignUpPage())),
         ),
         // Teacher sign up option
         _roleOption(
           icon: Icons.person_2_outlined,
           label: 'Teacher',
           color: Colors.orange,
-          onTap: () => Navigator.of(context).push(_slideRoute(TeacherSignUpPage())),
+          onTap: () => Navigator.of(context).push(PageTransition(page: TeacherSignUpPage())),
         ),
       ];
     }
-  }
-
-  // Creates a slide transition route for navigation
-  static Route _slideRoute(Widget page) {
-    return PageRouteBuilder(
-      pageBuilder: (context, animation, secondaryAnimation) => page,
-      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        const begin = Offset(1.0, 0.0); // Slide from right
-        const end = Offset.zero;
-        const curve = Curves.ease;
-        var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-        return SlideTransition(
-          position: animation.drive(tween),
-          child: child,
-        );
-      },
-    );
   }
 
   // Helper to create a role option map
