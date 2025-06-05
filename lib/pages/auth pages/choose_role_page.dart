@@ -1,8 +1,8 @@
+import 'package:deped_reading_app_laravel/pages/auth%20pages/student_signup_page.dart';
+import 'package:deped_reading_app_laravel/pages/auth%20pages/teacher_signup_page.dart';
 import 'package:flutter/material.dart';
 import 'login_page.dart';
 import 'admin_login_page.dart';
-import 'sign_up_page.dart';
-import '../../widgets/choose_role_card.dart';
 
 class ChooseRolePage extends StatelessWidget {
   final bool showLogin;
@@ -41,14 +41,14 @@ class ChooseRolePage extends StatelessWidget {
           icon: Icons.school_outlined,
           label: 'Student',
           color: Colors.blue,
-          onTap: () => Navigator.of(context).push(_slideRoute(SignUpPage())),
+          onTap: () => Navigator.of(context).push(_slideRoute(StudentSignUpPage())),
         ),
         // Teacher sign up option
         _roleOption(
           icon: Icons.person_2_outlined,
           label: 'Teacher',
           color: Colors.orange,
-          onTap: () => Navigator.of(context).push(_slideRoute(SignUpPage())),
+          onTap: () => Navigator.of(context).push(_slideRoute(TeacherSignUpPage())),
         ),
       ];
     }
@@ -138,3 +138,58 @@ class ChooseRolePage extends StatelessWidget {
     );
   }
 }
+
+
+// ChooseRoleCard displays a selectable card for choosing a user role (student, teacher, admin)
+class ChooseRoleCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const ChooseRoleCard({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 6,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap, // Handles tap to select role
+        child: Container(
+          width: 260,
+          padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            color: Theme.of(context).colorScheme.surface,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Role icon
+              Icon(icon, color: color, size: 36),
+              const SizedBox(width: 18),
+              // Role label
+              Text(
+                label,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 22,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+

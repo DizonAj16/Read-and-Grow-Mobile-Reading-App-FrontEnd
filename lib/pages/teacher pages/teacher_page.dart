@@ -3,6 +3,10 @@ import 'pupil_submissions_and_report_page.dart';
 import 'teacher_dashboard_page.dart';
 import 'badges_list_page.dart';
 import 'teacher_profile_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../api/api_service.dart';
+import '../../pages/auth pages/landing_page.dart';
+import '../../widgets/navigation/page_transition.dart';
 
 class TeacherPage extends StatefulWidget {
   const TeacherPage({super.key});
@@ -16,73 +20,128 @@ class _TeacherPageState extends State<TeacherPage> {
   String _currentTitle = "Teacher Dashboard";
   String _currentRoute = '/dashboard';
 
+  // Logout logic using API and SharedPreferences
+  Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token') ?? '';
+
+    final response = await ApiService.logout(token);
+
+    if (response.statusCode == 200) {
+      await prefs.clear();
+      // Show loading dialog before navigating
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 24),
+                Text(
+                  "Logging out...",
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await Future.delayed(const Duration(seconds: 3));
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+        Navigator.of(context).pushAndRemoveUntil(
+          PageTransition(page: LandingPage()),
+          (route) => false,
+        );
+      }
+    } else {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Logout Failed'),
+          content: const Text('Unable to logout. Please try again.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
   // Shows a confirmation dialog for logout
   void _showLogoutConfirmation(BuildContext context) {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Column(
+          children: [
+            // Logout icon and title
+            Icon(
+              Icons.logout,
+              color: Theme.of(context).colorScheme.primary,
+              size: 50,
             ),
-            title: Column(
-              children: [
-                // Logout icon and title
-                Icon(
-                  Icons.logout,
-                  color: Theme.of(context).colorScheme.primary,
-                  size: 50,
-                ),
-                SizedBox(height: 8),
-                Text(
-                  "Are you sure?",
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-            // Dialog message
-            content: Text(
-              "You are about to log out. Make sure to save your work before leaving.",
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: Colors.black87),
+            SizedBox(height: 8),
+            Text(
+              "Are you sure?",
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
               textAlign: TextAlign.center,
             ),
-            actionsAlignment: MainAxisAlignment.center,
-            actions: [
-              // Stay button
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: () => Navigator.pop(context), // Close dialog
-                child: Text("Stay", style: TextStyle(color: Colors.white)),
+          ],
+        ),
+        // Dialog message
+        content: Text(
+          "You are about to log out. Make sure to save your work before leaving.",
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: Colors.black87),
+          textAlign: TextAlign.center,
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          // Stay button
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-              // Log out button
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.error,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                    '/',
-                    (Route<dynamic> route) => false,
-                  );
-                },
-                child: Text("Log Out", style: TextStyle(color: Colors.white)),
-              ),
-            ],
+            ),
+            onPressed: () => Navigator.pop(context), // Close dialog
+            child: Text("Stay", style: TextStyle(color: Colors.white)),
           ),
+          // Log out button
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: logout,
+            child: Text("Log Out", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
     );
   }
 

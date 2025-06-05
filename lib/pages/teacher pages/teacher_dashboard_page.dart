@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:math';
 import '../../widgets/teacher_page_widgets/horizontal_card.dart';
 import '../../widgets/teacher_page_widgets/student_list_tile.dart';
 import '../../widgets/teacher_page_widgets/class_card.dart';
@@ -180,108 +179,255 @@ class TeacherDashboardPage extends StatelessWidget {
   void _showCreateClassDialog(BuildContext context) {
     final TextEditingController classNameController = TextEditingController();
     final TextEditingController classSectionController = TextEditingController();
+    final TextEditingController studentNameController = TextEditingController();
+    final TextEditingController studentLrnController = TextEditingController();
+    final TextEditingController studentSectionController = TextEditingController();
+    final TextEditingController studentLevelController = TextEditingController();
+    final TextEditingController studentEmailController = TextEditingController();
+    final TextEditingController studentPasswordController = TextEditingController();
+
+    // 0 = Create Class, 1 = Create Student
+    int selectedTab = 0;
 
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Column(
-            children: [
-              // Dialog icon and title
-              Icon(
-                Icons.class_,
-                color: Theme.of(context).colorScheme.primary,
-                size: 50,
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
-              SizedBox(height: 8),
-              Text(
-                "Create New Class",
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.primary,
+              title: Column(
+                children: [
+                  Icon(
+                    selectedTab == 0 ? Icons.class_ : Icons.person_add,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 50,
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    selectedTab == 0 ? "Create New Class" : "Create Student Account",
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  Divider(
+                    thickness: 1,
+                    color: Colors.grey.shade300,
+                  ),
+                  // Toggle buttons for selection
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ChoiceChip(
+                        label: Text("Class"),
+                        selected: selectedTab == 0,
+                        onSelected: (selected) {
+                          if (!selected) return;
+                          setState(() => selectedTab = 0);
+                        },
+                        selectedColor: Theme.of(context).colorScheme.primary,
+                        labelStyle: TextStyle(
+                          color: selectedTab == 0
+                              ? Theme.of(context).colorScheme.onPrimary
+                              : Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      ChoiceChip(
+                        label: Text("Student"),
+                        selected: selectedTab == 1,
+                        onSelected: (selected) {
+                          if (!selected) return;
+                          setState(() => selectedTab = 1);
+                        },
+                        selectedColor: Theme.of(context).colorScheme.primary,
+                        labelStyle: TextStyle(
+                          color: selectedTab == 1
+                              ? Theme.of(context).colorScheme.onPrimary
+                              : Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (selectedTab == 0) ...[
+                      // Class name input
+                      TextField(
+                        controller: classNameController,
+                        decoration: InputDecoration(
+                          labelText: "Class Name",
+                          prefixIcon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary,),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      // Class section input
+                      TextField(
+                        controller: classSectionController,
+                        decoration: InputDecoration(
+                          labelText: "Class Section",
+                          prefixIcon: Icon(Icons.group, color: Theme.of(context).colorScheme.primary,),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ] else ...[
+                      // Student name input
+                      TextField(
+                        controller: studentNameController,
+                        decoration: InputDecoration(
+                          labelText: "Student Name",
+                          prefixIcon: Icon(Icons.person, color: Theme.of(context).colorScheme.primary,),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      // Student LRN input
+                      TextField(
+                        controller: studentLrnController,
+                        decoration: InputDecoration(
+                          labelText: "LRN",
+                          prefixIcon: Icon(Icons.confirmation_number, color: Theme.of(context).colorScheme.primary,),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      // Student section input
+                      TextField(
+                        controller: studentSectionController,
+                        decoration: InputDecoration(
+                          labelText: "Section",
+                          prefixIcon: Icon(Icons.group, color: Theme.of(context).colorScheme.primary,),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      // Student level input
+                      TextField(
+                        controller: studentLevelController,
+                        decoration: InputDecoration(
+                          labelText: "Level",
+                          prefixIcon: Icon(Icons.grade, color: Theme.of(context).colorScheme.primary,),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      // Student Email input
+                      TextField(
+                        controller: studentEmailController,
+                        decoration: InputDecoration(
+                          labelText: "Email",
+                          prefixIcon: Icon(Icons.account_circle, color: Theme.of(context).colorScheme.primary,),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      // Student password input
+                      TextField(
+                        controller: studentPasswordController,
+                        obscureText: true,
+                        decoration: InputDecoration(
+                          labelText: "Password",
+                          prefixIcon: Icon(Icons.lock, color: Theme.of(context).colorScheme.primary,),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                textAlign: TextAlign.center,
               ),
-              Divider(
-                thickness: 1,
-                color: Colors.grey.shade300,
-              ),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Class name input
-                TextField(
-                  controller: classNameController,
-                  decoration: InputDecoration(
-                    labelText: "Class Name",
-                    prefixIcon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary,),
-                    border: OutlineInputBorder(
+              actionsAlignment: MainAxisAlignment.center,
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context); // Close the dialog
+                  },
+                  child: Text(
+                    "Cancel",
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                ),
-                SizedBox(height: 16),
-                // Class section input
-                TextField(
-                  controller: classSectionController,
-                  decoration: InputDecoration(
-                    labelText: "Class Section",
-                    prefixIcon: Icon(Icons.group, color: Theme.of(context).colorScheme.primary,),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                  onPressed: () {
+                    if (selectedTab == 0) {
+                      // Create Class logic
+                      String className = classNameController.text.trim();
+                      String classSection = classSectionController.text.trim();
+
+                      if (className.isNotEmpty && classSection.isNotEmpty) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("Class created successfully!")),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("Please fill in all fields")),
+                        );
+                      }
+                    } else {
+                      // Create Student logic
+                      String studentName = studentNameController.text.trim();
+                      String studentLrn = studentLrnController.text.trim();
+                      String studentSection = studentSectionController.text.trim();
+                      String studentLevel = studentLevelController.text.trim();
+                      String studentEmail = studentEmailController.text.trim();
+                      String studentPassword = studentPasswordController.text.trim();
+
+                      if (studentName.isNotEmpty &&
+                          studentLrn.isNotEmpty &&
+                          studentSection.isNotEmpty &&
+                          studentLevel.isNotEmpty &&
+                          studentEmail.isNotEmpty &&
+                          studentPassword.isNotEmpty) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("Student account created successfully!")),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("Please fill in all fields")),
+                        );
+                      }
+                    }
+                  },
+                  child: Text(
+                    selectedTab == 0 ? "Create" : "Add Student",
+                    style: TextStyle(color: Colors.white),
                   ),
                 ),
               ],
-            ),
-          ),
-          actionsAlignment: MainAxisAlignment.center,
-          actions: [
-            // Cancel button
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context); // Close the dialog
-              },
-              child: Text(
-                "Cancel",
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
-            // Create button
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onPressed: () {
-                // Handle class creation logic here
-                String className = classNameController.text.trim();
-                String classSection = classSectionController.text.trim();
-
-                if (className.isNotEmpty && classSection.isNotEmpty) {
-                  // Perform class creation logic
-                  Navigator.pop(context); // Close the dialog
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Class created successfully!")),
-                  );
-                } else {
-                  // Show error if fields are empty
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Please fill in all fields")),
-                  );
-                }
-              },
-              child: Text("Create", style: TextStyle(color: Colors.white)),
-            ),
-          ],
+            );
+          },
         );
       },
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'routes/auth_routes.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'routes/app_routes.dart';
 
 ThemeData buildLightTheme(BuildContext context) {
   return ThemeData.light().copyWith(
@@ -104,10 +105,18 @@ ThemeData buildDarkTheme(BuildContext context) {
 
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MyApp());
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    // Optionally use prefs if needed
+  } catch (e) {
+    // Optionally log or handle the error, but allow app to continue
+    debugPrint('SharedPreferences initialization failed: $e');
+  }
+  runApp(MyApp());
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -122,8 +131,8 @@ class MyApp extends StatelessWidget {
           theme: buildLightTheme(context),
           darkTheme: buildDarkTheme(context),
           themeMode: currentTheme,
-          initialRoute: AuthRoutes.landing,
-          routes: AuthRoutes.routes,
+          initialRoute: AppRoutes.landing,
+          routes: AppRoutes.routes,
         );
       },
     );

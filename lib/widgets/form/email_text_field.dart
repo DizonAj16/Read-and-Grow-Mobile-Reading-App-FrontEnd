@@ -4,17 +4,20 @@ import 'package:flutter/material.dart';
 class EmailTextField extends StatelessWidget {
   final String labelText;
   final IconData? prefixIcon;
+  final TextEditingController? controller;
 
-  // Accepts label text and optional icon (defaults to email icon)
+  // Accepts label text, optional icon, and optional controller
   const EmailTextField({
     super.key,
     required this.labelText,
     this.prefixIcon = Icons.email,
+    this.controller,
   });
 
   @override
   Widget build(BuildContext context) {
     return TextField(
+      controller: controller,
       // Input decoration for consistent look and feel
       decoration: InputDecoration(
         labelText: labelText,

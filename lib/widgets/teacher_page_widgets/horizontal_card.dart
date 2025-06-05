@@ -37,19 +37,21 @@ class TeacherDashboardHorizontalCard extends StatelessWidget {
             // Statistic icon
             Icon(icon, size: 40, color: Colors.white),
             SizedBox(height: 10),
-            // Statistic title
-            Text(
-              title,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-            ),
-            SizedBox(height: 5),
             // Statistic value
             Text(
               value,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: Colors.white),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineMedium?.copyWith(color: Colors.white),
+            ),
+            // Statistic title
+            SizedBox(height: 5),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
           ],
         ),

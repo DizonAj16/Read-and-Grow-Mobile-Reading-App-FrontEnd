@@ -2,6 +2,9 @@ import 'package:deped_reading_app_laravel/pages/auth%20pages/landing_page.dart';
 import 'package:flutter/material.dart';
 import 'student_dashboard_page.dart';
 import 'my class pages/my_class_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../api/api_service.dart';
+import '../../widgets/navigation/page_transition.dart';
 
 class StudentPage extends StatefulWidget {
   const StudentPage({super.key});
@@ -30,20 +33,74 @@ class _StudentPageState extends State<StudentPage> {
     );
   }
 
+  // Logout logic using API and SharedPreferences
+  Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token') ?? '';
+
+    final response = await ApiService.logout(token);
+
+    if (response.statusCode == 200) {
+      await prefs.clear();
+      // Show loading dialog before navigating
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 24),
+                Text(
+                  "Logging out...",
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await Future.delayed(const Duration(seconds: 3));
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+        Navigator.of(context).pushAndRemoveUntil(
+          PageTransition(page: LandingPage()),
+          (route) => false,
+        );
+      }
+    } else {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Logout Failed'),
+          content: const Text('Unable to logout. Please try again.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
   // Shows logout confirmation dialog
   void _showLogoutDialog() {
     showDialog(
       context: context,
       builder: (context) => _LogoutDialog(
         onStay: () => Navigator.pop(context), // Close dialog
-        onLogout: () {
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(
-              builder: (context) => LandingPage(),
-            ),
-            (Route<dynamic> route) => false,
-          ); // Navigate to landing page
-        },
+        onLogout: logout, // Use the logout function above
       ),
     );
   }

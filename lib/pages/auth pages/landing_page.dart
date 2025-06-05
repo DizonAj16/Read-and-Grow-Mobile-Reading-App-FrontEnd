@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../../widgets/appbar/theme_toggle_button.dart';
 import '../../widgets/navigation/page_transition.dart';
-import 'choose_role_page.dart'; // Import the new ChooseLoginPage
+import 'choose_role_page.dart'; 
 
 class LandingPage extends StatelessWidget {
   const LandingPage({super.key});

@@ -3,10 +3,14 @@ import 'package:flutter/material.dart';
 // PasswordTextField is a reusable widget for password input with show/hide toggle
 class PasswordTextField extends StatefulWidget {
   final String labelText;
+  final TextEditingController? controller;
+  final String? Function(String?)? validator;
 
   const PasswordTextField({
     super.key,
     required this.labelText,
+    this.controller,
+    this.validator,
   });
 
   @override
@@ -25,8 +29,10 @@ class _PasswordTextFieldState extends State<PasswordTextField> {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    return TextFormField(
+      controller: widget.controller,
       obscureText: _isObscured, // Controls text visibility
+      validator: widget.validator,
       decoration: InputDecoration(
         labelText: widget.labelText,
         labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface),

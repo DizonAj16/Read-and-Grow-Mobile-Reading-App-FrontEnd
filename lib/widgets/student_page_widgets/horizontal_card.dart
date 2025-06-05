@@ -41,9 +41,11 @@ class StudentDashboardHorizontalCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               title,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.white70,
-                  ),
+              style: TextStyle(
+                color: const Color.fromARGB(255, 255, 255, 255),
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
