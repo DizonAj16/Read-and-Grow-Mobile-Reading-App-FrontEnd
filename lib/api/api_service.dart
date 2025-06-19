@@ -4,27 +4,31 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/student.dart';
 import '../models/teacher.dart';
 
-
 class ApiService {
-
-    static Future<String> getBaseUrl() async {
+  static Future<String> getBaseUrl() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('base_url') ?? "http://10.0.2.2:8000/api";
   }
+
   /// Helper to build standard JSON headers.
   static Map<String, String> _jsonHeaders() => {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      };
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
 
   /// Helper to build authorization headers.
   static Map<String, String> _authHeaders(String token) => {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      };
+    'Authorization': 'Bearer $token',
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+  };
 
   /// Helper to set a string in SharedPreferences if value is not null.
-  static Future<void> _setStringIfNotNull(SharedPreferences prefs, String key, String? value) async {
+  static Future<void> _setStringIfNotNull(
+    SharedPreferences prefs,
+    String key,
+    String? value,
+  ) async {
     if (value != null) {
       await prefs.setString(key, value);
     }
@@ -58,7 +62,9 @@ class ApiService {
   /// Registers a new student using the provided [body] data.
   /// Sends a POST request to the student registration endpoint.
   /// Returns the HTTP response.
-  static Future<http.Response> registerStudent(Map<String, dynamic> body) async {
+  static Future<http.Response> registerStudent(
+    Map<String, dynamic> body,
+  ) async {
     final url = Uri.parse('${await getBaseUrl()}/student/register');
     return await http.post(
       url,
@@ -70,7 +76,9 @@ class ApiService {
   /// Registers a new teacher using the provided [body] data.
   /// Sends a POST request to the teacher registration endpoint.
   /// Returns the HTTP response.
-  static Future<http.Response> registerTeacher(Map<String, dynamic> body) async {
+  static Future<http.Response> registerTeacher(
+    Map<String, dynamic> body,
+  ) async {
     final url = Uri.parse('${await getBaseUrl()}/teacher/register');
     return await http.post(
       url,
@@ -85,10 +93,7 @@ class ApiService {
   /// Returns the HTTP response.
   static Future<http.Response> login(Map<String, dynamic> body) async {
     final url = Uri.parse('${await getBaseUrl()}/login');
-    final loginBody = {
-      'login': body['login'],
-      'password': body['password'],
-    };
+    final loginBody = {'login': body['login'], 'password': body['password']};
     final response = await http.post(
       url,
       headers: _jsonHeaders(),
@@ -113,16 +118,15 @@ class ApiService {
   /// Returns the HTTP response.
   static Future<http.Response> logout(String token) async {
     final url = Uri.parse('${await getBaseUrl()}/logout');
-    return await http.post(
-      url,
-      headers: _authHeaders(token),
-    );
+    return await http.post(url, headers: _authHeaders(token));
   }
 
   /// Logs in an admin user with the given [body] credentials.
   /// Handles multi-step authentication if required.
   /// Returns a map containing the result of the login attempt.
-  static Future<Map<String, dynamic>> adminLogin(Map<String, dynamic> body) async {
+  static Future<Map<String, dynamic>> adminLogin(
+    Map<String, dynamic> body,
+  ) async {
     final url = Uri.parse('${await getBaseUrl()}/admin/login');
     final response = await http.post(
       url,
@@ -132,22 +136,12 @@ class ApiService {
     final data = jsonDecode(response.body);
     if (response.statusCode == 200) {
       // Success (step 2 or final)
-      return {
-        'success': true,
-        ...data,
-      };  
+      return {'success': true, ...data};
     } else if (response.statusCode == 401 && data['step'] == 2) {
       // Step 2 required
-      return {
-        'success': false,
-        'step': 2,
-        'message': data['message'],
-      };
+      return {'success': false, 'step': 2, 'message': data['message']};
     } else {
-      return {
-        'success': false,
-        'message': data['message'] ?? 'Login failed',
-      };
+      return {'success': false, 'message': data['message'] ?? 'Login failed'};
     }
   }
 
@@ -162,9 +156,10 @@ class ApiService {
     );
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      final students = (data['students'] as List)
-          .map((json) => Student.fromJson(Map<String, dynamic>.from(json)))
-          .toList();
+      final students =
+          (data['students'] as List)
+              .map((json) => Student.fromJson(Map<String, dynamic>.from(json)))
+              .toList();
       return students;
     } else {
       throw Exception('Failed to load students');
@@ -184,7 +179,9 @@ class ApiService {
     final jsonString = prefs.getString('students_data');
     if (jsonString == null) return [];
     final List<dynamic> decoded = jsonDecode(jsonString);
-    return decoded.map((e) => Student.fromJson(Map<String, dynamic>.from(e))).toList();
+    return decoded
+        .map((e) => Student.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
   }
 
   /// Fetch all teachers for the admin (requires auth token).
@@ -198,9 +195,10 @@ class ApiService {
     );
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      final teachers = (data['teachers'] as List)
-          .map((json) => Teacher.fromJson(Map<String, dynamic>.from(json)))
-          .toList();
+      final teachers =
+          (data['teachers'] as List)
+              .map((json) => Teacher.fromJson(Map<String, dynamic>.from(json)))
+              .toList();
       return teachers;
     } else {
       throw Exception('Failed to load teachers');
@@ -213,9 +211,27 @@ class ApiService {
     final token = prefs.getString('token');
     if (token == null) throw Exception('No auth token found');
     final url = Uri.parse('${await getBaseUrl()}/user/$userId');
-    return await http.delete(
+    return await http.delete(url, headers: _authHeaders(token));
+  }
+
+  /// Update user information (student or teacher) by user_id.
+  /// Requires auth token and a body containing fields to update.
+  static Future<http.Response> updateUser({
+    required dynamic userId,
+    required Map<String, dynamic> body,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    if (token == null) throw Exception('No auth token found');
+
+    final url = Uri.parse('${await getBaseUrl()}/user/$userId');
+
+    print("Sending update: $body"); // 👈 Add this for debug
+
+    return await http.put(
       url,
       headers: _authHeaders(token),
+      body: jsonEncode(body),
     );
   }
 }

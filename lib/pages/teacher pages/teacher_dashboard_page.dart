@@ -30,6 +30,13 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     _studentsFuture = _loadStudents();
     _teacherFuture = Teacher.fromPrefs();
   }
+  
+  void _refreshStudentCount() {
+  setState(() {
+    // This will force the FutureBuilder to rebuild
+    _studentsFuture = _loadStudents();
+  });
+}
 
   /// Loads students from API and local storage
   Future<List<Student>> _loadStudents() async {
@@ -46,19 +53,23 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
   }
 
   /// Shows the create class/student dialog
-  void _showCreateClassOrStudentDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => _CreateClassOrStudentDialog(),
-    );
-  }
+  /// Modify _showCreateClassOrStudentDialog to pass the refresh callback:
+void _showCreateClassOrStudentDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (context) => _CreateClassOrStudentDialog(
+      onStudentAdded: _refreshStudentCount,
+    ),
+  );
+}
 
   /// Shows the student list modal bottom sheet
   Future<void> _showStudentListModal(BuildContext context) async {
     if (_allStudents.isEmpty) {
       await _studentsFuture;
     }
-    showModalBottomSheet(
+
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -89,6 +100,11 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
                       allStudents: _allStudents,
                       pageSizes: _pageSizes,
                       initialPageSize: _pageSize,
+                      onDataChanged: () {
+                        setState(() {
+                          _studentsFuture = _loadStudents(); // REFRESH DATA
+                        });
+                      },
                     ),
                   ),
                 ),
@@ -265,6 +281,9 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
 
 // --- Dialog for Create Class or Student (admin-style, API integrated for student) ---
 class _CreateClassOrStudentDialog extends StatefulWidget {
+  final VoidCallback? onStudentAdded;
+
+  const _CreateClassOrStudentDialog({this.onStudentAdded});
   @override
   State<_CreateClassOrStudentDialog> createState() =>
       _CreateClassOrStudentDialogState();
@@ -294,6 +313,8 @@ class _CreateClassOrStudentDialogState
   bool _isLoading = false;
   bool _studentPasswordVisible = false;
   bool _studentConfirmPasswordVisible = false;
+
+  get onStudentAdded => null;
 
   @override
   void dispose() {
@@ -439,7 +460,10 @@ class _CreateClassOrStudentDialogState
             _isLoading = false;
           });
         }
-        Navigator.of(context).pop(); // Close dialog
+        Navigator.of(context).pop();
+        if (onStudentAdded != null) {
+          onStudentAdded!(); // Trigger the refresh callback
+        } // Close dialog
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -776,11 +800,13 @@ class _TeacherStudentListModal extends StatefulWidget {
   final List<Student> allStudents;
   final List<int> pageSizes;
   final int initialPageSize;
+  final VoidCallback? onDataChanged; // ✅ Add this line
 
   const _TeacherStudentListModal({
     required this.allStudents,
     required this.pageSizes,
     required this.initialPageSize,
+    this.onDataChanged, // ✅ Also include here
   });
 
   @override
@@ -1085,7 +1111,126 @@ class _TeacherStudentListModalState extends State<_TeacherStudentListModal> {
                         if (value == 'view') {
                           _showStudentInfoDialog(student);
                         } else if (value == 'edit') {
-                          // TODO: Implement edit logic
+                          final nameController = TextEditingController(
+                            text: student.studentName,
+                          );
+                          final lrnController = TextEditingController(
+                            text: student.studentLrn,
+                          );
+                          final gradeController = TextEditingController(
+                            text: student.studentGrade,
+                          );
+                          final sectionController = TextEditingController(
+                            text: student.studentSection,
+                          );
+                          final usernameController = TextEditingController(
+                            text: student.username,
+                          );
+
+                          final updated = await showDialog<bool>(
+                            context: context,
+                            builder:
+                                (context) => AlertDialog(
+                                  title: Text('Edit Student'),
+                                  content: SingleChildScrollView(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        _buildInputField(
+                                          'Name',
+                                          nameController,
+                                        ),
+                                        _buildInputField('LRN', lrnController),
+                                        _buildInputField(
+                                          'Grade',
+                                          gradeController,
+                                        ),
+                                        _buildInputField(
+                                          'Section',
+                                          sectionController,
+                                        ),
+                                        _buildInputField(
+                                          'Username',
+                                          usernameController,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed:
+                                          () => Navigator.pop(context, false),
+                                      child: Text('Cancel'),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed:
+                                          () => Navigator.pop(context, true),
+                                      child: Text('Update'),
+                                    ),
+                                  ],
+                                ),
+                          );
+
+                          if (updated == true) {
+                            try {
+                              final response = await ApiService.updateUser(
+                                userId: student.userId!,
+                                body: {
+                                  "username": usernameController.text.trim(),
+                                  "student_name": nameController.text.trim(),
+                                  "student_lrn": lrnController.text.trim(),
+                                  "student_grade": gradeController.text.trim(),
+                                  "student_section":
+                                      sectionController.text.trim(),
+                                },
+                              );
+                              if (response.statusCode == 200) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.check_circle,
+                                          color: Colors.white,
+                                          size: 22,
+                                        ),
+                                        SizedBox(width: 10),
+                                        Text("Student Updated successfully!"),
+                                      ],
+                                    ),
+                                    backgroundColor: Colors.lightBlue[700],
+                                    behavior: SnackBarBehavior.floating,
+                                    margin: EdgeInsets.only(
+                                      top: 20,
+                                      left: 20,
+                                      right: 20,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    elevation: 8,
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                                // Refresh the list
+                                widget.onDataChanged?.call();
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Failed to update student'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Error updating student'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
                         } else if (value == 'delete') {
                           // TODO: Implement delete logic
                           final confirm = await showDialog<bool>(
@@ -1161,8 +1306,13 @@ class _TeacherStudentListModalState extends State<_TeacherStudentListModal> {
                                       duration: Duration(seconds: 2),
                                     ),
                                   );
-                                  // Refresh list
-
+                                  // Refresh page and list
+                                  setState(() {
+                                    widget.allStudents.removeWhere(
+                                      (s) => s.userId == student.userId,
+                                    );
+                                  });
+                                  widget.onDataChanged?.call();
                                 } else {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
@@ -1251,4 +1401,17 @@ class _TeacherStudentListModalState extends State<_TeacherStudentListModal> {
       ],
     );
   }
+}
+
+Widget _buildInputField(String label, TextEditingController controller) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8.0),
+    child: TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        border: OutlineInputBorder(),
+      ),
+    ),
+  );
 }
