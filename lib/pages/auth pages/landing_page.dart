@@ -29,117 +29,119 @@ class LandingPage extends StatelessWidget {
             ),
           ),
           // Main content column
-          Column(
-            children: [
-              const SizedBox(height: 80),
-              // Animated hello illustration
-              Lottie.asset('assets/animation/hello.json', height: 400),
-              // App title
-              Text(
-                "Read & Grow",
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                      color: Colors.white,
+          SingleChildScrollView(
+            child: Column(
+              children: [
+                const SizedBox(height: 80),
+                // Animated hello illustration
+                Lottie.asset('assets/animation/hello.json', height: 400),
+                // App title
+                Text(
+                  "Read & Grow",
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                        color: Colors.white,
+                      ),
+                ),
+                const SizedBox(height: 5),
+                // App subtitle/description
+                Text(
+                  "Mobile Reading App For Elementary School Learners",
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.white,
+                      ),
+                ),
+                const SizedBox(height: 40), // <-- Replace Spacer with SizedBox for spacing
+                // Welcome card with login and sign up buttons
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(30),
                     ),
-              ),
-              const SizedBox(height: 5),
-              // App subtitle/description
-              Text(
-                "Mobile Reading App For Elementary School Learners",
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white,
-                    ),
-              ),
-              const Spacer(),
-              // Welcome card with login and sign up buttons
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(30),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Welcome message
+                      Text(
+                        "Welcome",
+                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                      ),
+                      const SizedBox(height: 10),
+                      // Short description
+                      Text(
+                        "Start your reading journey today with our platform.",
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.8),
+                            ),
+                      ),
+                      const SizedBox(height: 20),
+                      // Login button navigates to ChooseRolePage (login mode)
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            PageTransition(
+                              page: ChooseRolePage(showLogin: true), // Show login roles
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: Text(
+                          "Login",
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                fontSize: 20,
+                                color: Colors.white,
+                              ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      // Sign Up button navigates to ChooseRolePage (sign up mode)
+                      OutlinedButton(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            PageTransition(
+                              page: ChooseRolePage(showLogin: false), // Show sign up roles
+                            ),
+                          );
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                            color: Theme.of(context).colorScheme.primary,
+                            width: 2,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: Text(
+                          "Sign Up",
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                fontSize: 20,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Welcome message
-                    Text(
-                      "Welcome",
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                    ),
-                    const SizedBox(height: 10),
-                    // Short description
-                    Text(
-                      "Start your reading journey today with our platform.",
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withOpacity(0.8),
-                          ),
-                    ),
-                    const SizedBox(height: 20),
-                    // Login button navigates to ChooseRolePage (login mode)
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          PageTransition(
-                            page: ChooseRolePage(showLogin: true), // Show login roles
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: Text(
-                        "Login",
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              fontSize: 20,
-                              color: Colors.white,
-                            ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    // Sign Up button navigates to ChooseRolePage (sign up mode)
-                    OutlinedButton(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          PageTransition(
-                            page: ChooseRolePage(showLogin: false), // Show sign up roles
-                          ),
-                        );
-                      },
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(
-                          color: Theme.of(context).colorScheme.primary,
-                          width: 2,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: Text(
-                        "Sign Up",
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              fontSize: 20,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
           // Theme toggle button positioned at the top-right corner
           Positioned(

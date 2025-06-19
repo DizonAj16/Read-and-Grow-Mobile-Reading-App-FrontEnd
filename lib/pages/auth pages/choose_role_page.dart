@@ -74,50 +74,72 @@ class ChooseRolePage extends StatelessWidget {
     final options = _roleOptions(context);
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        iconTheme: IconThemeData(
-          color: Theme.of(context).colorScheme.onPrimary,
-        ),
-      ),
-      body: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          // Gradient background for the whole page
-          gradient: LinearGradient(
-            colors: [
-              Theme.of(context).colorScheme.primary,
-              Theme.of(context).colorScheme.secondary,
-            ],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Page title changes based on login/signup mode
-            Text(
-              showLogin ? "Login as" : "Sign Up as",
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onPrimary,
-                  ),
+      // Removed AppBar
+      body: Stack(
+        children: [
+          // Blended background image with color overlay for effect
+          ColorFiltered(
+            colorFilter: ColorFilter.mode(
+              Theme.of(context).colorScheme.primary.withOpacity(0.7),
+              BlendMode.softLight,
             ),
-            const SizedBox(height: 30),
-            // List of role selection cards
-            ...options.map(
-              (option) => Padding(
-                padding: const EdgeInsets.only(bottom: 24.0),
-                child: ChooseRoleCard(
-                  icon: option['icon'] as IconData,
-                  label: option['label'] as String,
-                  color: option['color'] as Color,
-                  onTap: option['onTap'] as VoidCallback,
+            child: Opacity(
+              opacity: 0.25,
+              child: Image.asset(
+                'assets/background/480681008_1020230633459316_6070422237958140538_n.jpg',
+                fit: BoxFit.fill,
+                width: double.infinity,
+                height: double.infinity,
+              ),
+            ),
+          ),
+          // Add a dark overlay for readability
+          Container(
+            color: Colors.black.withOpacity(0.35),
+            width: double.infinity,
+            height: double.infinity,
+          ),
+          // Custom back button at top left
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 8.0, top: 8.0),
+                child: IconButton(
+                  icon: Icon(Icons.arrow_back, color: Theme.of(context).colorScheme.onPrimary),
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  tooltip: 'Back',
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+          // Main content column
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  showLogin ? "Login as" : "Sign Up as",
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
+                ),
+                const SizedBox(height: 30),
+                ...options.map(
+                  (option) => Padding(
+                    padding: const EdgeInsets.only(bottom: 24.0),
+                    child: ChooseRoleCard(
+                      icon: option['icon'] as IconData,
+                      label: option['label'] as String,
+                      color: option['color'] as Color,
+                      onTap: option['onTap'] as VoidCallback,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

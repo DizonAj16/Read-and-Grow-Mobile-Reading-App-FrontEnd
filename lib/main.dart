@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'routes/app_routes.dart';
+import 'pages/auth pages/set_base_url_page.dart';
+import 'pages/auth pages/landing_page.dart';
 
 ThemeData buildLightTheme(BuildContext context) {
   return ThemeData.light().copyWith(
@@ -107,19 +109,18 @@ final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    // Optionally use prefs if needed
-  } catch (e) {
-    // Optionally log or handle the error, but allow app to continue
-    debugPrint('SharedPreferences initialization failed: $e');
-  }
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.remove('base_url'); // Clear previous base_url on every app start
   runApp(MyApp());
 }
 
-
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+
+  Future<bool> _hasBaseUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('base_url') != null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -131,8 +132,22 @@ class MyApp extends StatelessWidget {
           theme: buildLightTheme(context),
           darkTheme: buildDarkTheme(context),
           themeMode: currentTheme,
-          initialRoute: AppRoutes.landing,
           routes: AppRoutes.routes,
+          home: FutureBuilder<bool>(
+            future: _hasBaseUrl(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
+              if (snapshot.data == true) {
+                return const LandingPage();
+              } else {
+                return const SetBaseUrlPage();
+              }
+            },
+          ),
         );
       },
     );

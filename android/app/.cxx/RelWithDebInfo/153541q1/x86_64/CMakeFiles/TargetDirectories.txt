@@ -1,0 +1,2 @@
+C:/Read-and-Grow-Mobile-Reading-App-FrontEnd/android/app/.cxx/RelWithDebInfo/153541q1/x86_64/CMakeFiles/edit_cache.dir
+C:/Read-and-Grow-Mobile-Reading-App-FrontEnd/android/app/.cxx/RelWithDebInfo/153541q1/x86_64/CMakeFiles/rebuild_cache.dir

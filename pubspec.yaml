@@ -71,6 +71,7 @@ flutter:
     - assets/animation/
     - assets/placeholder/
     - assets/activity_images/
+    - assets/icons/
     - lib/pages/admin pages/ # Add admin pages directory
 
   # An image asset can refer to one or more resolution-specific "variants", see

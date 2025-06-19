@@ -5,6 +5,7 @@ import 'my class pages/my_class_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../api/api_service.dart';
 import '../../widgets/navigation/page_transition.dart';
+import 'student_profile_page.dart';
 
 class StudentPage extends StatefulWidget {
   const StudentPage({super.key});
@@ -41,7 +42,13 @@ class _StudentPageState extends State<StudentPage> {
     final response = await ApiService.logout(token);
 
     if (response.statusCode == 200) {
-      await prefs.clear();
+// Only remove token and user-related data, not all preferences
+      await prefs.remove('token');
+      await prefs.remove('student_name');
+      await prefs.remove('student_email');
+      await prefs.remove('student_id');
+      await prefs.remove('students_data');
+      // ...add/remove other student-specific keys as needed...
       // Show loading dialog before navigating
       showDialog(
         context: context,
@@ -69,7 +76,7 @@ class _StudentPageState extends State<StudentPage> {
           ),
         ),
       );
-      await Future.delayed(const Duration(seconds: 3));
+      await Future.delayed(const Duration(seconds: 1));
       if (mounted) {
         Navigator.of(context).pop(); // Close loading dialog
         Navigator.of(context).pushAndRemoveUntil(
@@ -159,19 +166,51 @@ class _ProfilePopupMenu extends StatelessWidget {
   final VoidCallback onLogout;
   const _ProfilePopupMenu({required this.onLogout});
 
+  Future<String> _getStudentName() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('student_name') ?? "Student";
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<String>(
       // Profile avatar as menu icon
-      icon: CircleAvatar(
-        radius: 20,
-        backgroundColor: const Color.fromARGB(255, 191, 8, 8),
-        child: Text("D"),
+      icon: FutureBuilder<String>(
+        future: _getStudentName(),
+        builder: (context, snapshot) {
+          final studentName = snapshot.data ?? "Student";
+          final firstLetter = studentName.isNotEmpty ? studentName[0].toUpperCase() : "S";
+          return CircleAvatar(
+            radius: 20,
+            backgroundColor: const Color.fromARGB(255, 191, 8, 8),
+            child: Text(
+              firstLetter,
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+          );
+        },
       ),
       tooltip: "Student Profile",
       onSelected: (value) {
         if (value == 'logout') {
           onLogout();
+        } else if (value == 'profile') {
+          // Show the StudentProfilePage as a modal bottom sheet
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            builder: (context) => FractionallySizedBox(
+              heightFactor: 0.85,
+              child: StudentProfilePage(),
+            ),
+          );
         }
       },
       itemBuilder: (BuildContext context) => [
@@ -183,25 +222,38 @@ class _ProfilePopupMenu extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                CircleAvatar(
-                  radius: 40,
-                  backgroundColor: const Color.fromARGB(255, 191, 8, 8),
-                  child: Text(
-                    "D",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 30,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                FutureBuilder<String>(
+                  future: _getStudentName(),
+                  builder: (context, snapshot) {
+                    final studentName = snapshot.data ?? "Student";
+                    final firstLetter = studentName.isNotEmpty ? studentName[0].toUpperCase() : "S";
+                    return CircleAvatar(
+                      radius: 40,
+                      backgroundColor: const Color.fromARGB(255, 191, 8, 8),
+                      child: Text(
+                        firstLetter,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 30,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 SizedBox(height: 8),
-                Text(
-                  'Arjec Jose Dizon',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+                FutureBuilder<String>(
+                  future: _getStudentName(),
+                  builder: (context, snapshot) {
+                    final studentName = snapshot.data ?? "Student";
+                    return Text(
+                      studentName,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                    );
+                  },
                 ),
                 SizedBox(height: 4),
                 Text(

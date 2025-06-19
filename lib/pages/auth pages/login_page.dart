@@ -25,6 +25,12 @@ class _LoginPageState extends State<LoginPage> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   bool _autoValidate = false;
 
+  /// Handles the login process:
+  /// - Validates the form.
+  /// - Shows a loading dialog.
+  /// - Calls the API for login.
+  /// - Handles response, stores token/role, and navigates to dashboard.
+  /// - Shows appropriate dialogs for errors or success.
   Future<void> login() async {
     if (!_formKey.currentState!.validate()) {
       setState(() {
@@ -37,12 +43,12 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final response = await ApiService.login({
-        'username': usernameController.text,
+        'login': usernameController.text, // Changed from 'username' to 'login'
         'password': passwordController.text,
       });
 
       final data = jsonDecode(response.body);
-      await Future.delayed(const Duration(seconds: 3));
+      await Future.delayed(const Duration(seconds: 1));
       Navigator.of(context).pop(); // Close loading dialog
 
       // Defensive: Check if SharedPreferences is available before using
@@ -60,15 +66,27 @@ class _LoginPageState extends State<LoginPage> {
 
       if (response.statusCode == 200) {
         await _showSuccessAndProceedDialogs(data['role']);
+      } else if (response.statusCode == 422) {
+        // Validation error
+        String errorMsg = '';
+        if (data['errors'] != null) {
+          data['errors'].forEach((key, value) {
+            errorMsg += '${value[0]}\n';
+          });
+        }
+        _showErrorDialog(
+          title: 'Validation Error',
+          message: errorMsg.trim().isEmpty ? (data['message'] ?? 'Validation error') : errorMsg.trim(),
+        );
       } else if (response.statusCode == 401) {
         _showErrorDialog(
           title: 'Login Failed',
-          message: data['message'] ?? 'Invalid username or password.',
+          message: data['message'] ?? 'Incorrect password.',
         );
       } else if (response.statusCode == 404) {
         _showErrorDialog(
           title: 'User Not Found',
-          message: data['message'] ?? 'Username not found.',
+          message: data['message'] ?? 'User not found.',
         );
       } else {
         _showErrorDialog(
@@ -85,6 +103,8 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  /// Displays a loading dialog with a custom message.
+  /// Used during async operations like login.
   void _showLoadingDialog(String message) {
     showDialog(
       context: context,
@@ -114,12 +134,16 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  /// Shows a success dialog, then a proceeding dialog, then navigates to dashboard.
+  /// Used after a successful login.
   Future<void> _showSuccessAndProceedDialogs(String? role) async {
     await _showSuccessDialog();
     await _showProceedingDialog(role);
     _navigateToDashboard(role);
   }
 
+  /// Shows a success dialog for login.
+  /// Waits for a few seconds before closing.
   Future<void> _showSuccessDialog() async {
     showDialog(
       context: context,
@@ -135,10 +159,12 @@ class _LoginPageState extends State<LoginPage> {
         content: const Text('Login successful!'),
       ),
     );
-    await Future.delayed(const Duration(seconds: 3));
+    await Future.delayed(const Duration(seconds: 1));
     Navigator.of(context).pop(); // Close success dialog
   }
 
+  /// Shows a dialog indicating the user is being redirected to their dashboard.
+  /// Waits for a few seconds before closing.
   Future<void> _showProceedingDialog(String? role) async {
     String dashboardText = '';
     if (role == 'student') {
@@ -176,10 +202,11 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ),
     );
-    await Future.delayed(const Duration(seconds: 3));
+    await Future.delayed(const Duration(seconds: 1));
     Navigator.of(context).pop(); // Close proceeding dialog
   }
 
+  /// Navigates to the appropriate dashboard page based on user role.
   void _navigateToDashboard(String? role) {
     if (role == 'student') {
       Navigator.of(context).pushAndRemoveUntil(
@@ -199,6 +226,8 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  /// Shows an error dialog with a title and message.
+  /// Used for displaying validation, login, or storage errors.
   void _showErrorDialog({required String title, required String message}) {
     showDialog(
       context: context,
@@ -221,7 +250,7 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // Builds the header with avatar and title
+  /// Builds the header section with avatar and title for the login page.
   Widget _buildHeader(BuildContext context) => Column(
         children: [
           const SizedBox(height: 50),
@@ -247,7 +276,8 @@ class _LoginPageState extends State<LoginPage> {
         ],
       );
 
-  // Builds the login form with email, password, and actions
+  /// Builds the login form with username/email, password, and action buttons.
+  /// Includes validation and navigation to sign up pages.
   Widget _buildLoginForm(BuildContext context) => Form(
         key: _formKey,
         autovalidateMode: _autoValidate ? AutovalidateMode.always : AutovalidateMode.disabled,
@@ -267,7 +297,7 @@ class _LoginPageState extends State<LoginPage> {
               TextFormField(
                 controller: usernameController,
                 decoration: InputDecoration(
-                  labelText: "Username",
+                  labelText: "Username/Email",
                   labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                   filled: true,
                   fillColor: const Color.fromARGB(52, 158, 158, 158),
@@ -358,7 +388,7 @@ class _LoginPageState extends State<LoginPage> {
         ),
       );
 
-  // Builds the background with image and gradient overlay
+  /// Builds the background with an image and a gradient overlay.
   Widget _buildBackground(BuildContext context) => Stack(
         children: [
           // Background image with color filter
@@ -393,6 +423,8 @@ class _LoginPageState extends State<LoginPage> {
         ],
       );
 
+  /// Main build method for the login page.
+  /// Assembles the app bar, background, header, and login form.
   @override
   Widget build(BuildContext context) {
     return Scaffold(

@@ -5,12 +5,14 @@ class PasswordTextField extends StatefulWidget {
   final String labelText;
   final TextEditingController? controller;
   final String? Function(String?)? validator;
+  final String? hintText; // <-- Add this line
 
   const PasswordTextField({
     super.key,
     required this.labelText,
     this.controller,
     this.validator,
+    this.hintText, // <-- Add this line
   });
 
   @override
@@ -35,6 +37,8 @@ class _PasswordTextFieldState extends State<PasswordTextField> {
       validator: widget.validator,
       decoration: InputDecoration(
         labelText: widget.labelText,
+        hintText: widget.hintText,
+        hintStyle: const TextStyle(fontStyle: FontStyle.italic), // <-- italicized
         labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface),
         filled: true,
         fillColor: const Color.fromARGB(52, 158, 158, 158),

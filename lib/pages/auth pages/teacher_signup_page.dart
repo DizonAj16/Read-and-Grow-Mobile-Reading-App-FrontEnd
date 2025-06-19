@@ -28,6 +28,7 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
 
   @override
   void dispose() {
+    // Disposes all controllers to free resources when the widget is removed from the widget tree.
     teacherNameController.dispose();
     teacherPositionController.dispose();
     teacherEmailController.dispose();
@@ -37,6 +38,11 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
     super.dispose();
   }
 
+  /// Handles the teacher registration process:
+  /// - Validates the form.
+  /// - Shows a loading dialog.
+  /// - Calls the API for registration.
+  /// - Handles the response and shows appropriate dialogs for success or failure.
   Future<void> registerTeacher() async {
     if (!_formKey.currentState!.validate()) {
       setState(() {
@@ -73,7 +79,7 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
       }
 
       if (response.statusCode == 201) {
-        await Future.delayed(const Duration(seconds: 3));
+        await Future.delayed(const Duration(seconds: 1));
         Navigator.of(context).pop(); // Close loading dialog
         await _showSuccessAndProceedDialogs(data['message'] ?? 'Registration successful!');
         if (mounted) {
@@ -95,6 +101,8 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
     }
   }
 
+  /// Displays a loading dialog with a custom message.
+  /// Used during async operations like registration.
   void _showLoadingDialog(String message) {
     showDialog(
       context: context,
@@ -124,12 +132,16 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
     );
   }
 
+  /// Shows a success dialog, then a proceeding dialog, then navigates to the login page.
+  /// Used after a successful registration.
   Future<void> _showSuccessAndProceedDialogs(String message) async {
     await _showSuccessDialog(message);
     await _showProceedingDialog();
     Navigator.of(context).pushReplacement(PageTransition(page: LoginPage()));
   }
 
+  /// Shows a success dialog for registration.
+  /// Waits for a few seconds before closing.
   Future<void> _showSuccessDialog(String message) async {
     showDialog(
       context: context,
@@ -145,10 +157,12 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
         content: Text(message),
       ),
     );
-    await Future.delayed(const Duration(seconds: 3));
+    await Future.delayed(const Duration(seconds: 1));
     Navigator.of(context).pop(); // Close success dialog
   }
 
+  /// Shows a dialog indicating the user is being redirected to the login page.
+  /// Waits for a few seconds before closing.
   Future<void> _showProceedingDialog() async {
     showDialog(
       context: context,
@@ -176,10 +190,14 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
         ),
       ),
     );
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(const Duration(seconds: 1));
     Navigator.of(context).pop(); // Close proceeding dialog
   }
 
+  /// Handles error dialogs:
+  /// - Closes the loading dialog.
+  /// - Shows an error dialog with a title and message.
+  /// - Sets loading state to false.
   void _handleErrorDialog({required String title, required String message}) {
     if (mounted) {
       setState(() {
@@ -208,16 +226,16 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
     }
   }
 
+  /// Builds the header section with avatar and title for the teacher sign up page.
   Widget _buildHeader(BuildContext context) => Column(
         children: [
           const SizedBox(height: 50),
           CircleAvatar(
             radius: 80,
             backgroundColor: Theme.of(context).colorScheme.onPrimary,
-            child: Icon(
-              Icons.person_add,
-              size: 90,
-              color: Theme.of(context).colorScheme.primary,
+            child: Image.asset(
+              'assets/icons/teacher.png',
+              width: 115,
             ),
           ),
           const SizedBox(height: 5),
@@ -232,6 +250,8 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
         ],
       );
 
+  /// Builds the sign up form with all required fields and validation.
+  /// Includes navigation to the login page.
   Widget _buildSignUpForm(BuildContext context) => Form(
         key: _formKey,
         autovalidateMode: _autoValidate ? AutovalidateMode.always : AutovalidateMode.disabled,
@@ -253,6 +273,7 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
                     controller: teacherNameController,
                     label: "Full Name",
                     icon: Icons.person,
+                    hintText: "e.g. Juan Dela Cruz",
                     validator: (value) => value == null || value.trim().isEmpty ? 'Full Name is required' : null,
                   ),
                   const SizedBox(height: 20),
@@ -260,6 +281,7 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
                     controller: teacherPositionController,
                     label: "Position",
                     icon: Icons.work,
+                    hintText: "e.g. English Teacher",
                     validator: (value) => value == null || value.trim().isEmpty ? 'Position is required' : null,
                   ),
                   const SizedBox(height: 20),
@@ -267,6 +289,7 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
                     controller: teacherUsernameController,
                     label: "Username",
                     icon: Icons.account_circle,
+                    hintText: "e.g. juandelacruz",
                     validator: (value) => value == null || value.trim().isEmpty ? 'Username is required' : null,
                   ),
                   const SizedBox(height: 20),
@@ -274,6 +297,7 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
                     controller: teacherEmailController,
                     label: "Email",
                     icon: Icons.email,
+                    hintText: "e.g. juan@email.com",
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return 'Email is required';
@@ -288,12 +312,14 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
                   PasswordTextField(
                     labelText: "Password",
                     controller: teacherPasswordController,
+                    hintText: "At least 6 characters",
                     validator: (value) => value == null || value.trim().isEmpty ? 'Password is required' : null,
                   ),
                   const SizedBox(height: 20),
                   PasswordTextField(
                     labelText: "Confirm Password",
                     controller: confirmPasswordController,
+                    hintText: "Re-enter your password",
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return 'Confirm Password is required';
@@ -339,16 +365,20 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
         ),
       );
 
+  /// Builds a reusable text field with icon, label, and validation.
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
+    String? hintText,
     String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
       decoration: InputDecoration(
         labelText: label,
+        hintText: hintText,
+        hintStyle: const TextStyle(fontStyle: FontStyle.italic), // <-- italicized
         labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface),
         filled: true,
         fillColor: const Color.fromARGB(52, 158, 158, 158),
@@ -371,6 +401,7 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
     );
   }
 
+  /// Builds the background with a gradient overlay.
   Widget _buildBackground(BuildContext context) => Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -384,6 +415,8 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
         ),
       );
 
+  /// Main build method for the teacher sign up page.
+  /// Assembles the app bar, background, header, and sign up form.
   @override
   Widget build(BuildContext context) {
     return Scaffold(

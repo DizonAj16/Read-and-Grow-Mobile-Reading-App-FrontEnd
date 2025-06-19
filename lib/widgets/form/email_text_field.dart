@@ -5,19 +5,22 @@ class EmailTextField extends StatelessWidget {
   final String labelText;
   final IconData? prefixIcon;
   final TextEditingController? controller;
+  final String? Function(String?)? validator; // <-- Add validator
 
-  // Accepts label text, optional icon, and optional controller
+  // Accepts label text, optional icon, optional controller, and optional validator
   const EmailTextField({
     super.key,
     required this.labelText,
     this.prefixIcon = Icons.email,
     this.controller,
+    this.validator, // <-- Add validator
   });
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    return TextFormField(
       controller: controller,
+      validator: validator, // <-- Use validator
       // Input decoration for consistent look and feel
       decoration: InputDecoration(
         labelText: labelText,

@@ -106,7 +106,7 @@ class _AgFamilyPageState extends State<AgFamilyPage> {
 
   Future<void> _speakWords() async {
     await _flutterTts.setLanguage("en-US");
-    await _flutterTts.setSpeechRate(0.4); // Adjust speech rate for kids
+    await _flutterTts.setSpeechRate(0.3); // Adjust speech rate for kids
     await _flutterTts.speak(agFamilyWords.join(", "));
   }
 

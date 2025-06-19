@@ -19,8 +19,13 @@ class _TeacherPageState extends State<TeacherPage> {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   String _currentTitle = "Teacher Dashboard";
   String _currentRoute = '/dashboard';
+  String _teacherName = "Teacher"; // Default
 
-  // Logout logic using API and SharedPreferences
+  /// Logs out the teacher:
+  /// - Calls the API to logout.
+  /// - Clears SharedPreferences.
+  /// - Shows a loading dialog and then navigates to the landing page.
+  /// - Shows an error dialog if logout fails.
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? '';
@@ -28,7 +33,14 @@ class _TeacherPageState extends State<TeacherPage> {
     final response = await ApiService.logout(token);
 
     if (response.statusCode == 200) {
-      await prefs.clear();
+      // Only remove token and user-related data, not all preferences
+      await prefs.remove('token');
+      await prefs.remove('teacher_name');
+      await prefs.remove('teacher_position');
+      await prefs.remove('teacher_email');
+      await prefs.remove('username');
+      // ...add/remove other teacher-specific keys as needed...
+
       // Show loading dialog before navigating
       showDialog(
         context: context,
@@ -56,7 +68,7 @@ class _TeacherPageState extends State<TeacherPage> {
           ),
         ),
       );
-      await Future.delayed(const Duration(seconds: 3));
+      await Future.delayed(const Duration(seconds: 1));
       if (mounted) {
         Navigator.of(context).pop(); // Close loading dialog
         Navigator.of(context).pushAndRemoveUntil(
@@ -81,7 +93,8 @@ class _TeacherPageState extends State<TeacherPage> {
     }
   }
 
-  // Shows a confirmation dialog for logout
+  /// Shows a confirmation dialog before logging out.
+  /// Provides options to stay or log out.
   void _showLogoutConfirmation(BuildContext context) {
     showDialog(
       context: context,
@@ -145,7 +158,8 @@ class _TeacherPageState extends State<TeacherPage> {
     );
   }
 
-  // Navigates to a specific route and updates the title
+  /// Navigates to a specific route and updates the app bar title.
+  /// Closes the drawer and pushes the new route in the nested navigator.
   void _navigateTo(String route, String title) {
     if (_currentRoute != route) {
       setState(() {
@@ -158,7 +172,29 @@ class _TeacherPageState extends State<TeacherPage> {
   }
 
   @override
+  void initState() {
+    // Initializes the teacher page and loads the teacher's name.
+    super.initState();
+    _loadTeacherName();
+  }
+
+  /// Loads the teacher's name from SharedPreferences.
+  /// Updates the UI if a name is found.
+  Future<void> _loadTeacherName() async {
+    final prefs = await SharedPreferences.getInstance();
+    // Try to get teacher_name from SharedPreferences
+    final name = prefs.getString('teacher_name');
+    if (name != null && name.isNotEmpty) {
+      setState(() {
+        _teacherName = name;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    /// Main build method for the teacher page.
+    /// Assembles the app bar, drawer, and nested navigator for teacher sections.
     return Scaffold(
       appBar: AppBar(
         // AppBar with dynamic title and search button
@@ -211,7 +247,7 @@ class _TeacherPageState extends State<TeacherPage> {
                       SizedBox(height: 10),
                       // Teacher name label
                       Text(
-                        'Teacher',
+                        _teacherName, // Use loaded teacher name
                         style: TextStyle(color: Colors.white, fontSize: 24),
                       ),
                     ],

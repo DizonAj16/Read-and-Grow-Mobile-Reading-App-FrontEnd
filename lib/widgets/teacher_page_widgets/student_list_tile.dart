@@ -65,7 +65,7 @@ class TeacherDashboardStudentListTile extends StatelessWidget {
                     ),
                     SizedBox(height: 4),
                     Text(
-                      "Section: $section | Level: $level",
+                      "Section: $section | Grade: $level",
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ],

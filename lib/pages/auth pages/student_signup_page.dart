@@ -29,6 +29,7 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
 
   @override
   void dispose() {
+    // Disposes all controllers to free resources when the widget is removed from the widget tree.
     studentNameController.dispose();
     studentLRNController.dispose();
     sectionController.dispose();
@@ -39,6 +40,11 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
     super.dispose();
   }
 
+  /// Handles the student registration process:
+  /// - Validates the form.
+  /// - Shows a loading dialog.
+  /// - Calls the API for registration.
+  /// - Handles the response and shows appropriate dialogs for success or failure.
   Future<void> registerStudent() async {
     if (!_formKey.currentState!.validate()) {
       setState(() {
@@ -78,7 +84,7 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
       }
 
       if (response.statusCode == 201) {
-        await Future.delayed(const Duration(seconds: 3));
+        await Future.delayed(const Duration(seconds: 1));
         Navigator.of(context).pop(); // Close loading dialog
         await _showSuccessAndProceedDialogs(data['message'] ?? 'Registration successful!');
         if (mounted) {
@@ -100,6 +106,8 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
     }
   }
 
+  /// Displays a loading dialog with a custom message.
+  /// Used during async operations like registration.
   void _showLoadingDialog(String message) {
     showDialog(
       context: context,
@@ -129,12 +137,16 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
     );
   }
 
+  /// Shows a success dialog, then a proceeding dialog, then navigates to the login page.
+  /// Used after a successful registration.
   Future<void> _showSuccessAndProceedDialogs(String message) async {
     await _showSuccessDialog(message);
     await _showProceedingDialog();
     Navigator.of(context).pushReplacement(PageTransition(page: LoginPage()));
   }
 
+  /// Shows a success dialog for registration.
+  /// Waits for a few seconds before closing.
   Future<void> _showSuccessDialog(String message) async {
     showDialog(
       context: context,
@@ -150,10 +162,12 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
         content: Text(message),
       ),
     );
-    await Future.delayed(const Duration(seconds: 3));
+    await Future.delayed(const Duration(seconds: 1));
     Navigator.of(context).pop(); // Close success dialog
   }
 
+  /// Shows a dialog indicating the user is being redirected to the login page.
+  /// Waits for a few seconds before closing.
   Future<void> _showProceedingDialog() async {
     showDialog(
       context: context,
@@ -181,10 +195,14 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
         ),
       ),
     );
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(const Duration(seconds: 1));
     Navigator.of(context).pop(); // Close proceeding dialog
   }
 
+  /// Handles error dialogs:
+  /// - Closes the loading dialog.
+  /// - Shows an error dialog with a title and message.
+  /// - Sets loading state to false.
   void _handleErrorDialog({required String title, required String message}) {
     if (mounted) {
       setState(() {
@@ -213,16 +231,16 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
     }
   }
 
+  /// Builds the header section with avatar and title for the student sign up page.
   Widget _buildHeader(BuildContext context) => Column(
         children: [
           const SizedBox(height: 50),
           CircleAvatar(
             radius: 80,
             backgroundColor: Theme.of(context).colorScheme.onPrimary,
-            child: Icon(
-              Icons.person_add,
-              size: 90,
-              color: Theme.of(context).colorScheme.primary,
+            child: Image.asset(
+              'assets/icons/graduating-student.png',
+              width: 115,
             ),
           ),
           const SizedBox(height: 5),
@@ -237,6 +255,8 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
         ],
       );
 
+  /// Builds the sign up form with all required fields and validation.
+  /// Includes navigation to the login page.
   Widget _buildSignUpForm(BuildContext context) => Form(
         key: _formKey,
         autovalidateMode: _autoValidate ? AutovalidateMode.always : AutovalidateMode.disabled,
@@ -256,6 +276,7 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
                     controller: studentNameController,
                     label: "Full Name",
                     icon: Icons.person,
+                    hintText: "e.g. Maria Santos",
                     validator: (value) => value == null || value.trim().isEmpty ? 'Full Name is required' : null,
                   ),
                   const SizedBox(height: 20),
@@ -263,6 +284,7 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
                     controller: studentLRNController,
                     label: "LRN",
                     icon: Icons.confirmation_number,
+                    hintText: "e.g. 123456789012",
                     validator: (value) => value == null || value.trim().isEmpty ? 'LRN is required' : null,
                   ),
                   const SizedBox(height: 20),
@@ -270,6 +292,7 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
                     controller: gradeController,
                     label: "Grade",
                     icon: Icons.grade,
+                    hintText: "e.g. 1",
                     validator: (value) => value == null || value.trim().isEmpty ? 'Grade is required' : null,
                   ),
                   const SizedBox(height: 20),
@@ -277,6 +300,7 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
                     controller: sectionController,
                     label: "Section",
                     icon: Icons.group,
+                    hintText: "e.g. Section A",
                     validator: (value) => value == null || value.trim().isEmpty ? 'Section is required' : null,
                   ),
                   const SizedBox(height: 20),
@@ -284,18 +308,21 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
                     controller: studentUsernameController,
                     label: "Username",
                     icon: Icons.account_circle,
+                    hintText: "e.g. mariasantos",
                     validator: (value) => value == null || value.trim().isEmpty ? 'Username is required' : null,
                   ),
                   const SizedBox(height: 20),
                   PasswordTextField(
                     labelText: "Password",
                     controller: studentPasswordController,
+                    hintText: "At least 6 characters",
                     validator: (value) => value == null || value.trim().isEmpty ? 'Password is required' : null,
                   ),
                   const SizedBox(height: 20),
                   PasswordTextField(
                     labelText: "Confirm Password",
                     controller: confirmPasswordController,
+                    hintText: "Re-enter your password",
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return 'Confirm Password is required';
@@ -338,16 +365,20 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
         ),
       );
 
+  /// Builds a reusable text field with icon, label, and validation.
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
+    String? hintText,
     String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
       decoration: InputDecoration(
         labelText: label,
+        hintText: hintText,
+        hintStyle: const TextStyle(fontStyle: FontStyle.italic), // <-- italicized
         labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface),
         filled: true,
         fillColor: const Color.fromARGB(52, 158, 158, 158),
@@ -370,6 +401,7 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
     );
   }
 
+  /// Builds the background with a gradient overlay.
   Widget _buildBackground(BuildContext context) => Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -383,6 +415,8 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
         ),
       );
 
+  /// Main build method for the student sign up page.
+  /// Assembles the app bar, background, header, and sign up form.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
