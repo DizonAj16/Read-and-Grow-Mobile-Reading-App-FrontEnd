@@ -68,6 +68,19 @@ class _AdminViewStudentsPageState extends State<AdminViewStudentsPage> {
     }
   }
 
+  Widget _buildInputField(String label, TextEditingController controller) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: TextField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(),
+        ),
+      ),
+    );
+  }
+
   Widget _buildStudentList(List<Student> students) {
     if (students.isEmpty) {
       return Center(child: Text('No students found.'));
@@ -303,17 +316,6 @@ class _AdminViewStudentsPageState extends State<AdminViewStudentsPage> {
                                                                   "N/A",
                                                               context,
                                                             ),
-                                                            SizedBox(width: 48),
-                                                            _infoColumn(
-                                                              "User ID",
-                                                              (student.userId
-                                                                          ?.toString() ??
-                                                                      "N/A") +
-                                                                  " / " +
-                                                                  student.id
-                                                                      .toString(),
-                                                              context,
-                                                            ),
                                                           ],
                                                         ),
                                                         SizedBox(height: 24),
@@ -327,7 +329,167 @@ class _AdminViewStudentsPageState extends State<AdminViewStudentsPage> {
                                         },
                                       );
                                     } else if (value == 'edit') {
-                                      // TODO: Implement edit logic
+                                      final nameController =
+                                          TextEditingController(
+                                            text: student.studentName,
+                                          );
+                                      final lrnController =
+                                          TextEditingController(
+                                            text: student.studentLrn,
+                                          );
+                                      final gradeController =
+                                          TextEditingController(
+                                            text: student.studentGrade,
+                                          );
+                                      final sectionController =
+                                          TextEditingController(
+                                            text: student.studentSection,
+                                          );
+                                      final usernameController =
+                                          TextEditingController(
+                                            text: student.username,
+                                          );
+
+                                      final updated = await showDialog<bool>(
+                                        context: context,
+                                        builder:
+                                            (context) => AlertDialog(
+                                              title: Text('Edit Student'),
+                                              content: SingleChildScrollView(
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    _buildInputField(
+                                                      'Name',
+                                                      nameController,
+                                                    ),
+                                                    _buildInputField(
+                                                      'LRN',
+                                                      lrnController,
+                                                    ),
+                                                    _buildInputField(
+                                                      'Grade',
+                                                      gradeController,
+                                                    ),
+                                                    _buildInputField(
+                                                      'Section',
+                                                      sectionController,
+                                                    ),
+                                                    _buildInputField(
+                                                      'Username',
+                                                      usernameController,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed:
+                                                      () => Navigator.pop(
+                                                        context,
+                                                        false,
+                                                      ),
+                                                  child: Text('Cancel'),
+                                                ),
+                                                ElevatedButton(
+                                                  onPressed:
+                                                      () => Navigator.pop(
+                                                        context,
+                                                        true,
+                                                      ),
+                                                  child: Text('Update'),
+                                                ),
+                                              ],
+                                            ),
+                                      );
+
+                                      if (updated == true) {
+                                        try {
+                                          final response =
+                                              await ApiService.updateUser(
+                                                userId: student.userId!,
+                                                body: {
+                                                  "username":
+                                                      usernameController.text
+                                                          .trim(),
+                                                  "student_name":
+                                                      nameController.text
+                                                          .trim(),
+                                                  "student_lrn":
+                                                      lrnController.text.trim(),
+                                                  "student_grade":
+                                                      gradeController.text
+                                                          .trim(),
+                                                  "student_section":
+                                                      sectionController.text
+                                                          .trim(),
+                                                },
+                                              );
+                                          if (response.statusCode == 200) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Row(
+                                                  children: [
+                                                    Icon(
+                                                      Icons.check_circle,
+                                                      color: Colors.white,
+                                                      size: 22,
+                                                    ),
+                                                    SizedBox(width: 10),
+                                                    Text(
+                                                      "Student Updated successfully!",
+                                                    ),
+                                                  ],
+                                                ),
+                                                backgroundColor:
+                                                    Colors.lightBlue[700],
+                                                behavior:
+                                                    SnackBarBehavior.floating,
+                                                margin: EdgeInsets.only(
+                                                  top: 20,
+                                                  left: 20,
+                                                  right: 20,
+                                                ),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                elevation: 8,
+                                                duration: Duration(seconds: 2),
+                                              ),
+                                            );
+                                            // Refresh the list
+                                            setState(() {
+                                              _studentsFuture = _loadStudents();
+                                            });
+                                          } else {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'Failed to update student',
+                                                ),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                          }
+                                        } catch (e) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Error updating student',
+                                              ),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                        }
+                                      }
                                     } else if (value == 'delete') {
                                       final confirm = await showDialog<bool>(
                                         context: context,
@@ -385,6 +547,12 @@ class _AdminViewStudentsPageState extends State<AdminViewStudentsPage> {
                                                 response.body.isNotEmpty
                                                     ? response.body
                                                     : '';
+
+                                            print(
+                                              'Status: ${response.statusCode}',
+                                            );
+                                            print('Body: ${response.body}');
+
                                             if (response.statusCode == 200) {
                                               ScaffoldMessenger.of(
                                                 context,
@@ -404,7 +572,7 @@ class _AdminViewStudentsPageState extends State<AdminViewStudentsPage> {
                                                     ],
                                                   ),
                                                   backgroundColor:
-                                                      Colors.green[700],
+                                                      Colors.red[700],
                                                   behavior:
                                                       SnackBarBehavior.floating,
                                                   margin: EdgeInsets.only(
