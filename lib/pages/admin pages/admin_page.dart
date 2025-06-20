@@ -2,7 +2,7 @@ import 'package:deped_reading_app_laravel/api/api_service.dart';
 import 'package:deped_reading_app_laravel/pages/auth%20pages/landing_page.dart';
 import 'package:deped_reading_app_laravel/widgets/navigation/page_transition.dart';
 import 'package:flutter/material.dart';
-import 'admin_dashboard_page.dart';
+import 'admin dashboard/admin_dashboard_page.dart';
 import 'admin_profile_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

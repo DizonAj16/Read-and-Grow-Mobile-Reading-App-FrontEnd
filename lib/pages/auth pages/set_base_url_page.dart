@@ -63,95 +63,92 @@ class _SetBaseUrlPageState extends State<SetBaseUrlPage> {
               fit: BoxFit.fill,
             ),
           ),
-          // Semi-transparent overlay for readability
-          Positioned.fill(
-            child: Container(
-              color: Colors.black.withOpacity(0.5),
-            ),
-          ),
           // Centered card
           Center(
-            child: Card(
-              elevation: 12,
-              color: Colors.white.withOpacity(0.95),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 400),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.settings_ethernet, size: 48, color: Theme.of(context).colorScheme.primary),
-                      const SizedBox(height: 16),
-                      Text(
-                        "Enter Backend IP Address or URL",
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontWeight: FontWeight.bold,
-                            ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 20),
-                      TextField(
-                        controller: _controller,
-                        decoration: InputDecoration(
-                          labelText: "Base URL (e.g. http://192.168.1.100:8000/api)",
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          filled: true,
-                          fillColor: Colors.grey[100],
-                          errorText: _errorText,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Card(
+                elevation: 12,
+                color: Colors.white.withOpacity(0.95),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 400),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.settings_ethernet, size: 48, color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(height: 16),
+                        Text(
+                          "Enter Backend IP Address or URL",
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                          textAlign: TextAlign.center,
                         ),
-                        onChanged: (_) {
-                          if (_errorText != null) {
-                            setState(() {
-                              _errorText = null;
-                            });
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _saveUrl,
-                          icon: const Icon(Icons.save),
-                          label: const Text("Save & Continue"),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
+                        const SizedBox(height: 20),
+                        TextField(
+                          controller: _controller,
+                          decoration: InputDecoration(
+                            labelText: "Base URL (e.g. http://192.168.1.100:8000/api)",
+                            border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            backgroundColor: Theme.of(context).colorScheme.primary,
-                            foregroundColor: Colors.white,
+                            filled: true,
+                            fillColor: Colors.grey[100],
+                            errorText: _errorText,
+                          ),
+                          onChanged: (_) {
+                            if (_errorText != null) {
+                              setState(() {
+                                _errorText = null;
+                              });
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: _saveUrl,
+                            icon: const Icon(Icons.save),
+                            label: const Text("Save & Continue"),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              backgroundColor: Theme.of(context).colorScheme.primary,
+                              foregroundColor: Colors.white,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: _useDefaultUrl,
-                          icon: const Icon(Icons.flash_on),
-                          label: const Text("Use Default Base URL"),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: _useDefaultUrl,
+                            icon: const Icon(Icons.flash_on),
+                            label: const Text("Use Default Base URL"),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              side: BorderSide(
+                                color: Theme.of(context).colorScheme.primary,
+                                width: 2,
+                              ),
+                              foregroundColor: Theme.of(context).colorScheme.primary,
                             ),
-                            side: BorderSide(
-                              color: Theme.of(context).colorScheme.primary,
-                              width: 2,
-                            ),
-                            foregroundColor: Theme.of(context).colorScheme.primary,
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'pupil_submissions_and_report_page.dart';
-import 'teacher_dashboard_page.dart';
+import 'teacher dashboard/teacher_dashboard_page.dart';
 import 'badges_list_page.dart';
 import 'teacher_profile_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';

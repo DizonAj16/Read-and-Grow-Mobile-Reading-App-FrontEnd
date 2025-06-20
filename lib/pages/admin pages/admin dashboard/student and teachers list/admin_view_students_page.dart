@@ -543,11 +543,6 @@ class _AdminViewStudentsPageState extends State<AdminViewStudentsPage> {
                                                 await ApiService.deleteUser(
                                                   student.userId,
                                                 );
-                                            final data =
-                                                response.body.isNotEmpty
-                                                    ? response.body
-                                                    : '';
-
                                             print(
                                               'Status: ${response.statusCode}',
                                             );

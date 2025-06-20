@@ -415,10 +415,34 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
                                               context,
                                             ).showSnackBar(
                                               SnackBar(
-                                                content: Text(
-                                                  'Teacher updated successfully!',
+                                                content: Row(
+                                                  children: [
+                                                    Icon(
+                                                      Icons.check_circle,
+                                                      color: Colors.white,
+                                                      size: 22,
+                                                    ),
+                                                    SizedBox(width: 10),
+                                                    Text(
+                                                      "Teacher Updated successfully!",
+                                                    ),
+                                                  ],
                                                 ),
-                                                backgroundColor: Colors.green,
+                                                backgroundColor:
+                                                    Colors.lightBlue[700],
+                                                behavior:
+                                                    SnackBarBehavior.floating,
+                                                margin: EdgeInsets.only(
+                                                  top: 20,
+                                                  left: 20,
+                                                  right: 20,
+                                                ),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                elevation: 8,
+                                                duration: Duration(seconds: 2),
                                               ),
                                             );
                                             // Refresh the list

@@ -1,0 +1,520 @@
+import 'package:deped_reading_app_laravel/api/api_service.dart';
+import 'package:flutter/material.dart';
+import 'dart:convert';
+
+// --- Dialog for Create Class or Student (admin-style, API integrated for student) ---
+class CreateClassOrStudentDialog extends StatefulWidget {
+  final VoidCallback? onStudentAdded;
+
+  const CreateClassOrStudentDialog({this.onStudentAdded});
+  @override
+  State<CreateClassOrStudentDialog> createState() =>
+      CreateClassOrStudentDialogState();
+}
+
+class CreateClassOrStudentDialogState
+    extends State<CreateClassOrStudentDialog> {
+  int selectedTab = 1; // 0 = Class, 1 = Student
+
+  // Controllers for form fields
+  final TextEditingController classNameController = TextEditingController();
+  final TextEditingController classSectionController = TextEditingController();
+  final TextEditingController studentNameController = TextEditingController();
+  final TextEditingController studentLrnController = TextEditingController();
+  final TextEditingController studentSectionController =
+      TextEditingController();
+  final TextEditingController studentGradeController = TextEditingController();
+  final TextEditingController studentUsernameController =
+      TextEditingController();
+  final TextEditingController studentPasswordController =
+      TextEditingController();
+  final TextEditingController confirmStudentPasswordController =
+      TextEditingController();
+
+  final _formKey = GlobalKey<FormState>();
+  bool _autoValidate = false;
+  bool _isLoading = false;
+  bool _studentPasswordVisible = false;
+  bool _studentConfirmPasswordVisible = false;
+
+  get onStudentAdded => null;
+
+  @override
+  void dispose() {
+    classNameController.dispose();
+    classSectionController.dispose();
+    studentNameController.dispose();
+    studentLrnController.dispose();
+    studentSectionController.dispose();
+    studentGradeController.dispose();
+    studentUsernameController.dispose();
+    studentPasswordController.dispose();
+    confirmStudentPasswordController.dispose();
+    super.dispose();
+  }
+
+  /// Shows a loading dialog with a message
+  void _showLoadingDialog(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => Dialog( 
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 24),
+                  Text(
+                    message,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+    );
+  }
+
+  /// Shows a success dialog
+  Future<void> _showSuccessDialog(String message) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, size: 35),
+                SizedBox(width: 8),
+                const Text('Success'),
+              ],
+            ),
+            content: Text(message),
+          ),
+    );
+    await Future.delayed(const Duration(seconds: 1));
+    Navigator.of(context).pop(); // Close success dialog
+  }
+
+  /// Handles error dialog
+  void _handleErrorDialog({required String title, required String message}) {
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+      Navigator.of(context).pop(); // Close loading dialog
+      showDialog(
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.error, color: Colors.red, size: 35),
+                  SizedBox(width: 8),
+                  Text(title),
+                ],
+              ),
+              content: Text(message),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+      );
+    }
+  }
+
+  /// Handles student creation via API
+  Future<void> _addStudent() async {
+    if (!_formKey.currentState!.validate()) {
+      setState(() {
+        _autoValidate = true;
+      });
+      return;
+    }
+    setState(() {
+      _isLoading = true;
+    });
+    _showLoadingDialog("Creating student account...");
+    try {
+      final response = await ApiService.registerStudent({
+        'student_username': studentUsernameController.text,
+        'student_password': studentPasswordController.text,
+        'student_password_confirmation': confirmStudentPasswordController.text,
+        'student_name': studentNameController.text,
+        'student_lrn': studentLrnController.text,
+        'student_grade': studentGradeController.text,
+        'student_section': studentSectionController.text,
+      });
+
+      dynamic data;
+      try {
+        data = jsonDecode(response.body);
+      } catch (e) {
+        _handleErrorDialog(
+          title: 'Server Error',
+          message:
+              response.statusCode >= 500
+                  ? 'A server error occurred. Please try again later.'
+                  : 'Server error: Invalid response format.',
+        );
+        return;
+      }
+
+      if (response.statusCode == 201) {
+        await Future.delayed(const Duration(seconds: 1));
+        Navigator.of(context).pop(); // Close loading dialog
+        await _showSuccessDialog(data['message'] ?? 'Student account created!');
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+        Navigator.of(context).pop();
+        if (onStudentAdded != null) {
+          onStudentAdded!(); // Trigger the refresh callback
+        } // Close dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white, size: 22),
+                SizedBox(width: 10),
+                Text("Student account created successfully!"),
+              ],
+            ),
+            backgroundColor: Colors.green[700],
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.only(top: 20, left: 20, right: 20),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            elevation: 8,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else {
+        _handleErrorDialog(
+          title: 'Registration Failed',
+          message: data['message'] ?? 'Registration failed',
+        );
+      }
+    } catch (e) {
+      _handleErrorDialog(
+        title: 'Error',
+        message: 'An error occurred. Please try again.',
+      );
+    }
+  }
+
+  /// Builds a password field with show/hide toggle
+  Widget _buildPasswordField({
+    required TextEditingController controller,
+    required String label,
+    required bool visible,
+    required VoidCallback onToggle,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      obscureText: !visible,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(
+          Icons.lock,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        suffixIcon: IconButton(
+          icon: Icon(
+            visible ? Icons.visibility : Icons.visibility_off,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          onPressed: onToggle,
+        ),
+      ),
+      validator: validator,
+    );
+  }
+
+  /// Builds a simple text field with icon and validation
+  Widget _buildSimpleTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: Theme.of(context).colorScheme.primary),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      validator: validator,
+    );
+  }
+
+  /// Student creation form
+  Widget _buildStudentForm(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildSimpleTextField(
+          controller: studentNameController,
+          label: "Student Name",
+          icon: Icons.person,
+          validator:
+              (value) =>
+                  value == null || value.trim().isEmpty
+                      ? 'Name is required'
+                      : null,
+        ),
+        const SizedBox(height: 16),
+        _buildSimpleTextField(
+          controller: studentLrnController,
+          label: "LRN",
+          icon: Icons.confirmation_number,
+          validator:
+              (value) =>
+                  value == null || value.trim().isEmpty
+                      ? 'LRN is required'
+                      : null,
+        ),
+        const SizedBox(height: 16),
+        _buildSimpleTextField(
+          controller: studentGradeController,
+          label: "Grade",
+          icon: Icons.grade,
+          validator:
+              (value) =>
+                  value == null || value.trim().isEmpty
+                      ? 'Grade is required'
+                      : null,
+        ),
+        const SizedBox(height: 16),
+        _buildSimpleTextField(
+          controller: studentSectionController,
+          label: "Section",
+          icon: Icons.group,
+          validator:
+              (value) =>
+                  value == null || value.trim().isEmpty
+                      ? 'Section is required'
+                      : null,
+        ),
+        const SizedBox(height: 16),
+        _buildSimpleTextField(
+          controller: studentUsernameController,
+          label: "Username",
+          icon: Icons.account_circle,
+          validator:
+              (value) =>
+                  value == null || value.trim().isEmpty
+                      ? 'Username is required'
+                      : null,
+        ),
+        const SizedBox(height: 16),
+        _buildPasswordField(
+          controller: studentPasswordController,
+          label: "Password",
+          visible: _studentPasswordVisible,
+          onToggle:
+              () => setState(
+                () => _studentPasswordVisible = !_studentPasswordVisible,
+              ),
+          validator:
+              (value) =>
+                  value == null || value.trim().isEmpty
+                      ? 'Password is required'
+                      : null,
+        ),
+        const SizedBox(height: 16),
+        _buildPasswordField(
+          controller: confirmStudentPasswordController,
+          label: "Confirm Password",
+          visible: _studentConfirmPasswordVisible,
+          onToggle:
+              () => setState(
+                () =>
+                    _studentConfirmPasswordVisible =
+                        !_studentConfirmPasswordVisible,
+              ),
+          validator: (value) {
+            if (value == null || value.trim().isEmpty)
+              return 'Confirm Password is required';
+            if (value != studentPasswordController.text)
+              return 'Passwords do not match';
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Column(
+        children: [
+          Icon(
+            selectedTab == 0 ? Icons.class_ : Icons.person_add,
+            color: Theme.of(context).colorScheme.primary,
+            size: 50,
+          ),
+          SizedBox(height: 8),
+          Text(
+            selectedTab == 0 ? "Create New Class" : "Create Student Account",
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          Divider(thickness: 1, color: Colors.grey.shade300),
+          // Toggle buttons for selection
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ChoiceChip(
+                label: Text("Class"),
+                selected: selectedTab == 0,
+                onSelected: (selected) {
+                  if (!selected) return;
+                  setState(() => selectedTab = 0);
+                },
+                selectedColor: Theme.of(context).colorScheme.primary,
+                labelStyle: TextStyle(
+                  color:
+                      selectedTab == 0
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              SizedBox(width: 12),
+              ChoiceChip(
+                label: Text("Student"),
+                selected: selectedTab == 1,
+                onSelected: (selected) {
+                  if (!selected) return;
+                  setState(() => selectedTab = 1);
+                },
+                selectedColor: Theme.of(context).colorScheme.primary,
+                labelStyle: TextStyle(
+                  color:
+                      selectedTab == 1
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          autovalidateMode:
+              _autoValidate
+                  ? AutovalidateMode.always
+                  : AutovalidateMode.disabled,
+          child:
+              selectedTab == 0
+                  ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: classNameController,
+                        decoration: InputDecoration(
+                          labelText: "Class Name",
+                          prefixIcon: Icon(
+                            Icons.edit,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      TextField(
+                        controller: classSectionController,
+                        decoration: InputDecoration(
+                          labelText: "Class Section",
+                          prefixIcon: Icon(
+                            Icons.group,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                  : _buildStudentForm(context),
+        ),
+      ),
+      actionsAlignment: MainAxisAlignment.center,
+      actions: [
+        SizedBox(height: 16),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text("Cancel", style: TextStyle(color: Colors.grey)),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          onPressed:
+              _isLoading
+                  ? null
+                  : () {
+                    print("Selected Tab: $selectedTab");
+                    if (selectedTab == 0) {
+                      // Create Class logic (local only)
+                      String className = classNameController.text.trim();
+                      String classSection = classSectionController.text.trim();
+
+                      if (className.isNotEmpty && classSection.isNotEmpty) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text("Class created successfully!"),
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("Please fill in all fields")),
+                        );
+                      }
+                    } else {
+                      _addStudent();
+                    }
+                  },
+          child: Text(
+            selectedTab == 0 ? "Create" : "Create",
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+      ],
+    );
+  }
+}
