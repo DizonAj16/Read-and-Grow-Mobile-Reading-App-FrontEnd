@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'class_details_page.dart';
 
 class MyClassPage extends StatelessWidget {
@@ -79,10 +80,7 @@ class ClassCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   gradient: LinearGradient(
-                    colors: [
-                      Colors.black.withOpacity(0.6),
-                      Colors.transparent,
-                    ],
+                    colors: [Colors.black.withOpacity(0.6), Colors.transparent],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                   ),
@@ -100,9 +98,15 @@ class ClassCard extends StatelessWidget {
                       context,
                       PageRouteBuilder(
                         transitionDuration: Duration(milliseconds: 600),
-                        pageBuilder: (context, animation, secondaryAnimation) =>
-                            ClassDetailsPage(className: className),
-                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                        pageBuilder:
+                            (context, animation, secondaryAnimation) =>
+                                ClassDetailsPage(className: className),
+                        transitionsBuilder: (
+                          context,
+                          animation,
+                          secondaryAnimation,
+                          child,
+                        ) {
                           return FadeTransition(
                             opacity: animation,
                             child: child,
@@ -112,21 +116,22 @@ class ClassCard extends StatelessWidget {
                     );
                   }
                 },
-                itemBuilder: (BuildContext context) => [
-                  PopupMenuItem(
-                    value: 'view',
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.visibility,
-                          color: Theme.of(context).colorScheme.primary,
+                itemBuilder:
+                    (BuildContext context) => [
+                      PopupMenuItem(
+                        value: 'view',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.visibility,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            SizedBox(width: 8),
+                            Text('View Class'),
+                          ],
                         ),
-                        SizedBox(width: 8),
-                        Text('View Class'),
-                      ],
-                    ),
-                  ),
-                ],
+                      ),
+                    ],
                 icon: Icon(Icons.more_vert, color: Colors.white),
               ),
             ),
@@ -135,7 +140,7 @@ class ClassCard extends StatelessWidget {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [ 
+                children: [
                   // Class name with Hero animation
                   Hero(
                     tag: 'class-title-$className',
@@ -143,10 +148,12 @@ class ClassCard extends StatelessWidget {
                       color: Colors.transparent,
                       child: Text(
                         className,
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.headlineMedium?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
@@ -154,9 +161,9 @@ class ClassCard extends StatelessWidget {
                   Text(
                     sectionName,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Colors.white70,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                   Spacer(),
                   // Teacher info row
@@ -169,8 +176,12 @@ class ClassCard extends StatelessWidget {
                           SizedBox(width: 8),
                           Text(
                             teacherName,
-                            style: Theme.of(context).textTheme.bodyLarge
-                                ?.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+                            style: Theme.of(
+                              context,
+                            ).textTheme.bodyLarge?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ],
                       ),
@@ -185,4 +196,3 @@ class ClassCard extends StatelessWidget {
     );
   }
 }
-
