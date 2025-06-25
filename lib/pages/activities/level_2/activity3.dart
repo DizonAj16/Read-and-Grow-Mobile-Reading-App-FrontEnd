@@ -1,36 +1,48 @@
 import 'package:flutter/material.dart';
 
-import 'activity2pages/drag_word_picture_page.dart';
-import 'activity2pages/fill_in_blanks_page.dart';
-import 'activity2pages/the_bird_mcq_page.dart';
-import 'activity2pages/the_bird_page.dart';
+import 'activity3pages/drag_word_picture_page.dart';
+import 'activity3pages/fill_in_blanks_page.dart';
+import 'activity3pages/the_bird_mcq_page.dart';
+import 'activity3pages/the_bird_page.dart';
 
-class Activity2_1Page extends StatefulWidget {
-  const Activity2_1Page({super.key});
+class Activity3Page extends StatefulWidget {
+  const Activity3Page({super.key});
 
   @override
-  _Activity2_1PageState createState() => _Activity2_1PageState();
+  _Activity3PageState createState() => _Activity3PageState();
 }
 
-class _Activity2_1PageState extends State<Activity2_1Page> {
+class _Activity3PageState extends State<Activity3Page>
+    with SingleTickerProviderStateMixin {
   int _currentPage = 0;
+  bool _isLoading = false;
 
   final List<Widget> _pages = const [
-    const TheBirdPage(),
-    const TheBirdMultipleChoicePage(),
-    const DragTheWordToPicturePage(),
-    const FillInTheBlanksPage(),
+    TheBirdPage(),
+    TheBirdMultipleChoicePage(),
+    DragTheWordToPicturePage(),
+    FillInTheBlanksPage(),
   ];
 
-  void _goToPreviousPage() {
+  Future<void> _goToPreviousPage() async {
     if (_currentPage > 0) {
+      await _showLoadingOverlay();
       setState(() => _currentPage--);
     }
   }
 
-  void _goToNextPage() {
+  Future<void> _goToNextPage() async {
     if (_currentPage < _pages.length - 1) {
+      await _showLoadingOverlay();
       setState(() => _currentPage++);
+    }
+  }
+
+  Future<void> _showLoadingOverlay() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(seconds: 1));
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -39,15 +51,28 @@ class _Activity2_1PageState extends State<Activity2_1Page> {
     return Scaffold(
       backgroundColor: Colors.deepPurple.shade50,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            children: [
-              Expanded(child: _pages[_currentPage]),
-              const SizedBox(height: 12),
-              _buildNavigationBar(context),
-            ],
-          ),
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                children: [
+                  Expanded(child: _pages[_currentPage]),
+                  const SizedBox(height: 12),
+                  _buildNavigationBar(context),
+                ],
+              ),
+            ),
+            if (_isLoading)
+              AnimatedOpacity(
+                opacity: _isLoading ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 300),
+                child: Container(
+                  color: Colors.white.withOpacity(0.9),
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -71,7 +96,8 @@ class _Activity2_1PageState extends State<Activity2_1Page> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           ElevatedButton.icon(
-            onPressed: _currentPage > 0 ? _goToPreviousPage : null,
+            onPressed:
+                _currentPage > 0 && !_isLoading ? _goToPreviousPage : null,
             icon: const Icon(Icons.arrow_back_ios),
             label: const Text("Back"),
             style: _buttonStyle(),
@@ -84,7 +110,10 @@ class _Activity2_1PageState extends State<Activity2_1Page> {
             ),
           ),
           ElevatedButton.icon(
-            onPressed: _currentPage < _pages.length - 1 ? _goToNextPage : null,
+            onPressed:
+                _currentPage < _pages.length - 1 && !_isLoading
+                    ? _goToNextPage
+                    : null,
             icon: const Icon(Icons.arrow_forward_ios),
             label: const Text("Next"),
             style: _buttonStyle(),
