@@ -65,6 +65,58 @@ class _AgFamilyPageState extends State<AgFamilyPage> {
     });
   }
 
+  void _showWordCard(String word) async {
+    final imagePath = wordImages[word] ?? 'assets/placeholder.jpg';
+
+    // Speak the word
+    await _flutterTts.speak(word);
+
+    // Show Dialog
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    imagePath,
+                    fit: BoxFit.cover,
+                    width: 200,
+                    height: 200,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  word,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.deepPurple,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Close'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     _flutterTts.stop();
@@ -114,52 +166,54 @@ class _AgFamilyPageState extends State<AgFamilyPage> {
                         final isHighlighted = _highlightIndex == index;
 
                         final imagePath =
-                            wordImages[word] ??
-                            'assets/placeholder.jpg'; // fallback if image not found
+                            wordImages[word] ?? 'assets/placeholder.jpg';
 
-                        return Container(
-                          decoration: BoxDecoration(
-                            color:
-                                isHighlighted
-                                    ? Colors.deepPurple.withOpacity(0.1)
-                                    : Colors.grey[200],
-                            border: Border.all(
+                        return GestureDetector(
+                          onTap: () => _showWordCard(word),
+                          child: Container(
+                            decoration: BoxDecoration(
                               color:
                                   isHighlighted
-                                      ? Colors.deepPurple
-                                      : Colors.grey,
-                              width: 2,
+                                      ? Colors.deepPurple.withOpacity(0.1)
+                                      : Colors.grey[200],
+                              border: Border.all(
+                                color:
+                                    isHighlighted
+                                        ? Colors.deepPurple
+                                        : Colors.grey,
+                                width: 2,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.all(8),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Expanded(
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.asset(
-                                    imagePath,
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
-                                    height: double.infinity,
+                            padding: const EdgeInsets.all(8),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.asset(
+                                      imagePath,
+                                      fit: BoxFit.cover,
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                word,
-                                style: TextStyle(
-                                  color:
-                                      isHighlighted
-                                          ? Colors.deepPurple
-                                          : Colors.black,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
+                                const SizedBox(height: 8),
+                                Text(
+                                  word,
+                                  style: TextStyle(
+                                    color:
+                                        isHighlighted
+                                            ? Colors.deepPurple
+                                            : Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         );
                       },

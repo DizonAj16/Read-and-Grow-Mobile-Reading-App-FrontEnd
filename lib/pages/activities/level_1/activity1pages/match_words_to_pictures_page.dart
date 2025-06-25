@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 
 class MatchWordsToPicturesPage extends StatefulWidget {
   const MatchWordsToPicturesPage({super.key});
@@ -24,20 +25,56 @@ class _MatchWordsToPicturesPageState extends State<MatchWordsToPicturesPage> {
   void initState() {
     super.initState();
 
-    // Always keep "rag" first
-    final first = allItems[0];
-    final rest = allItems.sublist(1)..shuffle();
-    allItems
-      ..clear()
-      ..add(first)
-      ..addAll(rest);
-
     final words = allItems.map((e) => e["word"]!).toList();
-    shuffledWords = [words.first, ...words.sublist(1)..shuffle()];
+    shuffledWords = List.from(words)..shuffle();
 
     matchedWords = {for (int i = 0; i < allItems.length; i++) i: null};
-
     borderColors = {for (int i = 0; i < allItems.length; i++) i: Colors.grey};
+  }
+
+  void _showFeedbackDialog(bool isCorrect) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.transparent, // Transparent background
+
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(8), // Minimized padding
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Lottie.asset(
+                  isCorrect
+                      ? 'assets/animation/correct.json'
+                      : 'assets/animation/wrong.json',
+                  width: 250, // Enlarged Lottie
+                  height: 250,
+                  repeat: false,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  isCorrect ? "✅ Correct!" : "❌ Try again!",
+                  style: TextStyle(
+                    fontSize: 20,
+                    color: isCorrect ? Colors.green : Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    Future.delayed(const Duration(seconds: 1), () {
+      Navigator.of(context).pop();
+    });
   }
 
   @override
@@ -64,6 +101,7 @@ class _MatchWordsToPicturesPageState extends State<MatchWordsToPicturesPage> {
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Draggable words (shuffled)
                     Expanded(
@@ -79,17 +117,20 @@ class _MatchWordsToPicturesPageState extends State<MatchWordsToPicturesPage> {
                       flex: 1,
                       child: DragTarget<String>(
                         onAccept: (receivedWord) {
-                          if (receivedWord == expectedWord) {
-                            setState(() {
-                              matchedWords[index] = receivedWord;
-                              borderColors[index] = Colors.green;
-                            });
-                          } else {
-                            setState(() {
-                              borderColors[index] = Colors.red;
-                            });
+                          final isCorrect = receivedWord == expectedWord;
+
+                          setState(() {
+                            matchedWords[index] = receivedWord;
+                            borderColors[index] =
+                                isCorrect ? Colors.green : Colors.red;
+                          });
+
+                          _showFeedbackDialog(isCorrect);
+
+                          if (!isCorrect) {
                             Future.delayed(const Duration(seconds: 1), () {
                               setState(() {
+                                matchedWords[index] = null;
                                 borderColors[index] = Colors.grey;
                               });
                             });
@@ -97,7 +138,7 @@ class _MatchWordsToPicturesPageState extends State<MatchWordsToPicturesPage> {
                         },
                         builder: (context, candidateData, rejectedData) {
                           return Container(
-                            height: 100,
+                            height: 120,
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
@@ -105,12 +146,49 @@ class _MatchWordsToPicturesPageState extends State<MatchWordsToPicturesPage> {
                                 width: 2,
                               ),
                             ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.asset(
-                                imagePath,
-                                fit: BoxFit.contain,
-                              ),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.asset(
+                                    imagePath,
+                                    fit: BoxFit.contain,
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                  ),
+                                ),
+                                if (matchedWords[index] != null)
+                                  Positioned(
+                                    bottom: 8,
+                                    child: Stack(
+                                      children: [
+                                        // White stroke (outline)
+                                        Text(
+                                          matchedWords[index]!,
+                                          style: TextStyle(
+                                            fontSize: 28,
+                                            fontWeight: FontWeight.w900,
+                                            foreground:
+                                                Paint()
+                                                  ..style = PaintingStyle.stroke
+                                                  ..strokeWidth = 4
+                                                  ..color = Colors.white,
+                                          ),
+                                        ),
+                                        // Black fill
+                                        Text(
+                                          matchedWords[index]!,
+                                          style: const TextStyle(
+                                            fontSize: 28,
+                                            fontWeight: FontWeight.w900,
+                                            color: Colors.black,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
                             ),
                           );
                         },

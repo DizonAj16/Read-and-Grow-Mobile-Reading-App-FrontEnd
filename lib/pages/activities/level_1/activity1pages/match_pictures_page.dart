@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 
 class MatchPicturesPage extends StatefulWidget {
   const MatchPicturesPage({super.key});
@@ -20,8 +21,6 @@ class _MatchPicturesPageState extends State<MatchPicturesPage> {
 
   late List<Map<String, String>> shuffledItems;
   int currentIndex = 0;
-  bool showFeedback = false;
-  bool isCorrect = false;
 
   @override
   void initState() {
@@ -32,18 +31,52 @@ class _MatchPicturesPageState extends State<MatchPicturesPage> {
 
   void checkAnswer(String selectedWord) {
     final correctWord = shuffledItems[currentIndex]["word"];
-    setState(() {
-      isCorrect = selectedWord == correctWord;
-      showFeedback = true;
-    });
+    final isCorrect = selectedWord == correctWord;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Lottie.asset(
+                  isCorrect
+                      ? 'assets/animation/correct.json'
+                      : 'assets/animation/wrong.json',
+                  width: 150,
+                  height: 150,
+                  repeat: false,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  isCorrect ? "✅ Correct!" : "❌ Try again!",
+                  style: TextStyle(
+                    fontSize: 20,
+                    color: isCorrect ? Colors.green : Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
 
     Future.delayed(const Duration(seconds: 1), () {
-      setState(() {
-        showFeedback = false;
-        if (isCorrect) {
+      Navigator.of(context).pop();
+      if (isCorrect) {
+        setState(() {
           currentIndex++;
-        }
-      });
+        });
+      }
     });
   }
 
@@ -94,7 +127,7 @@ class _MatchPicturesPageState extends State<MatchPicturesPage> {
               children:
                   allWords.map((word) {
                     return ElevatedButton(
-                      onPressed: showFeedback ? null : () => checkAnswer(word),
+                      onPressed: () => checkAnswer(word),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 24,
@@ -105,20 +138,6 @@ class _MatchPicturesPageState extends State<MatchPicturesPage> {
                     );
                   }).toList(),
             ),
-            const SizedBox(height: 24),
-            if (showFeedback)
-              AnimatedOpacity(
-                opacity: showFeedback ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 300),
-                child: Text(
-                  isCorrect ? "✅ Correct!" : "❌ Try again!",
-                  style: TextStyle(
-                    fontSize: 20,
-                    color: isCorrect ? Colors.green : Colors.red,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
           ],
         ),
       ),

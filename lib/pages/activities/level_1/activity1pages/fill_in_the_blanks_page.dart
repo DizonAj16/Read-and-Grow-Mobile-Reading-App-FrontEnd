@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 
 class FillInTheBlanksPage extends StatefulWidget {
   const FillInTheBlanksPage({super.key});
@@ -29,6 +30,57 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
     usedLetters = {};
   }
 
+  void _showFeedbackDialog(bool isCorrect) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Lottie.asset(
+                  isCorrect
+                      ? 'assets/animation/correct.json'
+                      : 'assets/animation/wrong.json',
+                  width: 250,
+                  height: 250,
+                  repeat: false,
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    isCorrect ? "✅ Correct!" : "❌ Try again!",
+                    style: TextStyle(
+                      fontSize: 20,
+                      color: isCorrect ? Colors.green : Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    Future.delayed(const Duration(seconds: 3), () {
+      Navigator.of(context).pop();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -55,7 +107,6 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
                 child: Row(
                   children: [
-                    // Image Box
                     Container(
                       width: 100,
                       height: 100,
@@ -69,14 +120,12 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
                       ),
                     ),
                     const SizedBox(width: 20),
-                    // Drag Target + "ag"
                     Row(
                       children: [
                         DragTarget<String>(
                           onWillAccept: (data) => !usedLetters.contains(data),
                           onAccept: (data) {
                             setState(() {
-                              // Remove previous letter if any
                               if (droppedLetters[index] != null) {
                                 usedLetters.remove(droppedLetters[index]);
                               }
@@ -86,8 +135,11 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
 
                               if (data == answer) {
                                 boxColors[index] = Colors.green;
+                                _showFeedbackDialog(true);
                               } else {
                                 boxColors[index] = Colors.red;
+                                _showFeedbackDialog(false);
+
                                 Future.delayed(const Duration(seconds: 1), () {
                                   setState(() {
                                     droppedLetters[index] = null;
@@ -139,8 +191,6 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
             },
           ),
         ),
-
-        // Options Section
         Center(
           child: Text(
             "Options:",
@@ -174,8 +224,6 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
                 }).toList(),
           ),
         ),
-
-        // Footer
         const SizedBox(height: 10),
         Align(
           alignment: Alignment.bottomRight,

@@ -69,6 +69,8 @@ flutter:
     - assets/background/
     - assets/logo/
     - assets/animation/
+    - assets/animation/correct.json
+    - assets/animation/wrong.json
     - assets/placeholder/
     - assets/activity_images/
     - assets/icons/

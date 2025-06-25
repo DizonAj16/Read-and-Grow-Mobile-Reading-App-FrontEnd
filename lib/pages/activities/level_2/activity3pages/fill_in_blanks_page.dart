@@ -10,9 +10,9 @@ class FillInTheBlanksPage extends StatefulWidget {
 
 class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
   final List<Map<String, dynamic>> questions = [
-    {"template": "The cat sat on a red ____.", "answer": "mat"},
-    {"template": "The cat saw a ____.", "answer": "rat"},
-    {"template": "Then he ____ to catch it!", "answer": "ran"},
+    {"template": "The bird ____ loudly.", "answer": "sings"},
+    {"template": "It flies in the ___.", "answer": "sky"},
+    {"template": "The bird is in a ___.", "answer": "nest"},
   ];
 
   int currentIndex = 0;

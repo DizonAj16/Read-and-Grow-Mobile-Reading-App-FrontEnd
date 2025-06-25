@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
@@ -20,16 +18,85 @@ class _ReadingPageState extends State<ReadingPage> {
 
   final FlutterTts _flutterTts = FlutterTts();
 
-  Future<void> _speakAllSentences() async {
-    await _flutterTts.setLanguage("en-US");
-    await _flutterTts.setSpeechRate(0.3); // Slow speech rate for kids
-    await _flutterTts.speak(sentences.join(" "));
+  int _currentSentenceIndex = 0;
+  int _currentWordIndex = 0;
+
+  bool isPlaying = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _setupTts();
   }
 
-  Future<void> _speakSingleSentence(String sentence) async {
-    await _flutterTts.setLanguage("en-US");
-    await _flutterTts.setSpeechRate(0.3);
-    await _flutterTts.speak(sentence);
+  void _setupTts() async {
+    await _flutterTts.setLanguage("en-PH");
+    await _flutterTts.setSpeechRate(0.4);
+    await _flutterTts.setPitch(1.2);
+  }
+
+  Future<void> _togglePlayPause() async {
+    if (isPlaying) {
+      setState(() => isPlaying = false);
+      await _flutterTts.stop();
+    } else {
+      setState(() {
+        isPlaying = true;
+        _currentSentenceIndex = 0;
+        _currentWordIndex = 0;
+      });
+      _readAllSentences();
+    }
+  }
+
+  Future<void> _readAllSentences() async {
+    while (isPlaying && _currentSentenceIndex < sentences.length) {
+      List<String> words = sentences[_currentSentenceIndex].split(' ');
+      while (isPlaying && _currentWordIndex < words.length) {
+        String currentWord = words[_currentWordIndex].replaceAll(
+          RegExp(r'[^\w\s]'),
+          '',
+        );
+        setState(() {});
+        await _flutterTts.speak(currentWord);
+        await Future.delayed(const Duration(seconds: 1));
+        if (!isPlaying) return;
+        _currentWordIndex++;
+      }
+      _currentSentenceIndex++;
+      _currentWordIndex = 0;
+    }
+    setState(() => isPlaying = false);
+  }
+
+  Widget _buildSentence(int index) {
+    List<String> words = sentences[index].split(' ');
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12.0),
+      child: Wrap(
+        spacing: 10.0,
+        runSpacing: 10.0,
+        children:
+            words.asMap().entries.map((entry) {
+              int wordIndex = entry.key;
+              String word = entry.value;
+
+              bool isHighlighted =
+                  index == _currentSentenceIndex &&
+                  wordIndex == _currentWordIndex;
+
+              return Text(
+                word,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.normal,
+                  color: isHighlighted ? Colors.red : Colors.black,
+                ),
+              );
+            }).toList(),
+      ),
+    );
   }
 
   @override
@@ -41,7 +108,7 @@ class _ReadingPageState extends State<ReadingPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.blue.shade50,
       body: SafeArea(
         child: Stack(
           children: [
@@ -51,10 +118,10 @@ class _ReadingPageState extends State<ReadingPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Read the sentences below:",
+                    "Press play to read aloud.",
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
+                      color: Colors.blueAccent,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -62,21 +129,7 @@ class _ReadingPageState extends State<ReadingPage> {
                     child: ListView.builder(
                       itemCount: sentences.length,
                       itemBuilder: (context, index) {
-                        return GestureDetector(
-                          onTap: () => _speakSingleSentence(sentences[index]),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8.0),
-                            child: Text(
-                              sentences[index],
-                              style: Theme.of(
-                                context,
-                              ).textTheme.bodyLarge?.copyWith(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        );
+                        return _buildSentence(index);
                       },
                     ),
                   ),
@@ -84,71 +137,29 @@ class _ReadingPageState extends State<ReadingPage> {
               ),
             ),
             Positioned(
-              bottom: 120,
-              right: 20,
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.yellow.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Text(
-                  "Tap the sound button to hear\nthe sentences.",
-                  style: TextStyle(fontSize: 16, color: Colors.black),
-                ),
-              ),
-            ),
-            Positioned(
               bottom: 50,
               right: 20,
               child: FloatingActionButton(
-                onPressed: _speakAllSentences,
-                tooltip: 'Play All Sentences',
-                child: const Icon(Icons.volume_up, size: 30),
+                backgroundColor: Colors.green,
+                onPressed: _togglePlayPause,
+                tooltip: isPlaying ? 'Pause' : 'Play',
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  transitionBuilder: (
+                    Widget child,
+                    Animation<double> animation,
+                  ) {
+                    return ScaleTransition(scale: animation, child: child);
+                  },
+                  child: Icon(
+                    isPlaying ? Icons.pause : Icons.play_arrow,
+                    key: ValueKey(isPlaying),
+                    size: 32,
+                  ),
+                ),
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-// Optional: Reusable word card widget
-class WordCard extends StatelessWidget {
-  final String word;
-
-  const WordCard({super.key, required this.word});
-
-  Color _getRandomColor() {
-    final colors = [
-      Colors.red,
-      Colors.blue,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.teal,
-      Colors.pink,
-    ];
-    return colors[Random().nextInt(colors.length)];
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-      color: _getRandomColor(),
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Text(
-            word,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
         ),
       ),
     );

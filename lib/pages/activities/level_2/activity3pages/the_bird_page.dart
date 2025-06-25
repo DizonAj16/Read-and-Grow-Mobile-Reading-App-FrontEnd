@@ -1,20 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
-class CatAndRatPage extends StatefulWidget {
-  const CatAndRatPage({super.key});
+class TheBirdPage extends StatefulWidget {
+  const TheBirdPage({super.key});
 
   @override
-  _CatAndRatPageState createState() => _CatAndRatPageState();
+  State<TheBirdPage> createState() => _TheBirdPageState();
 }
 
-class _CatAndRatPageState extends State<CatAndRatPage> {
-  final String _storyText =
-      "A cat sat. He sat on a hat. It was red. The hat was on the mat. That cat sat and sat. He saw a rat. That cat ran!";
-
-  final String _wordList = "cat, mat, hat, sat, rat, ran";
-
+class _TheBirdPageState extends State<TheBirdPage> {
   final FlutterTts _flutterTts = FlutterTts();
+
+  final String _storyText =
+      "A bird can fly. "
+      "It can flap its wings. "
+      "It sits on a tree. "
+      "The bird sings a song. "
+      "The sky is blue. "
+      "The bird is happy.";
+
+  final String _wordList = "bird, fly, tree, sings, wings, sky";
 
   late List<String> _words;
   int _currentWordIndex = -1;
@@ -128,40 +133,75 @@ class _CatAndRatPageState extends State<CatAndRatPage> {
     return Scaffold(
       body: Stack(
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Text(
-                  "Cat and Rat",
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
+          // Main Content
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Title
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      "The Bird",
+                      style: Theme.of(
+                        context,
+                      ).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 50), // Reduced spacing
+                // Story Text and Image
+                Expanded(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: SingleChildScrollView(child: _buildStoryText()),
+                      ),
+                      const SizedBox(width: 50),
+                      Expanded(
+                        flex: 1,
+                        child: Image.asset(
+                          "assets/activity_images/mordicai.jpg",
+                          height: 150,
+                          fit: BoxFit.contain,
+                          errorBuilder:
+                              (context, error, stackTrace) => const Icon(
+                                Icons.image_not_supported,
+                                size: 100,
+                              ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 100),
-              Row(
-                children: [
-                  Expanded(flex: 2, child: _buildStoryText()),
-                  Expanded(
-                    flex: 1,
-                    child: Image.asset(
-                      "assets/activity_images/cat.jpg",
-                      height: 200,
-                      fit: BoxFit.contain,
-                    ),
+
+                const SizedBox(height: 10),
+
+                // Second Image
+                SizedBox(
+                  height: 120, // Limited height to prevent overflow
+                  child: Image.asset(
+                    "assets/activity_images/tree.png",
+                    fit: BoxFit.contain,
+                    errorBuilder:
+                        (context, error, stackTrace) =>
+                            const Icon(Icons.image_not_supported, size: 100),
                   ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Image.asset(
-                "assets/activity_images/rat.jpg",
-                height: 150,
-                fit: BoxFit.contain,
-              ),
-            ],
+                ),
+
+                const SizedBox(height: 10), // Added some space at the bottom
+              ],
+            ),
           ),
+
+          // Word list at upper right
           Positioned(
             top: 50,
             right: 5,
@@ -176,33 +216,27 @@ class _CatAndRatPageState extends State<CatAndRatPage> {
               ),
               padding: const EdgeInsets.all(8.0),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: const [
-                  Row(
-                    children: [
-                      Text(
-                        "cat   mat   hat",
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    "bird   fly   tree",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    softWrap: true,
+                    overflow: TextOverflow.visible,
                   ),
-                  Row(
-                    children: [
-                      Text(
-                        "sat   rat   ran",
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                  SizedBox(height: 4),
+                  Text(
+                    "sings   wings   sky",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    softWrap: true,
+                    overflow: TextOverflow.visible,
                   ),
                 ],
               ),
             ),
           ),
+
+          // Word list speaker button at top left
           Positioned(
             top: 60,
             left: 140,
@@ -213,14 +247,18 @@ class _CatAndRatPageState extends State<CatAndRatPage> {
               mini: true,
             ),
           ),
+
+          // Guide text for story speaker button
           Positioned(
-            bottom: 120,
+            bottom: 130,
             right: 20,
-            child: Text(
+            child: const Text(
               "Tap this sound button to hear the story.",
-              style: const TextStyle(fontSize: 16, color: Colors.black),
+              style: TextStyle(fontSize: 12, color: Colors.black),
             ),
           ),
+
+          // Story speaker button
           Positioned(
             bottom: 50,
             right: 20,
@@ -236,18 +274,24 @@ class _CatAndRatPageState extends State<CatAndRatPage> {
                 child: Icon(
                   isReading ? Icons.pause : Icons.play_arrow,
                   key: ValueKey(isReading),
-                  size: 30,
+                  size: 20,
                 ),
               ),
+              mini: true,
             ),
           ),
+
+          // Copyright
           Align(
             alignment: Alignment.bottomRight,
-            child: Text(
-              "© K5 Learning 2019",
-              style: const TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.w500,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 10.0, bottom: 10.0),
+              child: Text(
+                "© K5 Learning 2019",
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ),
