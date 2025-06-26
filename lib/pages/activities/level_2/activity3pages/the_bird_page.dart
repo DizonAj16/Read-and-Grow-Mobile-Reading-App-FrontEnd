@@ -155,16 +155,24 @@ class _TheBirdPageState extends State<TheBirdPage> {
                   ],
                 ),
 
-                const SizedBox(height: 50), // Reduced spacing
-                // Story Text and Image
-                Expanded(
+                const SizedBox(height: 30),
+
+                // Story Text and Image (Flexible to prevent overflow)
+                Flexible(
                   child: Row(
                     children: [
                       Expanded(
                         flex: 2,
-                        child: SingleChildScrollView(child: _buildStoryText()),
+                        child: SingleChildScrollView(
+                          child: Padding(
+                            padding: const EdgeInsets.only(
+                              right: 60,
+                            ), // Separation space
+                            child: _buildStoryText(),
+                          ),
+                        ),
                       ),
-                      const SizedBox(width: 50),
+                      const SizedBox(width: 10),
                       Expanded(
                         flex: 1,
                         child: Image.asset(
@@ -184,9 +192,9 @@ class _TheBirdPageState extends State<TheBirdPage> {
 
                 const SizedBox(height: 10),
 
-                // Second Image
+                // Second Image (SizedBox stays in place)
                 SizedBox(
-                  height: 120, // Limited height to prevent overflow
+                  height: 120,
                   child: Image.asset(
                     "assets/activity_images/tree.png",
                     fit: BoxFit.contain,
@@ -196,7 +204,7 @@ class _TheBirdPageState extends State<TheBirdPage> {
                   ),
                 ),
 
-                const SizedBox(height: 10), // Added some space at the bottom
+                const SizedBox(height: 10),
               ],
             ),
           ),
