@@ -30,7 +30,7 @@ class TaskListPage extends StatelessWidget {
                     (context, animation, secondaryAnimation) =>
                         ActivityController(
                           activityTitle: task['title']!,
-                          studentLevel: studentLevel, // ✅ Added here
+                          studentLevel: studentLevel,
                         ),
                 transitionsBuilder: (
                   context,
@@ -70,15 +70,20 @@ class TaskListPage extends StatelessWidget {
         ];
       case 2:
         return [
-          {"title": "Task 1", "status": "Pending"}, // Task 1 for English 2
+          {"title": "Task 1", "status": "Pending"},
         ];
       case 3:
-        return [];
-      default:
         return [
           {"title": "Task 1", "status": "Pending"},
-          {"title": "Task 2", "status": "Pending"},
         ];
+      case 4:
+        return [
+          {"title": "Task 1", "status": "Pending"},
+          {"title": "Task 2", "status": "Pending (Test Checkpoint)"},
+        ];
+      // Level 5 is inactive, so we'll leave this empty for now
+      default:
+        return [];
     }
   }
 }

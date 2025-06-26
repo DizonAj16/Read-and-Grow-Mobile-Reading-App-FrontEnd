@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
 import 'dart:math';
+
+import 'package:flutter/material.dart';
 
 class StudentListPage extends StatefulWidget {
   @override
@@ -222,7 +223,9 @@ class _StudentListPageState extends State<StudentListPage> {
                                 SizedBox(height: 16),
                                 Text(
                                   name, // Student name in dialog
-                                  style: Theme.of(context).textTheme.headlineSmall
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineSmall
                                       ?.copyWith(fontWeight: FontWeight.bold),
                                 ),
                                 SizedBox(height: 8),

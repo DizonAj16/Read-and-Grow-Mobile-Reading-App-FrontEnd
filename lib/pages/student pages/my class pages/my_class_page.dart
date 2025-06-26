@@ -38,21 +38,35 @@ class _MyClassPageState extends State<MyClassPage> {
           'sectionName': 'Grade 1 - Section A',
           'teacherName': 'Teacher A',
           'backgroundImage': 'assets/background/classroombg.jpg',
-          'studentLevel': 1, // Level 1
+          'studentLevel': 1,
         },
         {
           'className': 'English 2',
           'sectionName': 'Grade 2 - Section B',
           'teacherName': 'Teacher B',
           'backgroundImage': 'assets/background/classroombg.jpg',
-          'studentLevel': 2, // Level 2
+          'studentLevel': 2,
         },
         {
           'className': 'English 3',
           'sectionName': 'Grade 3 - Section C',
           'teacherName': 'Teacher C',
           'backgroundImage': 'assets/background/classroombg.jpg',
-          'studentLevel': 3, // Level 3
+          'studentLevel': 3,
+        },
+        {
+          'className': 'English 4',
+          'sectionName': 'Grade 4 - Section D',
+          'teacherName': 'Teacher D',
+          'backgroundImage': 'assets/background/classroombg.jpg',
+          'studentLevel': 4,
+        },
+        {
+          'className': 'English 5',
+          'sectionName': 'Grade 5 - Section E',
+          'teacherName': 'Teacher E',
+          'backgroundImage': 'assets/background/classroombg.jpg',
+          'studentLevel': 5,
         },
       ];
       isLoading = false;
@@ -235,22 +249,15 @@ class ClassCard extends StatelessWidget {
                   ),
                   Spacer(),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Icon(Icons.person_3_rounded, color: Colors.white),
-                          SizedBox(width: 8),
-                          Text(
-                            teacherName,
-                            style: Theme.of(
-                              context,
-                            ).textTheme.bodyLarge?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
+                      Icon(Icons.person_3_rounded, color: Colors.white),
+                      SizedBox(width: 8),
+                      Text(
+                        teacherName,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),

@@ -4,6 +4,8 @@ import 'level_1/activity_1.dart';
 import 'level_1/activity_2.dart';
 import 'level_2/activity3.dart';
 import 'level_3/activity4.dart';
+import 'level_4/activity5.dart';
+// import 'level_4/test_checkpoint_page.dart'; // Uncomment if you have a separate page
 
 class ActivityController extends StatelessWidget {
   final String activityTitle;
@@ -39,6 +41,10 @@ class ActivityController extends StatelessWidget {
         return _getLevel2Activity(activityTitle);
       case 3:
         return _getLevel3Activity(activityTitle);
+      case 4:
+        return _getLevel4Activity(activityTitle);
+      // case 5:
+      //   return _getLevel5Activity(activityTitle);
       default:
         return Center(child: Text("No activity found for $activityTitle."));
     }
@@ -73,11 +79,49 @@ class ActivityController extends StatelessWidget {
       case "Task 1":
         return const Activity4Page();
       case "Task 2":
-        return const Activity4Page(); // You can point this to another page if needed
+        return const Activity4Page(); // Assign another activity if needed
+      case "Task 3":
+        return const Activity4Page(); // Assign another activity if needed
       default:
         return Center(
           child: Text("No activity found for $activityTitle in Level 3."),
         );
     }
   }
+
+  // Level 4: Task 1 then Test Checkpoint
+  Widget _getLevel4Activity(String activityTitle) {
+    switch (activityTitle) {
+      case "Task 1":
+        return const Activity5Page();
+      case "Task 2":
+        // Replace this with your actual checkpoint page when ready:
+        // Example: return const TestCheckpointPage();
+        return Center(child: Text("Test Checkpoint Page"));
+      default:
+        return Center(
+          child: Text("No activity found for $activityTitle in Level 4."),
+        );
+    }
+  }
+
+  // Level 5 - Still commented out
+  // Widget _getLevel5Activity(String activityTitle) {
+  //   switch (activityTitle) {
+  //     case "Task 1":
+  //       return const Activity7Page();
+  //     case "Task 2":
+  //       return const Activity8Page();
+  //     case "Task 3":
+  //       return const Activity7Page();
+  //     case "Task 4":
+  //       return const Activity8Page();
+  //     case "Task 5":
+  //       return const Activity7Page();
+  //     default:
+  //       return Center(
+  //         child: Text("No activity found for $activityTitle in Level 5."),
+  //       );
+  //   }
+  // }
 }
