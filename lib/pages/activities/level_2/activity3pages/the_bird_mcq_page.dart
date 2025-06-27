@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
@@ -38,12 +40,100 @@ class _TheBirdMultipleChoicePageState extends State<TheBirdMultipleChoicePage> {
   int wrongCount = 0;
   bool finished = false;
 
+  Timer? timer;
+  int maxTimePerQuestion = 15;
+  int remainingTime = 15;
+
+  int totalCorrectAnswers = 0;
+  double totalScore = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    startTimer();
+  }
+
+  void startTimer() {
+    remainingTime = maxTimePerQuestion;
+    timer?.cancel();
+    timer = Timer.periodic(const Duration(seconds: 1), (Timer t) {
+      if (remainingTime > 0) {
+        setState(() {
+          remainingTime--;
+        });
+      } else {
+        t.cancel();
+        handleTimeout();
+      }
+    });
+  }
+
+  void stopTimer() {
+    timer?.cancel();
+  }
+
+  void handleTimeout() {
+    wrongCount++;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (_) => AlertDialog(
+            contentPadding: const EdgeInsets.all(16),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  height: 120,
+                  width: 120,
+                  child: Lottie.asset(
+                    'assets/animation/wrong.json',
+                    repeat: false,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Time\'s up!',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  ),
+                ),
+              ],
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+    );
+
+    Future.delayed(const Duration(seconds: 3), () {
+      Navigator.of(context).pop();
+
+      if (currentIndex < questions.length - 1) {
+        setState(() {
+          currentIndex++;
+        });
+        startTimer();
+      } else {
+        setState(() {
+          finished = true;
+        });
+      }
+    });
+  }
+
   void selectOption(String option) {
+    stopTimer();
+
     final correctAnswer = questions[currentIndex]['answer'];
     final isCorrect = option == correctAnswer;
 
     if (isCorrect) {
       correctCount++;
+      totalCorrectAnswers++;
+      totalScore += remainingTime;
     } else {
       wrongCount++;
     }
@@ -91,6 +181,7 @@ class _TheBirdMultipleChoicePageState extends State<TheBirdMultipleChoicePage> {
         setState(() {
           currentIndex++;
         });
+        startTimer();
       } else {
         setState(() {
           finished = true;
@@ -105,14 +196,26 @@ class _TheBirdMultipleChoicePageState extends State<TheBirdMultipleChoicePage> {
       correctCount = 0;
       wrongCount = 0;
       finished = false;
+      totalCorrectAnswers = 0;
+      totalScore = 0;
     });
+    startTimer();
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     if (finished) {
       return Scaffold(
-        appBar: AppBar(title: const Text('The Bird - Quiz')),
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          title: const Text('The Bird - Quiz'),
+        ),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -123,8 +226,13 @@ class _TheBirdMultipleChoicePageState extends State<TheBirdMultipleChoicePage> {
               ),
               const SizedBox(height: 20),
               Text(
-                'Correct Answers: $correctCount',
+                'Total Correct Answers: $totalCorrectAnswers',
                 style: const TextStyle(fontSize: 20, color: Colors.green),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Total Score: ${totalScore.toStringAsFixed(1)}',
+                style: const TextStyle(fontSize: 20, color: Colors.blue),
               ),
               const SizedBox(height: 8),
               Text(
@@ -152,7 +260,10 @@ class _TheBirdMultipleChoicePageState extends State<TheBirdMultipleChoicePage> {
     final questionData = questions[currentIndex];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('The Bird - Multiple Choice')),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: const Text('The Bird - Multiple Choice'),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -165,9 +276,25 @@ class _TheBirdMultipleChoicePageState extends State<TheBirdMultipleChoicePage> {
               minHeight: 8,
             ),
             const SizedBox(height: 12),
-            Text(
-              'Question ${currentIndex + 1} of ${questions.length}',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Question ${currentIndex + 1} of ${questions.length}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Time: $remainingTime s',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             Text(

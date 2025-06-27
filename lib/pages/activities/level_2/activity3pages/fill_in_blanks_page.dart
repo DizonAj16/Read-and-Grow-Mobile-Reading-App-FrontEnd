@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
@@ -16,21 +18,109 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
   ];
 
   int currentIndex = 0;
-  int correctAnswers = 0;
+  int totalScore = 0;
   int wrongAnswers = 0;
 
   final TextEditingController _controller = TextEditingController();
   bool? isCorrect;
   bool isFinished = false;
 
+  Timer? timer;
+  int remainingTime = 60;
+
+  @override
+  void initState() {
+    super.initState();
+    startTimer();
+  }
+
+  void startTimer() {
+    remainingTime = 60;
+    timer?.cancel();
+    timer = Timer.periodic(const Duration(seconds: 1), (Timer t) {
+      if (remainingTime > 0) {
+        setState(() {
+          remainingTime--;
+        });
+      } else {
+        t.cancel();
+        handleTimeout();
+      }
+    });
+  }
+
+  void stopTimer() {
+    timer?.cancel();
+  }
+
+  void handleTimeout() {
+    wrongAnswers++;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (_) => AlertDialog(
+            contentPadding: const EdgeInsets.all(16),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  height: 150,
+                  width: 150,
+                  child: Lottie.asset(
+                    'assets/animation/wrong.json',
+                    repeat: false,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Time\'s up!',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text('Press OK to continue.'),
+              ],
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  if (currentIndex < questions.length - 1) {
+                    setState(() {
+                      currentIndex++;
+                      _controller.clear();
+                      isCorrect = null;
+                    });
+                    startTimer();
+                  } else {
+                    setState(() {
+                      isFinished = true;
+                    });
+                  }
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+    );
+  }
+
   void checkAnswer() {
+    stopTimer();
     String userAnswer = _controller.text.trim().toLowerCase();
     String correctAnswer = questions[currentIndex]['answer'];
 
     setState(() {
       isCorrect = userAnswer == correctAnswer;
       if (isCorrect!) {
-        correctAnswers++;
+        totalScore += remainingTime;
       } else {
         wrongAnswers++;
       }
@@ -81,6 +171,7 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
                       _controller.clear();
                       isCorrect = null;
                     });
+                    startTimer();
                   } else {
                     setState(() {
                       isFinished = true;
@@ -97,19 +188,29 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
   void resetQuiz() {
     setState(() {
       currentIndex = 0;
-      correctAnswers = 0;
+      totalScore = 0;
       wrongAnswers = 0;
       isCorrect = null;
       isFinished = false;
       _controller.clear();
     });
+    startTimer();
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     if (isFinished) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Fill in the Blanks')),
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          title: const Text('Fill in the Blanks'),
+        ),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -120,7 +221,7 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
               ),
               const SizedBox(height: 20),
               Text(
-                'Correct Answers: $correctAnswers',
+                'Total Score: $totalScore',
                 style: const TextStyle(fontSize: 22),
               ),
               Text(
@@ -145,7 +246,10 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
     );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Fill in the Blanks')),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: const Text('Fill in the Blanks'),
+      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -153,6 +257,15 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              Text(
+                'Time: $remainingTime s',
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 20),
               Text(
                 displayedText,
                 style: const TextStyle(

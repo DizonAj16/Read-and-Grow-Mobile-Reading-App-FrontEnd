@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
@@ -10,32 +12,102 @@ class FillInTheBlanksPage extends StatefulWidget {
 
 class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
   final List<Map<String, dynamic>> questions = [
-    {"template": "The frog is the color ____.", "answer": "green"},
-    {"template": "It moves its ____ and ____.", "answer": "legs arms"},
-    {"template": "The ____ sits on a lily pad.", "answer": "frog"},
+    {
+      "template": "The frog is the color ____.",
+      "answers": ["green"],
+    },
+    {
+      "template": "It moves its ____ and ____.",
+      "answers": ["legs", "arms"],
+    },
+    {
+      "template": "The ____ sits on a lily pad.",
+      "answers": ["frog"],
+    },
   ];
 
   int currentIndex = 0;
   int correctAnswers = 0;
   int wrongAnswers = 0;
+  double score = 0;
 
-  final TextEditingController _controller = TextEditingController();
+  List<TextEditingController> controllers = [];
   bool? isCorrect;
   bool isFinished = false;
 
+  Timer? timer;
+  int maxTime = 60; // 60 seconds per question
+  int remainingTime = 60;
+
+  @override
+  void initState() {
+    super.initState();
+    prepareControllers();
+    startTimer();
+  }
+
+  void prepareControllers() {
+    controllers = List.generate(
+      questions[currentIndex]['answers'].length,
+      (_) => TextEditingController(),
+    );
+  }
+
+  void startTimer() {
+    remainingTime = maxTime;
+    timer?.cancel();
+    timer = Timer.periodic(const Duration(seconds: 1), (Timer t) {
+      if (remainingTime > 0) {
+        setState(() {
+          remainingTime--;
+        });
+      } else {
+        t.cancel();
+        autoSubmit();
+      }
+    });
+  }
+
+  void autoSubmit() {
+    setState(() {
+      isCorrect = false;
+      wrongAnswers++;
+    });
+
+    showFeedbackDialog();
+  }
+
   void checkAnswer() {
-    String userAnswer = _controller.text.trim().toLowerCase();
-    String correctAnswer = questions[currentIndex]['answer'];
+    List<String> correctAnswerList = List<String>.from(
+      questions[currentIndex]['answers'],
+    );
+    List<String> userAnswers =
+        controllers.map((c) => c.text.trim().toLowerCase()).toList();
+
+    bool allCorrect = true;
+
+    for (int i = 0; i < correctAnswerList.length; i++) {
+      if (userAnswers[i] != correctAnswerList[i]) {
+        allCorrect = false;
+        break;
+      }
+    }
 
     setState(() {
-      isCorrect = userAnswer == correctAnswer;
+      isCorrect = allCorrect;
       if (isCorrect!) {
         correctAnswers++;
+        score += remainingTime; // Faster answers give more score
       } else {
         wrongAnswers++;
       }
     });
 
+    timer?.cancel();
+    showFeedbackDialog();
+  }
+
+  void showFeedbackDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -78,13 +150,15 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
                   if (currentIndex < questions.length - 1) {
                     setState(() {
                       currentIndex++;
-                      _controller.clear();
                       isCorrect = null;
                     });
+                    prepareControllers();
+                    startTimer();
                   } else {
                     setState(() {
                       isFinished = true;
                     });
+                    timer?.cancel();
                   }
                 },
                 child: const Text('OK'),
@@ -101,8 +175,19 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
       wrongAnswers = 0;
       isCorrect = null;
       isFinished = false;
-      _controller.clear();
+      score = 0;
     });
+    prepareControllers();
+    startTimer();
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    for (var controller in controllers) {
+      controller.dispose();
+    }
+    super.dispose();
   }
 
   @override
@@ -119,6 +204,10 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
                 style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 20),
+              Text(
+                'Score: ${score.toStringAsFixed(1)}',
+                style: const TextStyle(fontSize: 22),
+              ),
               Text(
                 'Correct Answers: $correctAnswers',
                 style: const TextStyle(fontSize: 22),
@@ -154,6 +243,11 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Text(
+                'Time Left: $remainingTime s',
+                style: const TextStyle(fontSize: 22, color: Colors.red),
+              ),
+              const SizedBox(height: 20),
+              Text(
                 displayedText,
                 style: const TextStyle(
                   fontSize: 28,
@@ -162,59 +256,67 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 30),
-              SizedBox(
-                width: 200,
-                child: TextField(
-                  controller: _controller,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    color: Colors.blueAccent,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(
-                      vertical: 12,
-                      horizontal: 16,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(30),
-                      borderSide: const BorderSide(
+              ...List.generate(controllers.length, (index) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: SizedBox(
+                    width: 200,
+                    child: TextField(
+                      controller: controllers[index],
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 24,
                         color: Colors.blueAccent,
-                        width: 2,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      decoration: InputDecoration(
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                          horizontal: 16,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          borderSide: const BorderSide(
+                            color: Colors.blueAccent,
+                            width: 2,
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          borderSide: const BorderSide(
+                            color: Colors.blueAccent,
+                            width: 2,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          borderSide: const BorderSide(
+                            color: Colors.deepPurple,
+                            width: 3,
+                          ),
+                        ),
+                        hintText: 'Answer ${index + 1}',
+                        hintStyle: const TextStyle(
+                          fontSize: 20,
+                          color: Colors.grey,
+                        ),
+                        filled: true,
+                        fillColor: Colors.lightBlue.shade50,
                       ),
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(30),
-                      borderSide: const BorderSide(
-                        color: Colors.blueAccent,
-                        width: 2,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(30),
-                      borderSide: const BorderSide(
-                        color: Colors.deepPurple,
-                        width: 3,
-                      ),
-                    ),
-                    hintText: 'Answer',
-                    hintStyle: const TextStyle(
-                      fontSize: 20,
-                      color: Colors.grey,
-                    ),
-                    filled: true,
-                    fillColor: Colors.lightBlue.shade50,
                   ),
-                ),
-              ),
+                );
+              }),
               const SizedBox(height: 30),
               SizedBox(
                 width: 120,
                 height: 45,
                 child: ElevatedButton(
                   onPressed: () {
-                    if (_controller.text.trim().isEmpty) return;
+                    bool anyEmpty = controllers.any(
+                      (c) => c.text.trim().isEmpty,
+                    );
+                    if (anyEmpty) return;
                     checkAnswer();
                   },
                   style: ElevatedButton.styleFrom(

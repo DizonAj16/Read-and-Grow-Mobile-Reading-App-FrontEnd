@@ -19,7 +19,7 @@ class _Activity4PageState extends State<Activity4Page>
 
   final List<Widget> _pages = const [
     TheGreenFrogReadingPage(),
-    TheFrogMultipleChoicePage(),
+    GreenFrogMultipleChoicePage(),
     DragTheWordToPicturePage(),
     FillInTheBlanksPage(),
   ];

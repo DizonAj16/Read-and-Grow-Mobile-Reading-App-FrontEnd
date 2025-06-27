@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
@@ -9,8 +11,7 @@ class DragTheWordToPicturePage extends StatefulWidget {
       _DragTheWordToPicturePageState();
 }
 
-class _DragTheWordToPicturePageState extends State<DragTheWordToPicturePage>
-    with SingleTickerProviderStateMixin {
+class _DragTheWordToPicturePageState extends State<DragTheWordToPicturePage> {
   final List<Map<String, String>> matchItems = [
     {"word": "sky", "image": "assets/activity_images/sky.jpg"},
     {"word": "bird", "image": "assets/activity_images/mordicai.jpg"},
@@ -23,19 +24,45 @@ class _DragTheWordToPicturePageState extends State<DragTheWordToPicturePage>
   Map<int, bool> matchResults = {};
 
   double opacityLevel = 1.0;
-
-  // Lottie feedback
   bool showFeedback = false;
   bool isCorrectFeedback = true;
+
+  Timer? timer;
+  int maxTime = 60;
+  int remainingTime = 60;
+
+  int totalCorrectAnswers = 0;
+  double totalScore = 0;
+  bool isFinished = false;
 
   @override
   void initState() {
     super.initState();
     _shuffleWords();
+    _startTimer();
   }
 
   void _shuffleWords() {
     shuffledWords = matchItems.map((item) => item['word']!).toList()..shuffle();
+  }
+
+  void _startTimer() {
+    remainingTime = maxTime;
+    timer?.cancel();
+    timer = Timer.periodic(const Duration(seconds: 1), (Timer t) {
+      if (remainingTime > 0) {
+        setState(() {
+          remainingTime--;
+        });
+      } else {
+        t.cancel();
+        _checkAllAnswers();
+      }
+    });
+  }
+
+  void _stopTimer() {
+    timer?.cancel();
   }
 
   void _animatedReset() async {
@@ -48,7 +75,7 @@ class _DragTheWordToPicturePageState extends State<DragTheWordToPicturePage>
     setState(() {
       matchedWords.clear();
       matchResults.clear();
-      _shuffleWords(); // Shuffle words every reset
+      _shuffleWords();
     });
 
     await Future.delayed(const Duration(milliseconds: 150));
@@ -56,9 +83,13 @@ class _DragTheWordToPicturePageState extends State<DragTheWordToPicturePage>
     setState(() {
       opacityLevel = 1.0;
     });
+
+    _startTimer();
   }
 
   void _checkAllAnswers() {
+    _stopTimer();
+
     int correctCount = 0;
 
     for (int i = 0; i < matchItems.length; i++) {
@@ -66,6 +97,9 @@ class _DragTheWordToPicturePageState extends State<DragTheWordToPicturePage>
         correctCount++;
       }
     }
+
+    totalCorrectAnswers += correctCount;
+    totalScore += remainingTime;
 
     if (correctCount >= 2) {
       _showPassDialog(correctCount);
@@ -81,7 +115,7 @@ class _DragTheWordToPicturePageState extends State<DragTheWordToPicturePage>
           (_) => AlertDialog(
             title: const Text('Good Job!'),
             content: Text(
-              'You got $correctCount out of ${matchItems.length} correct.',
+              'You got $correctCount out of ${matchItems.length} correct.\nRemaining Time: $remainingTime s',
             ),
             actions: [
               TextButton(
@@ -94,8 +128,11 @@ class _DragTheWordToPicturePageState extends State<DragTheWordToPicturePage>
               TextButton(
                 onPressed: () {
                   Navigator.of(context).pop();
+                  setState(() {
+                    isFinished = true;
+                  });
                 },
-                child: const Text('OK'),
+                child: const Text('Finish'),
               ),
             ],
           ),
@@ -109,7 +146,7 @@ class _DragTheWordToPicturePageState extends State<DragTheWordToPicturePage>
           (_) => AlertDialog(
             title: const Text('Try Again'),
             content: Text(
-              'You only got $correctCount correct. Do you want to retry?',
+              'You only got $correctCount correct.\nDo you want to retry?\nRemaining Time: $remainingTime s',
             ),
             actions: [
               TextButton(
@@ -122,8 +159,11 @@ class _DragTheWordToPicturePageState extends State<DragTheWordToPicturePage>
               TextButton(
                 onPressed: () {
                   Navigator.of(context).pop();
+                  setState(() {
+                    isFinished = true;
+                  });
                 },
-                child: const Text('OK'),
+                child: const Text('Finish'),
               ),
             ],
           ),
@@ -143,12 +183,67 @@ class _DragTheWordToPicturePageState extends State<DragTheWordToPicturePage>
     });
   }
 
+  void _resetGame() {
+    setState(() {
+      matchedWords.clear();
+      matchResults.clear();
+      totalCorrectAnswers = 0;
+      totalScore = 0;
+      isFinished = false;
+    });
+    _shuffleWords();
+    _startTimer();
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (isFinished) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Final Score'),
+          automaticallyImplyLeading: false,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'Activity Completed!',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Total Correct Answers: $totalCorrectAnswers',
+                style: const TextStyle(fontSize: 22),
+              ),
+              Text(
+                'Total Score: ${totalScore.toStringAsFixed(1)}',
+                style: const TextStyle(fontSize: 22),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _resetGame,
+                child: const Text('Try Again'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Stack(
       children: [
         Scaffold(
-          appBar: AppBar(title: const Text("Matching Exercise")),
+          appBar: AppBar(
+            title: const Text("Matching Exercise"),
+            automaticallyImplyLeading: false,
+          ),
           body: SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -166,20 +261,40 @@ class _DragTheWordToPicturePageState extends State<DragTheWordToPicturePage>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                "1. Drag the word to the matching picture.",
-                                style: Theme.of(
-                                  context,
-                                ).textTheme.bodyLarge?.copyWith(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w500,
-                                ),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      "1. Drag the word to the matching picture.",
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodyLarge?.copyWith(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        "Time Left: $remainingTime s",
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.red,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                               const SizedBox(height: 16),
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Draggable Words
                                   Expanded(
                                     flex: 1,
                                     child: Column(
@@ -242,10 +357,7 @@ class _DragTheWordToPicturePageState extends State<DragTheWordToPicturePage>
                                           }).toList(),
                                     ),
                                   ),
-
                                   const SizedBox(width: 40),
-
-                                  // Drop Targets with Images
                                   Expanded(
                                     flex: 2,
                                     child: Column(
@@ -336,8 +448,6 @@ class _DragTheWordToPicturePageState extends State<DragTheWordToPicturePage>
                                                   data ==
                                                   matchItems[index]['word'];
                                               matchResults[index] = isCorrect;
-
-                                              // Show feedback animation
                                               _showFeedback(isCorrect);
                                             });
 
@@ -363,7 +473,7 @@ class _DragTheWordToPicturePageState extends State<DragTheWordToPicturePage>
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: Text(
-                                  "© K5 Learning 2019",
+                                  "\u00a9 K5 Learning 2019",
                                   style: TextStyle(
                                     color: Colors.grey.shade600,
                                     fontWeight: FontWeight.w500,
@@ -381,11 +491,9 @@ class _DragTheWordToPicturePageState extends State<DragTheWordToPicturePage>
             ),
           ),
         ),
-
-        // Lottie Feedback Overlay
         if (showFeedback)
           Center(
-            child: Container(
+            child: SizedBox(
               width: 150,
               height: 150,
               child: Lottie.asset(

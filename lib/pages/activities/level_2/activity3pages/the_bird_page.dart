@@ -157,7 +157,7 @@ class _TheBirdPageState extends State<TheBirdPage> {
 
                 const SizedBox(height: 30),
 
-                // Story Text and Image (Flexible to prevent overflow)
+                // Story Text and Image
                 Flexible(
                   child: Row(
                     children: [
@@ -165,9 +165,7 @@ class _TheBirdPageState extends State<TheBirdPage> {
                         flex: 2,
                         child: SingleChildScrollView(
                           child: Padding(
-                            padding: const EdgeInsets.only(
-                              right: 60,
-                            ), // Separation space
+                            padding: const EdgeInsets.only(right: 60),
                             child: _buildStoryText(),
                           ),
                         ),
@@ -192,7 +190,7 @@ class _TheBirdPageState extends State<TheBirdPage> {
 
                 const SizedBox(height: 10),
 
-                // Second Image (SizedBox stays in place)
+                // Second Image
                 SizedBox(
                   height: 120,
                   child: Image.asset(
@@ -208,51 +206,45 @@ class _TheBirdPageState extends State<TheBirdPage> {
               ],
             ),
           ),
-
-          // Word list at upper right
+          // Small Rectangle Word List Box with Aligned Speaker Button
           Positioned(
             top: 50,
             right: 5,
             child: Container(
-              width: 170,
+              width: 200, // Longer width
+              height: 80, // Shorter height
+              padding: const EdgeInsets.all(8.0),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: Theme.of(context).colorScheme.primary,
                   width: 2,
                 ),
               ),
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
-                    "bird   fly   tree",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    softWrap: true,
-                    overflow: TextOverflow.visible,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Word list text
+                  const Flexible(
+                    child: Text(
+                      "bird  fly  tree  sings\nwings  sky",
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      softWrap: true,
+                    ),
                   ),
-                  SizedBox(height: 4),
-                  Text(
-                    "sings   wings   sky",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    softWrap: true,
-                    overflow: TextOverflow.visible,
+                  // Speaker button
+                  FloatingActionButton(
+                    heroTag: "wordListButton",
+                    onPressed: _speakWordList,
+                    child: const Icon(Icons.volume_up, size: 20),
+                    mini: true,
                   ),
                 ],
               ),
-            ),
-          ),
-
-          // Word list speaker button at top left
-          Positioned(
-            top: 60,
-            left: 140,
-            child: FloatingActionButton(
-              heroTag: "wordListButton",
-              onPressed: _speakWordList,
-              child: const Icon(Icons.volume_up, size: 30),
-              mini: true,
             ),
           ),
 
