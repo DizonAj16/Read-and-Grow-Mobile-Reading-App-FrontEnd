@@ -1,28 +1,24 @@
 import 'package:flutter/material.dart';
 
-// Import your Activity 5 pages here
-import 'activity5pages/drag_the_word_to_picture.dart';
-import 'activity5pages/fill_in_the_blanks.dart';
-import 'activity5pages/penguin_mpc.dart';
-import 'activity5pages/penguin_read.dart';
+// Import your updated Activity 9 pages here
+import 'activity9pages/the_owl_and_the_roaster_mpc.dart';
+import 'activity9pages/the_owl_and_the_roaster_page.dart';
 
-class Activity5Page extends StatefulWidget {
-  const Activity5Page({super.key});
+class Activity9Page extends StatefulWidget {
+  const Activity9Page({super.key});
 
   @override
-  _Activity5PageState createState() => _Activity5PageState();
+  _Activity9PageState createState() => _Activity9PageState();
 }
 
-class _Activity5PageState extends State<Activity5Page>
+class _Activity9PageState extends State<Activity9Page>
     with SingleTickerProviderStateMixin {
   int _currentPage = 0;
   bool _isLoading = false;
 
   final List<Widget> _pages = const [
-    PenguinsPage(),
-    PenguinMultipleChoicePage(),
-    DragTheWordToPicturePage(),
-    FillInTheBlanksPage(),
+    TheOwlAndTheRoasterPage(),
+    TheOwlAndTheRoasterMultipleChoicePage(),
   ];
 
   Future<void> _goToPreviousPage() async {

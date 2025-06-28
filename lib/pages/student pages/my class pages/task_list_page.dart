@@ -80,6 +80,9 @@ class TaskListPage extends StatelessWidget {
         return [
           {"title": "Task 1", "status": "Pending"},
           {"title": "Task 2", "status": "Pending (Test Checkpoint)"},
+          {"title": "Task 3", "status": "Pending (Test Checkpoint)"},
+          {"title": "Task 4", "status": "Pending (Test Checkpoint)"},
+          {"title": "Task 5", "status": "Pending (Test Checkpoint)"},
         ];
       // Level 5 is inactive, so we'll leave this empty for now
       default:

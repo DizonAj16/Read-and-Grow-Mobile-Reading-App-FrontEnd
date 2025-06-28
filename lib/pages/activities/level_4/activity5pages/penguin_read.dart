@@ -1,13 +1,275 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 
-class PenguinsReadPage extends StatelessWidget {
-  const PenguinsReadPage({super.key});
+import 'package:flutter/material.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+
+class PenguinsPage extends StatefulWidget {
+  const PenguinsPage({super.key});
+
+  @override
+  State<PenguinsPage> createState() => _PenguinsPageState();
+}
+
+class _PenguinsPageState extends State<PenguinsPage> {
+  final FlutterTts _flutterTts = FlutterTts();
+  final ScrollController _scrollController = ScrollController();
+
+  bool isReading = false;
+  int _currentWordIndex = -1;
+
+  final String _storyText =
+      "I am a bird, but I do not fly. "
+      "I am not a fish, but I can swim. "
+      "What do you think I am? "
+      "I am black and white and live in the cold. "
+      "In the snow, I walk on my feet. "
+      "In the water, I find fish to eat. "
+      "Do you know what I am? "
+      "I love the water! "
+      "I play with my friends under the water. "
+      "I can stay in the water for a long time. "
+      "I am very cool! What am I?";
+
+  final String _wordList =
+      "bird swim fish black white cold snow water feet friends cool";
+
+  List<String> _words = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _flutterTts.setLanguage('en-US');
+    _flutterTts.setSpeechRate(0.4);
+    _flutterTts.setPitch(1.0);
+    _words = _storyText.replaceAll('\n', ' \n ').split(' ');
+  }
+
+  Future<void> _speakWordList() async {
+    if (isReading) return;
+    await _flutterTts.stop();
+    await _flutterTts.speak(_wordList);
+  }
+
+  Future<void> _startReading() async {
+    if (isReading) return;
+
+    setState(() {
+      isReading = true;
+    });
+
+    await _flutterTts.stop();
+
+    for (int i = 0; i < _words.length; i++) {
+      if (!isReading) break;
+
+      setState(() {
+        _currentWordIndex = i;
+      });
+
+      _scrollToCurrentWord(i);
+
+      if (_words[i] != '\n') {
+        await _flutterTts.speak(_words[i].replaceAll(RegExp(r'[^\w\s]'), ''));
+      }
+
+      await Future.delayed(const Duration(milliseconds: 600));
+    }
+
+    setState(() {
+      isReading = false;
+      _currentWordIndex = -1;
+    });
+  }
+
+  void _stopReading() {
+    _flutterTts.stop();
+    setState(() {
+      isReading = false;
+      _currentWordIndex = -1;
+    });
+  }
+
+  void _scrollToCurrentWord(int index) {
+    double targetOffset =
+        (index / _words.length) * _scrollController.position.maxScrollExtent;
+    _scrollController.animateTo(
+      targetOffset,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  Widget _buildStoryText() {
+    return Wrap(
+      alignment: WrapAlignment.start,
+      spacing: 4,
+      runSpacing: 8,
+      children: List.generate(_words.length, (index) {
+        if (_words[index] == '\n') {
+          return const SizedBox(width: double.infinity, height: 0);
+        }
+        return Text(
+          _words[index],
+          style: TextStyle(
+            fontSize: 18,
+            height: 1.5,
+            color: index == _currentWordIndex ? Colors.red : Colors.black,
+            fontWeight:
+                index == _currentWordIndex
+                    ? FontWeight.bold
+                    : FontWeight.normal,
+          ),
+        );
+      }),
+    );
+  }
+
+  @override
+  void dispose() {
+    _flutterTts.stop();
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Penguins Read')),
-      body: const Center(child: Text('Penguins Read Page')),
+      body: Stack(
+        children: [
+          // Main Content
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Title and Word List Box
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Penguins",
+                      style: Theme.of(
+                        context,
+                      ).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.all(8.0),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 2,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'bird  swim  fish  black\nwhite  cold  snow  feet',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          FloatingActionButton(
+                            heroTag: "wordListButton",
+                            onPressed: _speakWordList,
+                            child: const Icon(Icons.volume_up, size: 20),
+                            mini: true,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 30),
+
+                // Story Text
+                Flexible(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: SingleChildScrollView(
+                          controller: _scrollController,
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 60),
+                            child: _buildStoryText(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        flex: 1,
+                        child: Container(), // Empty placeholder
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 20), // Space before bottom
+              ],
+            ),
+          ),
+
+          // Image at Bottom Right (above the guide text)
+          Positioned(
+            bottom: 90,
+            right: 20,
+            child: Image.asset(
+              "assets/activity_images/penguin.jpg",
+              height: 120,
+              fit: BoxFit.contain,
+              errorBuilder:
+                  (context, error, stackTrace) =>
+                      const Icon(Icons.image_not_supported, size: 100),
+            ),
+          ),
+
+          // Story play/stop button
+          Positioned(
+            bottom: 30,
+            right: 30,
+            child: FloatingActionButton(
+              heroTag: "storyButton",
+              backgroundColor: Colors.green,
+              onPressed: isReading ? _stopReading : _startReading,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                transitionBuilder: (child, animation) {
+                  return ScaleTransition(scale: animation, child: child);
+                },
+                child: Icon(
+                  isReading ? Icons.pause : Icons.play_arrow,
+                  key: ValueKey(isReading),
+                  size: 20,
+                ),
+              ),
+              mini: true,
+            ),
+          ),
+
+          // Copyright
+          Align(
+            alignment: Alignment.bottomRight,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 10.0, bottom: 10.0),
+              child: Text(
+                "© K5 Learning 2019",
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

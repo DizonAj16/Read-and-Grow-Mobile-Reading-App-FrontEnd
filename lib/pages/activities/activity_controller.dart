@@ -5,7 +5,10 @@ import 'level_1/activity_2.dart';
 import 'level_2/activity3.dart';
 import 'level_3/activity4.dart';
 import 'level_4/activity5.dart';
-// import 'level_4/test_checkpoint_page.dart'; // Uncomment if you have a separate page
+import 'level_4/activity6.dart'; // Correct import for the new Activity6Page
+import 'level_4/activity7.dart'; // Leave commented if Level 5 is not yet active
+import 'level_4/activity8.dart'; // Uncomment when ready
+import 'level_4/activity9.dart'; // Uncomment when ready
 
 class ActivityController extends StatelessWidget {
   final String activityTitle;
@@ -23,7 +26,7 @@ class ActivityController extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(activityTitle, style: TextStyle(color: Colors.white)),
+        title: Text(activityTitle, style: const TextStyle(color: Colors.white)),
         backgroundColor: Theme.of(context).colorScheme.primary,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -32,7 +35,7 @@ class ActivityController extends StatelessWidget {
   }
 
   Widget _getActivityPage(int level, String activityTitle) {
-    print('Loading: Level $level - $activityTitle'); // Debug
+    print('Loading: Level $level - $activityTitle');
 
     switch (level) {
       case 1:
@@ -46,7 +49,9 @@ class ActivityController extends StatelessWidget {
       // case 5:
       //   return _getLevel5Activity(activityTitle);
       default:
-        return Center(child: Text("No activity found for $activityTitle."));
+        return Center(
+          child: Text("No activity found for $activityTitle in Level $level."),
+        );
     }
   }
 
@@ -79,9 +84,9 @@ class ActivityController extends StatelessWidget {
       case "Task 1":
         return const Activity4Page();
       case "Task 2":
-        return const Activity4Page(); // Assign another activity if needed
+        return const Activity4Page(); // Placeholder, update if different
       case "Task 3":
-        return const Activity4Page(); // Assign another activity if needed
+        return const Activity4Page(); // Placeholder, update if different
       default:
         return Center(
           child: Text("No activity found for $activityTitle in Level 3."),
@@ -89,15 +94,18 @@ class ActivityController extends StatelessWidget {
     }
   }
 
-  // Level 4: Task 1 then Test Checkpoint
   Widget _getLevel4Activity(String activityTitle) {
     switch (activityTitle) {
       case "Task 1":
         return const Activity5Page();
       case "Task 2":
-        // Replace this with your actual checkpoint page when ready:
-        // Example: return const TestCheckpointPage();
-        return Center(child: Text("Test Checkpoint Page"));
+        return const Activity6Page();
+      case "Task 3": // Fixed typo
+        return const Activity7Page();
+      case "Task 4":
+        return const Activity8Page();
+      case "Task 5":
+        return const Activity9Page();
       default:
         return Center(
           child: Text("No activity found for $activityTitle in Level 4."),
@@ -105,19 +113,13 @@ class ActivityController extends StatelessWidget {
     }
   }
 
-  // Level 5 - Still commented out
+  // Uncomment when Level 5 is active
   // Widget _getLevel5Activity(String activityTitle) {
   //   switch (activityTitle) {
   //     case "Task 1":
   //       return const Activity7Page();
   //     case "Task 2":
   //       return const Activity8Page();
-  //     case "Task 3":
-  //       return const Activity7Page();
-  //     case "Task 4":
-  //       return const Activity8Page();
-  //     case "Task 5":
-  //       return const Activity7Page();
   //     default:
   //       return Center(
   //         child: Text("No activity found for $activityTitle in Level 5."),

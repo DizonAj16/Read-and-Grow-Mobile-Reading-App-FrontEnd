@@ -1,28 +1,24 @@
 import 'package:flutter/material.dart';
 
-// Import your Activity 5 pages here
-import 'activity5pages/drag_the_word_to_picture.dart';
-import 'activity5pages/fill_in_the_blanks.dart';
-import 'activity5pages/penguin_mpc.dart';
-import 'activity5pages/penguin_read.dart';
+// Import your updated Activity 8 pages here
+import 'activity8pages/at_last_mpc.dart';
+import 'activity8pages/at_last_reading_page.dart';
 
-class Activity5Page extends StatefulWidget {
-  const Activity5Page({super.key});
+class Activity8Page extends StatefulWidget {
+  const Activity8Page({super.key});
 
   @override
-  _Activity5PageState createState() => _Activity5PageState();
+  _Activity8PageState createState() => _Activity8PageState();
 }
 
-class _Activity5PageState extends State<Activity5Page>
+class _Activity8PageState extends State<Activity8Page>
     with SingleTickerProviderStateMixin {
   int _currentPage = 0;
   bool _isLoading = false;
 
   final List<Widget> _pages = const [
-    PenguinsPage(),
-    PenguinMultipleChoicePage(),
-    DragTheWordToPicturePage(),
-    FillInTheBlanksPage(),
+    AtLastReadingPage(),
+    AtLastMultipleChoicePage(),
   ];
 
   Future<void> _goToPreviousPage() async {
