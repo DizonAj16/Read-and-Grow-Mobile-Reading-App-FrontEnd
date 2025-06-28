@@ -1,15 +1,385 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 
-class TheBestArtOfTheDayMultipleChoicePage extends StatelessWidget {
+import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
+
+class TheBestArtOfTheDayMultipleChoicePage extends StatefulWidget {
   const TheBestArtOfTheDayMultipleChoicePage({super.key});
 
   @override
+  State<TheBestArtOfTheDayMultipleChoicePage> createState() =>
+      _TheBestArtOfTheDayMultipleChoicePageState();
+}
+
+class _TheBestArtOfTheDayMultipleChoicePageState
+    extends State<TheBestArtOfTheDayMultipleChoicePage> {
+  final List<Map<String, dynamic>> questions = [
+    {
+      'question': '1. At the beginning of the story, where was Mia?',
+      'options': [
+        'She was in her bedroom.',
+        'She was in the bathroom.',
+        'She was at the kitchen table.',
+        'She was on a bench outside.',
+      ],
+      'answer': 'She was in her bedroom.',
+    },
+    {
+      'question': '2. What time of the day was it?',
+      'options': [
+        'middle of the day',
+        'late in the evening',
+        'early in the morning',
+        'late in the afternoon',
+      ],
+      'answer': 'early in the morning',
+    },
+    {
+      'question': '3. What do you think will happen next?',
+      'options': [
+        'She will have lunch.',
+        'She will have dinner.',
+        'She will have a snack.',
+        'She will have breakfast.',
+      ],
+      'answer': 'She will have breakfast.',
+    },
+    {
+      'question': '4. What will she say when she gets up?',
+      'options': [
+        'Good evening.',
+        'Good afternoon!',
+        'Good morning!',
+        'Thank you very much!',
+      ],
+      'answer': 'Good morning!',
+    },
+    {
+      'question': '5. What other title can be given for this story?',
+      'options': [
+        'The End of the Day',
+        'The Start of the Day',
+        'Just Before Sleeping',
+        'The Middle of the Day',
+      ],
+      'answer': 'The Start of the Day',
+    },
+  ];
+
+  int currentIndex = 0;
+  int correctCount = 0;
+  int wrongCount = 0;
+  bool finished = false;
+
+  Timer? timer;
+  int maxTimePerQuestion = 15;
+  int remainingTime = 15;
+
+  int totalCorrectAnswers = 0;
+  double totalScore = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    startTimer();
+  }
+
+  void startTimer() {
+    remainingTime = maxTimePerQuestion;
+    timer?.cancel();
+    timer = Timer.periodic(const Duration(seconds: 1), (Timer t) {
+      if (remainingTime > 0) {
+        setState(() {
+          remainingTime--;
+        });
+      } else {
+        t.cancel();
+        handleTimeout();
+      }
+    });
+  }
+
+  void stopTimer() {
+    timer?.cancel();
+  }
+
+  void handleTimeout() {
+    wrongCount++;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (_) => AlertDialog(
+            contentPadding: const EdgeInsets.all(16),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  height: 120,
+                  width: 120,
+                  child: Lottie.asset(
+                    'assets/animation/wrong.json',
+                    repeat: false,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Time\'s up!',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  ),
+                ),
+              ],
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+    );
+
+    Future.delayed(const Duration(seconds: 3), () {
+      Navigator.of(context).pop();
+
+      if (currentIndex < questions.length - 1) {
+        setState(() {
+          currentIndex++;
+        });
+        startTimer();
+      } else {
+        setState(() {
+          finished = true;
+        });
+      }
+    });
+  }
+
+  void selectOption(String option) {
+    stopTimer();
+
+    final correctAnswer = questions[currentIndex]['answer'];
+    final isCorrect = option == correctAnswer;
+
+    if (isCorrect) {
+      correctCount++;
+      totalCorrectAnswers++;
+      totalScore += remainingTime;
+    } else {
+      wrongCount++;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (_) => AlertDialog(
+            contentPadding: const EdgeInsets.all(16),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  height: 120,
+                  width: 120,
+                  child: Lottie.asset(
+                    isCorrect
+                        ? 'assets/animation/correct.json'
+                        : 'assets/animation/wrong.json',
+                    repeat: false,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  isCorrect ? 'Correct!' : 'Wrong!',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isCorrect ? Colors.green : Colors.red,
+                  ),
+                ),
+              ],
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+    );
+
+    Future.delayed(const Duration(seconds: 3), () {
+      Navigator.of(context).pop();
+
+      if (currentIndex < questions.length - 1) {
+        setState(() {
+          currentIndex++;
+        });
+        startTimer();
+      } else {
+        setState(() {
+          finished = true;
+        });
+      }
+    });
+  }
+
+  void resetQuiz() {
+    setState(() {
+      currentIndex = 0;
+      correctCount = 0;
+      wrongCount = 0;
+      finished = false;
+      totalCorrectAnswers = 0;
+      totalScore = 0;
+    });
+    startTimer();
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        'The Best Art of the Day - Multiple Choice Page',
-        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        textAlign: TextAlign.center,
+    if (finished) {
+      return Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          title: const Text('The Best Art of the Day - Quiz'),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'Quiz Finished!',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Total Correct Answers: $totalCorrectAnswers',
+                style: const TextStyle(fontSize: 20, color: Colors.green),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Total Score: ${totalScore.toStringAsFixed(1)}',
+                style: const TextStyle(fontSize: 20, color: Colors.blue),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Wrong Answers: $wrongCount',
+                style: const TextStyle(fontSize: 20, color: Colors.red),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: resetQuiz,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                  backgroundColor: Colors.deepPurple,
+                ),
+                child: const Text('Try Again', style: TextStyle(fontSize: 18)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final questionData = questions[currentIndex];
+
+    return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: const Text('The Best Art of the Day - Multiple Choice'),
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LinearProgressIndicator(
+            value: (currentIndex + 1) / questions.length,
+            backgroundColor: Colors.grey.shade300,
+            color: Colors.deepPurple,
+            minHeight: 8,
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Question ${currentIndex + 1} of ${questions.length}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Time: $remainingTime s',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              questionData['question'],
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: GridView.count(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 3,
+              children:
+                  questionData['options'].map<Widget>((option) {
+                    return ElevatedButton(
+                      onPressed: () => selectOption(option),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple.shade100,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        option,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.black,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    );
+                  }).toList(),
+            ),
+          ),
+          Align(
+            alignment: Alignment.bottomRight,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 10.0, bottom: 10.0),
+              child: Text(
+                "© K5 Learning 2019",
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

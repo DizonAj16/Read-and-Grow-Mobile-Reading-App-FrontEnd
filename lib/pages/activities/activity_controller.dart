@@ -5,10 +5,15 @@ import 'level_1/activity_2.dart';
 import 'level_2/activity3.dart';
 import 'level_3/activity4.dart';
 import 'level_4/activity5.dart';
-import 'level_4/activity6.dart'; // Correct import for the new Activity6Page
-import 'level_4/activity7.dart'; // Leave commented if Level 5 is not yet active
-import 'level_4/activity8.dart'; // Uncomment when ready
-import 'level_4/activity9.dart'; // Uncomment when ready
+import 'level_4/activity6.dart';
+import 'level_4/activity7.dart';
+import 'level_4/activity8.dart';
+import 'level_4/activity9.dart';
+//import 'level_5/activity10.dart
+//import 'level_5/activity11.dart
+//import 'level_5/activity12.dart
+//import 'level_5/activity13.dart
+//import 'level_5/activity14.dart
 
 class ActivityController extends StatelessWidget {
   final String activityTitle;

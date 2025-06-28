@@ -17,8 +17,8 @@ class _Activity9PageState extends State<Activity9Page>
   bool _isLoading = false;
 
   final List<Widget> _pages = const [
-    TheOwlAndTheRoasterPage(),
-    TheOwlAndTheRoasterMultipleChoicePage(),
+    TheOwlAndTheRoosterPage(),
+    TheOwlAndTheRoosterMultipleChoicePage(),
   ];
 
   Future<void> _goToPreviousPage() async {
