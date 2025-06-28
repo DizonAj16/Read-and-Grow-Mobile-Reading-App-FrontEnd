@@ -11,9 +11,6 @@ import 'level_4/activity8.dart';
 import 'level_4/activity9.dart';
 //import 'level_5/activity10.dart
 //import 'level_5/activity11.dart
-//import 'level_5/activity12.dart
-//import 'level_5/activity13.dart
-//import 'level_5/activity14.dart
 
 class ActivityController extends StatelessWidget {
   final String activityTitle;
