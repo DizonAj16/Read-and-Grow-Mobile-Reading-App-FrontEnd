@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
 
 class FillInTheBlanksPage extends StatefulWidget {
-  const FillInTheBlanksPage({super.key});
+  final VoidCallback? onCompleted;
+
+  const FillInTheBlanksPage({super.key, this.onCompleted});
 
   @override
   State<FillInTheBlanksPage> createState() => _FillInTheBlanksPageState();
@@ -22,67 +25,184 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
   late List<Color> boxColors;
   late Set<String> usedLetters;
 
+  bool _completed = false;
+  bool showScorePage = false;
+
+  int remainingTime = 60;
+  int score = 0;
+  Timer? _timer;
+
   @override
   void initState() {
     super.initState();
+    _resetGame();
+    _startTimer();
+  }
+
+  void _resetGame() {
     droppedLetters = List<String?>.filled(fillItems.length, null);
     boxColors = List<Color>.filled(fillItems.length, Colors.grey);
     usedLetters = {};
+    _completed = false;
+    showScorePage = false;
+    score = 0;
+    remainingTime = 60;
+    _timer?.cancel();
+    _startTimer();
   }
 
-  void _showFeedbackDialog(bool isCorrect) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Lottie.asset(
-                  isCorrect
-                      ? 'assets/animation/correct.json'
-                      : 'assets/animation/wrong.json',
-                  width: 250,
-                  height: 250,
-                  repeat: false,
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.9),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    isCorrect ? "✅ Correct!" : "❌ Try again!",
-                    style: TextStyle(
-                      fontSize: 20,
-                      color: isCorrect ? Colors.green : Colors.red,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+  void _startTimer() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        if (remainingTime > 0) {
+          remainingTime--;
+        } else {
+          _timer?.cancel();
+          if (!_completed) {
+            _completed = true;
+            _finishAndShowScore();
+          }
+        }
+      });
+    });
+  }
 
-    Future.delayed(const Duration(seconds: 3), () {
-      Navigator.of(context).pop();
+  void _checkIfAllCorrect() {
+    bool allCorrect = true;
+    for (int i = 0; i < fillItems.length; i++) {
+      if (droppedLetters[i] != fillItems[i]["answer"]) {
+        allCorrect = false;
+        break;
+      }
+    }
+
+    if (allCorrect && !_completed) {
+      _completed = true;
+      _timer?.cancel();
+      _finishAndShowScore();
+    }
+  }
+
+  void _finishAndShowScore() {
+    setState(() {
+      score = ((remainingTime / 60) * 100).round();
+      showScorePage = true;
+    });
+
+    // Automatically move to next page after 2 seconds (unless user retries)
+    Future.delayed(const Duration(seconds: 2), () {
+      if (!_retrying) widget.onCompleted?.call();
+    });
+  }
+
+  bool _retrying = false;
+
+  void _onTryAgain() {
+    setState(() {
+      _retrying = true;
+    });
+    Future.delayed(const Duration(milliseconds: 300), () {
+      setState(() {
+        _resetGame();
+        _retrying = false;
+      });
     });
   }
 
   @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (showScorePage) {
+      return Container(
+        color: Colors.deepPurple.shade50,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.deepPurple.withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    "🎉 Great Job!",
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    "You completed the activity!",
+                    style: TextStyle(
+                      fontSize: 20,
+                      color: Colors.deepPurple.shade400,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  Text(
+                    "🏆 Your Score",
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.deepPurple,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "$score / 100",
+                    style: TextStyle(
+                      fontSize: 48,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  ElevatedButton.icon(
+                    onPressed: _onTryAgain,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                    ),
+                    label: const Text(
+                      "🔁 Try Again",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -93,7 +213,16 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
             color: Theme.of(context).colorScheme.primary,
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 10),
+        Text(
+          "⏳ Time Left: $remainingTime s",
+          style: TextStyle(
+            fontSize: 18,
+            color: remainingTime <= 10 ? Colors.red : Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 10),
         Expanded(
           child: ListView.builder(
             itemCount: fillItems.length,
@@ -123,7 +252,9 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
                     Row(
                       children: [
                         DragTarget<String>(
-                          onWillAccept: (data) => !usedLetters.contains(data),
+                          onWillAccept:
+                              (data) =>
+                                  !_completed && !usedLetters.contains(data),
                           onAccept: (data) {
                             setState(() {
                               if (droppedLetters[index] != null) {
@@ -135,11 +266,9 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
 
                               if (data == answer) {
                                 boxColors[index] = Colors.green;
-                                _showFeedbackDialog(true);
+                                _checkIfAllCorrect();
                               } else {
                                 boxColors[index] = Colors.red;
-                                _showFeedbackDialog(false);
-
                                 Future.delayed(const Duration(seconds: 1), () {
                                   setState(() {
                                     droppedLetters[index] = null;
@@ -191,6 +320,7 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
             },
           ),
         ),
+        const SizedBox(height: 10),
         Center(
           child: Text(
             "Options:",

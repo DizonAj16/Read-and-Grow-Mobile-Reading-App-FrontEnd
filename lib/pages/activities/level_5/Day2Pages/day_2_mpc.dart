@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
 class Day2MultipleChoicePage extends StatefulWidget {
-  const Day2MultipleChoicePage({super.key});
+  final VoidCallback? onCompleted;
+
+  const Day2MultipleChoicePage({super.key, this.onCompleted});
 
   @override
   State<Day2MultipleChoicePage> createState() => _Day2MultipleChoicePageState();
@@ -63,8 +65,6 @@ class _Day2MultipleChoicePageState extends State<Day2MultipleChoicePage> {
   Timer? timer;
   int maxTimePerQuestion = 15;
   int remainingTime = 15;
-
-  int totalCorrectAnswers = 0;
   double totalScore = 0;
 
   @override
@@ -95,7 +95,6 @@ class _Day2MultipleChoicePageState extends State<Day2MultipleChoicePage> {
   void handleTimeout() {
     wrongCount++;
     showFeedbackDialog(isCorrect: false, message: "Time's up!");
-
     Future.delayed(const Duration(seconds: 3), () {
       Navigator.of(context).pop();
       goToNextQuestion();
@@ -109,7 +108,6 @@ class _Day2MultipleChoicePageState extends State<Day2MultipleChoicePage> {
 
     if (isCorrect) {
       correctCount++;
-      totalCorrectAnswers++;
       totalScore += remainingTime;
     } else {
       wrongCount++;
@@ -174,6 +172,7 @@ class _Day2MultipleChoicePageState extends State<Day2MultipleChoicePage> {
       setState(() {
         finished = true;
       });
+      widget.onCompleted?.call(); // <-- trigger callback if provided
     }
   }
 
@@ -183,7 +182,6 @@ class _Day2MultipleChoicePageState extends State<Day2MultipleChoicePage> {
       correctCount = 0;
       wrongCount = 0;
       finished = false;
-      totalCorrectAnswers = 0;
       totalScore = 0;
     });
     startTimer();
@@ -215,7 +213,7 @@ class _Day2MultipleChoicePageState extends State<Day2MultipleChoicePage> {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  'Correct: $totalCorrectAnswers',
+                  'Correct: $correctCount',
                   style: const TextStyle(fontSize: 22, color: Colors.green),
                 ),
                 const SizedBox(height: 8),

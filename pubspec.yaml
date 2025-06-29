@@ -41,6 +41,7 @@ dependencies:
   flutter_tts: ^4.2.2
   http: ^1.4.0
   shared_preferences: ^2.5.3
+  auto_size_text: ^3.0.0
 
 dev_dependencies:
   flutter_test:

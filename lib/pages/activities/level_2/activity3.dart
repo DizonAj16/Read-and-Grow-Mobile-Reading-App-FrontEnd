@@ -12,28 +12,51 @@ class Activity3Page extends StatefulWidget {
   _Activity3PageState createState() => _Activity3PageState();
 }
 
-class _Activity3PageState extends State<Activity3Page>
-    with SingleTickerProviderStateMixin {
+class _Activity3PageState extends State<Activity3Page> {
+  final PageController _pageController = PageController();
   int _currentPage = 0;
   bool _isLoading = false;
+  late List<bool> _completedPages;
 
-  final List<Widget> _pages = const [
-    TheBirdPage(),
-    TheBirdMultipleChoicePage(),
-    DragTheWordToPicturePage(),
-    FillInTheBlanksPage(),
+  @override
+  void initState() {
+    super.initState();
+    _completedPages = List.generate(_pages.length, (_) => false);
+  }
+
+  void _markPageComplete(int index) {
+    if (!_completedPages[index]) {
+      setState(() {
+        _completedPages[index] = true;
+      });
+    }
+  }
+
+  List<Widget> get _pages => [
+    TheBirdPage(onCompleted: () => _markPageComplete(0)),
+    TheBirdMultipleChoicePage(onCompleted: () => _markPageComplete(1)),
+    DragTheWordToPicturePage(onCompleted: () => _markPageComplete(2)),
+    FillInTheBlanksPage(onCompleted: () => _markPageComplete(3)),
   ];
 
   Future<void> _goToPreviousPage() async {
     if (_currentPage > 0) {
       await _showLoadingOverlay();
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
       setState(() => _currentPage--);
     }
   }
 
   Future<void> _goToNextPage() async {
-    if (_currentPage < _pages.length - 1) {
+    if (_currentPage < _pages.length - 1 && _completedPages[_currentPage]) {
       await _showLoadingOverlay();
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
       setState(() => _currentPage++);
     }
   }
@@ -47,21 +70,30 @@ class _Activity3PageState extends State<Activity3Page>
   }
 
   @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.deepPurple.shade50,
       body: SafeArea(
         child: Stack(
           children: [
-            Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                children: [
-                  Expanded(child: _pages[_currentPage]),
-                  const SizedBox(height: 12),
-                  _buildNavigationBar(context),
-                ],
-              ),
+            Column(
+              children: [
+                Expanded(
+                  child: PageView(
+                    controller: _pageController,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: _pages,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _buildNavigationBar(context),
+              ],
             ),
             if (_isLoading)
               AnimatedOpacity(
@@ -81,6 +113,7 @@ class _Activity3PageState extends State<Activity3Page>
   Widget _buildNavigationBar(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -111,7 +144,9 @@ class _Activity3PageState extends State<Activity3Page>
           ),
           ElevatedButton.icon(
             onPressed:
-                _currentPage < _pages.length - 1 && !_isLoading
+                _currentPage < _pages.length - 1 &&
+                        !_isLoading &&
+                        _completedPages[_currentPage]
                     ? _goToNextPage
                     : null,
             icon: const Icon(Icons.arrow_forward_ios),

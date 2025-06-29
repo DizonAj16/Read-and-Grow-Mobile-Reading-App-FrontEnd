@@ -15,11 +15,21 @@ class _Activity6PageState extends State<Activity6Page>
     with SingleTickerProviderStateMixin {
   int _currentPage = 0;
   bool _isLoading = false;
+  late List<bool> _completed;
 
-  final List<Widget> _pages = const [
-    TheBestArtOfTheDayPage(),
-    TheBestArtOfTheDayMultipleChoicePage(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _completed = List.generate(_pages.length, (_) => false);
+  }
+
+  void _markPageCompleted(int index) {
+    if (!_completed[index]) {
+      setState(() {
+        _completed[index] = true;
+      });
+    }
+  }
 
   Future<void> _goToPreviousPage() async {
     if (_currentPage > 0) {
@@ -42,6 +52,13 @@ class _Activity6PageState extends State<Activity6Page>
       setState(() => _isLoading = false);
     }
   }
+
+  List<Widget> get _pages => [
+    TheBestArtOfTheDayPage(onCompleted: () => _markPageCompleted(0)),
+    TheBestArtOfTheDayMultipleChoicePage(
+      onCompleted: () => _markPageCompleted(1),
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -76,6 +93,9 @@ class _Activity6PageState extends State<Activity6Page>
   }
 
   Widget _buildNavigationBar(BuildContext context) {
+    final isLastPage = _currentPage == _pages.length - 1;
+    final canGoNext = _completed[_currentPage] && !isLastPage;
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       decoration: BoxDecoration(
@@ -107,10 +127,7 @@ class _Activity6PageState extends State<Activity6Page>
             ),
           ),
           ElevatedButton.icon(
-            onPressed:
-                _currentPage < _pages.length - 1 && !_isLoading
-                    ? _goToNextPage
-                    : null,
+            onPressed: canGoNext && !_isLoading ? _goToNextPage : null,
             icon: const Icon(Icons.arrow_forward_ios),
             label: const Text("Next"),
             style: _buttonStyle(),

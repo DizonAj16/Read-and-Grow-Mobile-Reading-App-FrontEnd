@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
 class TheBestArtOfTheDayMultipleChoicePage extends StatefulWidget {
-  const TheBestArtOfTheDayMultipleChoicePage({super.key});
+  final VoidCallback? onCompleted;
+
+  const TheBestArtOfTheDayMultipleChoicePage({super.key, this.onCompleted});
 
   @override
   State<TheBestArtOfTheDayMultipleChoicePage> createState() =>
@@ -13,7 +15,7 @@ class TheBestArtOfTheDayMultipleChoicePage extends StatefulWidget {
 
 class _TheBestArtOfTheDayMultipleChoicePageState
     extends State<TheBestArtOfTheDayMultipleChoicePage> {
-  final List<Map<String, dynamic>> questions = [
+  final List<Map<String, dynamic>> _questions = [
     {
       'question': '1. At the beginning of the story, where was Mia?',
       'options': [
@@ -66,109 +68,59 @@ class _TheBestArtOfTheDayMultipleChoicePageState
     },
   ];
 
-  int currentIndex = 0;
-  int correctCount = 0;
-  int wrongCount = 0;
-  bool finished = false;
+  int _currentIndex = 0;
+  int _score = 0;
+  int _wrong = 0;
+  bool _finished = false;
 
-  Timer? timer;
-  int maxTimePerQuestion = 15;
-  int remainingTime = 15;
-
-  int totalCorrectAnswers = 0;
-  double totalScore = 0;
+  Timer? _timer;
+  int _maxTime = 15;
+  int _remainingTime = 15;
 
   @override
   void initState() {
     super.initState();
-    startTimer();
+    _startTimer();
   }
 
-  void startTimer() {
-    remainingTime = maxTimePerQuestion;
-    timer?.cancel();
-    timer = Timer.periodic(const Duration(seconds: 1), (Timer t) {
-      if (remainingTime > 0) {
+  void _startTimer() {
+    _remainingTime = _maxTime;
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (_remainingTime > 0) {
         setState(() {
-          remainingTime--;
+          _remainingTime--;
         });
       } else {
         t.cancel();
-        handleTimeout();
+        _handleTimeout();
       }
     });
   }
 
-  void stopTimer() {
-    timer?.cancel();
+  void _handleTimeout() {
+    _wrong++;
+    _showFeedback(isCorrect: false, isTimeout: true);
   }
 
-  void handleTimeout() {
-    wrongCount++;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder:
-          (_) => AlertDialog(
-            contentPadding: const EdgeInsets.all(16),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  height: 120,
-                  width: 120,
-                  child: Lottie.asset(
-                    'assets/animation/wrong.json',
-                    repeat: false,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Time\'s up!',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red,
-                  ),
-                ),
-              ],
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-    );
-
-    Future.delayed(const Duration(seconds: 3), () {
-      Navigator.of(context).pop();
-
-      if (currentIndex < questions.length - 1) {
-        setState(() {
-          currentIndex++;
-        });
-        startTimer();
-      } else {
-        setState(() {
-          finished = true;
-        });
-      }
-    });
+  void _stopTimer() {
+    _timer?.cancel();
   }
 
-  void selectOption(String option) {
-    stopTimer();
-
-    final correctAnswer = questions[currentIndex]['answer'];
-    final isCorrect = option == correctAnswer;
+  void _selectAnswer(String selected) {
+    _stopTimer();
+    final isCorrect = selected == _questions[_currentIndex]['answer'];
 
     if (isCorrect) {
-      correctCount++;
-      totalCorrectAnswers++;
-      totalScore += remainingTime;
+      _score++;
     } else {
-      wrongCount++;
+      _wrong++;
     }
 
+    _showFeedback(isCorrect: isCorrect);
+  }
+
+  void _showFeedback({required bool isCorrect, bool isTimeout = false}) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -190,7 +142,11 @@ class _TheBestArtOfTheDayMultipleChoicePageState
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  isCorrect ? 'Correct!' : 'Wrong!',
+                  isTimeout
+                      ? "Time's Up!"
+                      : isCorrect
+                      ? "Correct!"
+                      : "Wrong!",
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -205,43 +161,42 @@ class _TheBestArtOfTheDayMultipleChoicePageState
           ),
     );
 
-    Future.delayed(const Duration(seconds: 3), () {
+    Future.delayed(const Duration(seconds: 2), () {
       Navigator.of(context).pop();
-
-      if (currentIndex < questions.length - 1) {
+      if (_currentIndex < _questions.length - 1) {
         setState(() {
-          currentIndex++;
+          _currentIndex++;
         });
-        startTimer();
+        _startTimer();
       } else {
         setState(() {
-          finished = true;
+          _finished = true;
         });
+        widget.onCompleted?.call();
       }
     });
   }
 
-  void resetQuiz() {
+  void _resetQuiz() {
     setState(() {
-      currentIndex = 0;
-      correctCount = 0;
-      wrongCount = 0;
-      finished = false;
-      totalCorrectAnswers = 0;
-      totalScore = 0;
+      _currentIndex = 0;
+      _score = 0;
+      _wrong = 0;
+      _finished = false;
     });
-    startTimer();
+    _startTimer();
   }
 
   @override
   void dispose() {
-    timer?.cancel();
+    _timer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (finished) {
+    if (_finished) {
+      final int finalScore = ((_score / _questions.length) * 100).round();
       return Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
@@ -257,22 +212,22 @@ class _TheBestArtOfTheDayMultipleChoicePageState
               ),
               const SizedBox(height: 20),
               Text(
-                'Total Correct Answers: $totalCorrectAnswers',
+                'Correct Answers: $_score',
                 style: const TextStyle(fontSize: 20, color: Colors.green),
               ),
               const SizedBox(height: 8),
               Text(
-                'Total Score: ${totalScore.toStringAsFixed(1)}',
-                style: const TextStyle(fontSize: 20, color: Colors.blue),
+                'Wrong Answers: $_wrong',
+                style: const TextStyle(fontSize: 20, color: Colors.red),
               ),
               const SizedBox(height: 8),
               Text(
-                'Wrong Answers: $wrongCount',
-                style: const TextStyle(fontSize: 20, color: Colors.red),
+                'Final Score: $finalScore%',
+                style: const TextStyle(fontSize: 20, color: Colors.blue),
               ),
               const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: resetQuiz,
+                onPressed: _resetQuiz,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 24,
@@ -288,7 +243,7 @@ class _TheBestArtOfTheDayMultipleChoicePageState
       );
     }
 
-    final questionData = questions[currentIndex];
+    final current = _questions[_currentIndex];
 
     return Scaffold(
       appBar: AppBar(
@@ -299,7 +254,7 @@ class _TheBestArtOfTheDayMultipleChoicePageState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           LinearProgressIndicator(
-            value: (currentIndex + 1) / questions.length,
+            value: (_currentIndex + 1) / _questions.length,
             backgroundColor: Colors.grey.shade300,
             color: Colors.deepPurple,
             minHeight: 8,
@@ -311,14 +266,14 @@ class _TheBestArtOfTheDayMultipleChoicePageState
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Question ${currentIndex + 1} of ${questions.length}',
+                  'Question ${_currentIndex + 1} of ${_questions.length}',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 Text(
-                  'Time: $remainingTime s',
+                  'Time: $_remainingTime s',
                   style: const TextStyle(
                     fontSize: 16,
                     color: Colors.red,
@@ -332,7 +287,7 @@ class _TheBestArtOfTheDayMultipleChoicePageState
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              questionData['question'],
+              current['question'],
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
             ),
           ),
@@ -345,9 +300,9 @@ class _TheBestArtOfTheDayMultipleChoicePageState
               mainAxisSpacing: 12,
               childAspectRatio: 3,
               children:
-                  questionData['options'].map<Widget>((option) {
+                  (current['options'] as List<String>).map((option) {
                     return ElevatedButton(
-                      onPressed: () => selectOption(option),
+                      onPressed: () => _selectAnswer(option),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.deepPurple.shade100,
                         shape: RoundedRectangleBorder(

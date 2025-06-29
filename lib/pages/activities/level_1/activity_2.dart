@@ -9,146 +9,110 @@ class Activity2Page extends StatefulWidget {
   const Activity2Page({super.key});
 
   @override
-  _Activity2PageState createState() => _Activity2PageState();
+  State<Activity2Page> createState() => _Activity2PageState();
 }
 
-class _Activity2PageState extends State<Activity2Page>
-    with SingleTickerProviderStateMixin {
+class _Activity2PageState extends State<Activity2Page> {
+  final PageController _pageController = PageController();
   int _currentPage = 0;
-  bool _isLoading = false;
 
-  late AnimationController _fadeController;
-  late Animation<double> _fadeAnimation;
+  // Tracks if each page is completed
+  final List<bool> _pageCompleted = [false, false, false, false];
 
-  final List<Widget> _pages = [
-    const CatAndRatPage(),
-    const MatchingExercisePage(),
-    const FillInTheBlanksPage(),
-    const DrawAnimalsPage(),
-  ];
+  late final List<Widget> _pages;
 
   @override
   void initState() {
     super.initState();
-    _fadeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    );
-    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(_fadeController);
+
+    _pages = [
+      CatAndRatPage(onCompleted: () => _markPageComplete(0)),
+      MatchingExercisePage(onCompleted: () => _markPageComplete(1)),
+      FillInTheBlanksPage(onCompleted: () => _markPageComplete(2)),
+      DrawAnimalsPage(onCompleted: () => _markPageComplete(3)),
+    ];
   }
 
-  Future<void> _goToPage(int newPage) async {
-    if (newPage < 0 || newPage >= _pages.length) return;
-
-    setState(() => _isLoading = true);
-    await _fadeController.forward();
-
-    await Future.delayed(const Duration(milliseconds: 300));
-    setState(() => _currentPage = newPage);
-
-    await _fadeController.reverse();
-    setState(() => _isLoading = false);
-  }
-
-  void _goToPreviousPage() {
-    if (_currentPage > 0) {
-      _goToPage(_currentPage - 1);
+  void _markPageComplete(int index) {
+    if (!_pageCompleted[index]) {
+      setState(() {
+        _pageCompleted[index] = true;
+      });
     }
   }
 
   void _goToNextPage() {
     if (_currentPage < _pages.length - 1) {
-      _goToPage(_currentPage + 1);
+      _pageController.animateToPage(
+        _currentPage + 1,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
     }
   }
 
-  @override
-  void dispose() {
-    _fadeController.dispose();
-    super.dispose();
+  void _goToPreviousPage() {
+    if (_currentPage > 0) {
+      _pageController.animateToPage(
+        _currentPage - 1,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.deepPurple.shade50,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                children: [
-                  Expanded(child: _pages[_currentPage]),
-                  const SizedBox(height: 12),
-                  _buildNavigationBar(context),
-                ],
-              ),
-            ),
-            FadeTransition(
-              opacity: _fadeAnimation,
-              child:
-                  _isLoading
-                      ? Container(
-                        color: Colors.white,
-                        child: const Center(child: CircularProgressIndicator()),
-                      )
-                      : const SizedBox.shrink(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavigationBar(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade300,
-            blurRadius: 5,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: Column(
         children: [
-          ElevatedButton.icon(
-            onPressed: _currentPage > 0 ? _goToPreviousPage : null,
-            icon: const Icon(Icons.arrow_back_ios),
-            label: const Text("Back"),
-            style: _buttonStyle(),
-          ),
-          Text(
-            "Page ${_currentPage + 1} of ${_pages.length}",
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: Colors.red,
+          // Main PageView
+          Expanded(
+            child: PageView.builder(
+              controller: _pageController,
+              physics: const NeverScrollableScrollPhysics(),
+              onPageChanged: (index) {
+                setState(() {
+                  _currentPage = index;
+                });
+              },
+              itemCount: _pages.length,
+              itemBuilder: (context, index) => _pages[index],
             ),
           ),
-          ElevatedButton.icon(
-            onPressed: _currentPage < _pages.length - 1 ? _goToNextPage : null,
-            icon: const Icon(Icons.arrow_forward_ios),
-            label: const Text("Next"),
-            style: _buttonStyle(),
+          // Footer with navigation and page info
+          Container(
+            color: Colors.grey.shade200,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Back Button
+                ElevatedButton.icon(
+                  onPressed: _currentPage > 0 ? _goToPreviousPage : null,
+                  icon: const Icon(Icons.arrow_back),
+                  label: const Text("Back"),
+                ),
+                // Page number indicator
+                Text(
+                  "Page ${_currentPage + 1} of ${_pages.length}",
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                // Next Button (only active when current page is completed)
+                ElevatedButton.icon(
+                  onPressed:
+                      (_pageCompleted[_currentPage] &&
+                              _currentPage < _pages.length - 1)
+                          ? _goToNextPage
+                          : null,
+                  icon: const Icon(Icons.arrow_forward),
+                  label: const Text("Next"),
+                ),
+              ],
+            ),
           ),
         ],
       ),
-    );
-  }
-
-  ButtonStyle _buttonStyle() {
-    return ElevatedButton.styleFrom(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      backgroundColor: Colors.deepPurple,
-      foregroundColor: Colors.white,
-      disabledBackgroundColor: Colors.grey.shade300,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
   }
 }

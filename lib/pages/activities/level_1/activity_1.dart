@@ -10,63 +10,77 @@ class Activity1Page extends StatefulWidget {
   const Activity1Page({super.key});
 
   @override
-  _Activity1PageState createState() => _Activity1PageState();
+  State<Activity1Page> createState() => _Activity1PageState();
 }
 
-class _Activity1PageState extends State<Activity1Page>
-    with SingleTickerProviderStateMixin {
+class _Activity1PageState extends State<Activity1Page> {
+  final PageController _pageController = PageController();
   int _currentPage = 0;
-  bool _isLoading = false;
-
-  late AnimationController _fadeController;
-  late Animation<double> _fadeAnimation;
-
-  final List<Widget> _pages = [
-    const AgFamilyPage(),
-    const MatchPicturesPage(),
-    const MatchWordsToPicturesPage(),
-    const FillInTheBlanksPage(),
-    const ReadingPage(),
-  ];
+  late List<bool> _completed;
+  late List<Widget> _pages;
 
   @override
   void initState() {
     super.initState();
-    _fadeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    );
-    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(_fadeController);
+    _initPages();
   }
 
-  Future<void> _goToPage(int newPage) async {
-    if (newPage < 0 || newPage >= _pages.length) return;
+  void _initPages() {
+    _pages = List.generate(5, (index) => _createPage(index));
+    _completed = List.filled(_pages.length, false);
+  }
 
-    setState(() => _isLoading = true);
-    await _fadeController.forward(); // Fade to white
+  Widget _createPage(int index) {
+    switch (index) {
+      case 0:
+        return AgFamilyPage(onCompleted: () => _markComplete(0));
+      case 1:
+        return MatchPicturesPage(onCompleted: () => _markComplete(1));
+      case 2:
+        return MatchWordsToPicturesPage(onCompleted: () => _markComplete(2));
+      case 3:
+        return FillInTheBlanksPage(onCompleted: () => _markComplete(3));
+      case 4:
+        return ReadingPage(onCompleted: () => _markComplete(4));
+      default:
+        return const SizedBox.shrink();
+    }
+  }
 
-    await Future.delayed(const Duration(milliseconds: 300)); // Simulate loading
-    setState(() => _currentPage = newPage);
+  void _markComplete(int index) {
+    if (!_completed[index]) {
+      setState(() {
+        _completed[index] = true;
+      });
+    }
+  }
 
-    await _fadeController.reverse(); // Fade back to page
-    setState(() => _isLoading = false);
+  void _goToPage(int index) {
+    setState(() => _currentPage = index);
+    _pageController.jumpToPage(index);
   }
 
   void _goToPreviousPage() {
     if (_currentPage > 0) {
-      _goToPage(_currentPage - 1);
+      setState(() {
+        _completed[_currentPage] = false;
+        _pages[_currentPage] = _createPage(_currentPage); // Reset page
+        _currentPage--;
+      });
+      _goToPage(_currentPage);
     }
   }
 
   void _goToNextPage() {
-    if (_currentPage < _pages.length - 1) {
-      _goToPage(_currentPage + 1);
+    if (_currentPage < _pages.length - 1 && _completed[_currentPage]) {
+      setState(() => _currentPage++);
+      _goToPage(_currentPage);
     }
   }
 
   @override
   void dispose() {
-    _fadeController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -75,28 +89,18 @@ class _Activity1PageState extends State<Activity1Page>
     return Scaffold(
       backgroundColor: Colors.deepPurple.shade50,
       body: SafeArea(
-        child: Stack(
+        child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                children: [
-                  Expanded(child: _pages[_currentPage]),
-                  const SizedBox(height: 12),
-                  _buildNavigationBar(context),
-                ],
+            Expanded(
+              child: PageView.builder(
+                controller: _pageController,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _pages.length,
+                itemBuilder: (_, index) => _pages[index],
               ),
             ),
-            FadeTransition(
-              opacity: _fadeAnimation,
-              child:
-                  _isLoading
-                      ? Container(
-                        color: Colors.white,
-                        child: const Center(child: CircularProgressIndicator()),
-                      )
-                      : const SizedBox.shrink(),
-            ),
+            const SizedBox(height: 12),
+            _buildNavigationBar(context),
           ],
         ),
       ),
@@ -105,10 +109,11 @@ class _Activity1PageState extends State<Activity1Page>
 
   Widget _buildNavigationBar(BuildContext context) {
     return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.shade300,
@@ -120,37 +125,59 @@ class _Activity1PageState extends State<Activity1Page>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          // BACK BUTTON
           ElevatedButton.icon(
             onPressed: _currentPage > 0 ? _goToPreviousPage : null,
-            icon: const Icon(Icons.arrow_back_ios),
+            icon: Icon(
+              Icons.arrow_back_ios,
+              color: _currentPage > 0 ? Colors.red : Colors.grey,
+              size: 18,
+            ),
             label: const Text("Back"),
-            style: _buttonStyle(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.grey.shade200,
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            ),
           ),
+
+          // PAGE STATUS
           Text(
             "Page ${_currentPage + 1} of ${_pages.length}",
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            style: const TextStyle(
               fontWeight: FontWeight.bold,
+              fontSize: 16,
               color: Colors.red,
             ),
           ),
+
+          // NEXT BUTTON
           ElevatedButton.icon(
-            onPressed: _currentPage < _pages.length - 1 ? _goToNextPage : null,
-            icon: const Icon(Icons.arrow_forward_ios),
+            onPressed:
+                (_currentPage < _pages.length - 1 && _completed[_currentPage])
+                    ? _goToNextPage
+                    : null,
+            icon: const Icon(
+              Icons.arrow_forward_ios,
+              color: Colors.white,
+              size: 18,
+            ),
             label: const Text("Next"),
-            style: _buttonStyle(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.deepPurple,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            ),
           ),
         ],
       ),
-    );
-  }
-
-  ButtonStyle _buttonStyle() {
-    return ElevatedButton.styleFrom(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      backgroundColor: Colors.deepPurple,
-      foregroundColor: Colors.white,
-      disabledBackgroundColor: Colors.grey.shade300,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
   }
 }

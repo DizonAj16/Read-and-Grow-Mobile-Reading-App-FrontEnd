@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'Day4Pages/day_4_mpc.dart';
 import 'Day4Pages/day_4_story_reading.dart';
+import 'Day4Pages/day_5_essay_page.dart'; // ✅ Import the essay page
 
 class Activity13Page extends StatefulWidget {
   const Activity13Page({super.key});
@@ -14,10 +15,28 @@ class _Activity13PageState extends State<Activity13Page> {
   int _currentPage = 0;
   bool _isLoading = false;
 
-  final List<Widget> _pages = const [
-    DayFourStoryPage(),
-    DayFourMultipleChoicePage(),
-  ];
+  late final List<Widget> _pages;
+  final List<bool> _pageCompleted = [false, false, false]; // ✅ now 3 pages
+
+  @override
+  void initState() {
+    super.initState();
+    _pages = [
+      DayFourStoryPage(onCompleted: () => _markPageComplete(0)),
+      DayFourMultipleChoicePage(onCompleted: () => _markPageComplete(1)),
+      DayFiveEssayPage(
+        onCompleted: () => _markPageComplete(2),
+      ), // ✅ added essay
+    ];
+  }
+
+  void _markPageComplete(int index) {
+    if (!_pageCompleted[index]) {
+      setState(() {
+        _pageCompleted[index] = true;
+      });
+    }
+  }
 
   Future<void> _goToPage(int newPage) async {
     if (_isLoading || newPage < 0 || newPage >= _pages.length) return;
@@ -99,7 +118,9 @@ class _Activity13PageState extends State<Activity13Page> {
           ),
           ElevatedButton.icon(
             onPressed:
-                _currentPage < _pages.length - 1 && !_isLoading
+                _currentPage < _pages.length - 1 &&
+                        !_isLoading &&
+                        _pageCompleted[_currentPage]
                     ? () => _goToPage(_currentPage + 1)
                     : null,
             icon: const Icon(Icons.arrow_forward_ios),

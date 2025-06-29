@@ -1,10 +1,12 @@
-import 'dart:async';
+  import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
+rt 'package:lottie/lottie.dart';
 
 class DayThreeMultipleChoicePage extends StatefulWidget {
-  const DayThreeMultipleChoicePage({super.key});
+  final VoidCallback? onCompleted;
+
+  const DayThreeMultipleChoicePage({super.key, this.onCompleted});
 
   @override
   State<DayThreeMultipleChoicePage> createState() =>
@@ -64,8 +66,6 @@ class _DayThreeMultipleChoicePageState
   Timer? timer;
   int maxTimePerQuestion = 15;
   int remainingTime = 15;
-
-  int totalCorrectAnswers = 0;
   double totalScore = 0;
 
   @override
@@ -77,11 +77,9 @@ class _DayThreeMultipleChoicePageState
   void startTimer() {
     remainingTime = maxTimePerQuestion;
     timer?.cancel();
-    timer = Timer.periodic(const Duration(seconds: 1), (Timer t) {
+    timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (remainingTime > 0) {
-        setState(() {
-          remainingTime--;
-        });
+        setState(() => remainingTime--);
       } else {
         t.cancel();
         handleTimeout();
@@ -96,7 +94,6 @@ class _DayThreeMultipleChoicePageState
   void handleTimeout() {
     wrongCount++;
     showFeedbackDialog(isCorrect: false, message: "Time's up!");
-
     Future.delayed(const Duration(seconds: 3), () {
       Navigator.of(context).pop();
       goToNextQuestion();
@@ -110,7 +107,6 @@ class _DayThreeMultipleChoicePageState
 
     if (isCorrect) {
       correctCount++;
-      totalCorrectAnswers++;
       totalScore += remainingTime;
     } else {
       wrongCount++;
@@ -167,14 +163,11 @@ class _DayThreeMultipleChoicePageState
 
   void goToNextQuestion() {
     if (currentIndex < questions.length - 1) {
-      setState(() {
-        currentIndex++;
-      });
+      setState(() => currentIndex++);
       startTimer();
     } else {
-      setState(() {
-        finished = true;
-      });
+      setState(() => finished = true);
+      widget.onCompleted?.call();
     }
   }
 
@@ -184,7 +177,6 @@ class _DayThreeMultipleChoicePageState
       correctCount = 0;
       wrongCount = 0;
       finished = false;
-      totalCorrectAnswers = 0;
       totalScore = 0;
     });
     startTimer();
@@ -202,7 +194,7 @@ class _DayThreeMultipleChoicePageState
       return Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
-          title: const Text('Day Three - Quiz Result'),
+          title: const Text('Day 3 - Quiz Result'),
         ),
         body: Center(
           child: Padding(
@@ -216,7 +208,7 @@ class _DayThreeMultipleChoicePageState
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  'Correct: $totalCorrectAnswers',
+                  'Correct: $correctCount',
                   style: const TextStyle(fontSize: 22, color: Colors.green),
                 ),
                 const SizedBox(height: 8),
@@ -256,7 +248,7 @@ class _DayThreeMultipleChoicePageState
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: const Text('Day Three - Multiple Choice'),
+        title: const Text('Day 3 - Multiple Choice'),
       ),
       body: SafeArea(
         child: Column(

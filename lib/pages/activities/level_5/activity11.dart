@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// Import your Activity 10 pages
 import 'Day2Pages/day_2_mpc.dart';
 import 'Day2Pages/day_2_story_story_reading.dart';
 
@@ -14,7 +15,26 @@ class _Activity11PageState extends State<Activity11Page> {
   int _currentPage = 0;
   bool _isLoading = false;
 
-  final List<Widget> _pages = const [Day2StoryPage(), Day2MultipleChoicePage()];
+  late final List<Widget> _pages;
+  final List<bool> _pageCompleted = [false, false]; // track completion
+
+  @override
+  void initState() {
+    super.initState();
+
+    _pages = [
+      Day2StoryPage(onCompleted: () => _markPageComplete(0)),
+      Day2MultipleChoicePage(onCompleted: () => _markPageComplete(1)),
+    ];
+  }
+
+  void _markPageComplete(int index) {
+    if (!_pageCompleted[index]) {
+      setState(() {
+        _pageCompleted[index] = true;
+      });
+    }
+  }
 
   Future<void> _goToPage(int newPage) async {
     if (_isLoading || newPage < 0 || newPage >= _pages.length) return;
@@ -96,7 +116,9 @@ class _Activity11PageState extends State<Activity11Page> {
           ),
           ElevatedButton.icon(
             onPressed:
-                _currentPage < _pages.length - 1 && !_isLoading
+                _currentPage < _pages.length - 1 &&
+                        !_isLoading &&
+                        _pageCompleted[_currentPage] // lock until completed
                     ? () => _goToPage(_currentPage + 1)
                     : null,
             icon: const Icon(Icons.arrow_forward_ios),

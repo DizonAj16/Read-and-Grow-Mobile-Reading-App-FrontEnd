@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
 class AtLastMultipleChoicePage extends StatefulWidget {
-  const AtLastMultipleChoicePage({super.key});
+  final VoidCallback? onCompleted;
+
+  const AtLastMultipleChoicePage({super.key, this.onCompleted});
 
   @override
   State<AtLastMultipleChoicePage> createState() =>
@@ -14,17 +16,17 @@ class AtLastMultipleChoicePage extends StatefulWidget {
 class _AtLastMultipleChoicePageState extends State<AtLastMultipleChoicePage> {
   final List<Map<String, dynamic>> questions = [
     {
-      'question': '11. Where did the bird come from?',
+      'question': 'Where did the bird come from? (Literal)',
       'options': [
-        'An egg with lots of spots.',
-        'An egg with many colors.',
-        'An egg with only one color.',
-        'An egg with plenty of stripes.',
+        'an egg with lots of spots',
+        'an egg with many colors',
+        'an egg with only one color',
+        'an egg with plenty of stripes',
       ],
-      'answer': 'An egg with lots of spots.',
+      'answer': 'an egg with only one color',
     },
     {
-      'question': '12. Why was the bird afraid?',
+      'question': 'Why was the bird afraid? (Inferential)',
       'options': [
         'He did not have any friends.',
         'He did not know how to fly.',
@@ -34,7 +36,7 @@ class _AtLastMultipleChoicePageState extends State<AtLastMultipleChoicePage> {
       'answer': 'He did not know how to fly.',
     },
     {
-      'question': '13. Why was the bird’s mother not in the nest?',
+      'question': 'Why was the bird\'s mother not in the nest? (Inferential)',
       'options': [
         'She had to look for a nest to house the little bird.',
         'She had to leave the bird so he will learn on his own.',
@@ -44,20 +46,20 @@ class _AtLastMultipleChoicePageState extends State<AtLastMultipleChoicePage> {
       'answer': 'She had to find food to feed the hungry little bird.',
     },
     {
-      'question': '14. How did the bird learn to fly?',
+      'question': 'How did the bird learn to fly? (Inferential)',
       'options': [
-        'By studying and practicing.',
-        'By watching other birds fly.',
-        'By having his mother teach him.',
-        'By accidentally flapping its wings.',
+        'by studying and practicing',
+        'by watching other birds fly',
+        'by having his mother teach him',
+        'by accidentally flapping its wings',
       ],
-      'answer': 'By accidentally flapping its wings.',
+      'answer': 'by accidentally flapping its wings',
     },
     {
       'question':
-          '15. At the end of the passage, how did the little bird feel?',
-      'options': ['Lonely.', 'Afraid.', 'Nervous.', 'Excited.'],
-      'answer': 'Excited.',
+          'At the end of the passage, how did the little bird feel? (Inferential)',
+      'options': ['lonely', 'afraid', 'nervous', 'excited'],
+      'answer': 'excited',
     },
   ];
 
@@ -67,8 +69,8 @@ class _AtLastMultipleChoicePageState extends State<AtLastMultipleChoicePage> {
   bool finished = false;
 
   Timer? timer;
-  int maxTimePerQuestion = 15;
-  int remainingTime = 15;
+  int maxTimePerQuestion = 20;
+  int remainingTime = 20;
 
   int totalCorrectAnswers = 0;
   double totalScore = 0;
@@ -145,6 +147,7 @@ class _AtLastMultipleChoicePageState extends State<AtLastMultipleChoicePage> {
         setState(() {
           finished = true;
         });
+        widget.onCompleted?.call();
       }
     });
   }
@@ -209,6 +212,7 @@ class _AtLastMultipleChoicePageState extends State<AtLastMultipleChoicePage> {
         setState(() {
           finished = true;
         });
+        widget.onCompleted?.call();
       }
     });
   }
@@ -237,7 +241,7 @@ class _AtLastMultipleChoicePageState extends State<AtLastMultipleChoicePage> {
       return Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
-          title: const Text('At Last! - Quiz'),
+          title: const Text('At last - Quiz'),
         ),
         body: Center(
           child: Column(
@@ -285,7 +289,7 @@ class _AtLastMultipleChoicePageState extends State<AtLastMultipleChoicePage> {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: const Text('At Last! - Multiple Choice'),
+        title: const Text('At last - Quiz'),
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

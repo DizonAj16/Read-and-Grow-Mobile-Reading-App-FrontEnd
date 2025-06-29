@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-// Import your updated Activity 9 pages here
+// Import your updated Activity 9 pages
 import 'activity9pages/the_owl_and_the_roaster_mpc.dart';
 import 'activity9pages/the_owl_and_the_roaster_page.dart';
 
@@ -16,10 +16,16 @@ class _Activity9PageState extends State<Activity9Page>
   int _currentPage = 0;
   bool _isLoading = false;
 
-  final List<Widget> _pages = const [
-    TheOwlAndTheRoosterPage(),
-    TheOwlAndTheRoosterMultipleChoicePage(),
-  ];
+  late final List<Widget> _pages;
+
+  @override
+  void initState() {
+    super.initState();
+    _pages = [
+      TheOwlAndTheRoosterPage(onCompleted: () {}),
+      TheOwlAndTheRoosterMultipleChoicePage(onCompleted: () {}),
+    ];
+  }
 
   Future<void> _goToPreviousPage() async {
     if (_currentPage > 0) {

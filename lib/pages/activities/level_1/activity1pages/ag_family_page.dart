@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
 class AgFamilyPage extends StatefulWidget {
-  const AgFamilyPage({super.key});
+  final VoidCallback? onCompleted;
+
+  const AgFamilyPage({super.key, this.onCompleted});
 
   @override
   _AgFamilyPageState createState() => _AgFamilyPageState();
 }
 
 class _AgFamilyPageState extends State<AgFamilyPage> {
+  bool _completed = false;
+
   final List<String> agFamilyWords = [
     'bag',
     'jag',
@@ -62,16 +66,17 @@ class _AgFamilyPageState extends State<AgFamilyPage> {
 
     setState(() {
       _highlightIndex = -1;
+      _completed = true;
     });
+
+    widget.onCompleted?.call(); // Notify parent
   }
 
   void _showWordCard(String word) async {
     final imagePath = wordImages[word] ?? 'assets/placeholder.jpg';
 
-    // Speak the word
     await _flutterTts.speak(word);
 
-    // Show Dialog
     showDialog(
       context: context,
       builder: (context) {
@@ -206,7 +211,7 @@ class _AgFamilyPageState extends State<AgFamilyPage> {
                                   style: TextStyle(
                                     color:
                                         isHighlighted
-                                            ? Colors.deepPurple
+                                            ? Colors.red
                                             : Colors.black,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 18,
@@ -227,6 +232,7 @@ class _AgFamilyPageState extends State<AgFamilyPage> {
               right: 10,
               child: FloatingActionButton(
                 onPressed: _speakWords,
+                tooltip: 'Read all words',
                 child: const Icon(Icons.volume_up, size: 30),
               ),
             ),

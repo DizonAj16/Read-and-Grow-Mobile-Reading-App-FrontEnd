@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
 class TheGreenFrogReadingPage extends StatefulWidget {
-  const TheGreenFrogReadingPage({super.key});
+  final VoidCallback? onCompleted;
+
+  const TheGreenFrogReadingPage({super.key, this.onCompleted});
 
   @override
   State<TheGreenFrogReadingPage> createState() =>
@@ -33,7 +35,6 @@ class _TheGreenFrogReadingPageState extends State<TheGreenFrogReadingPage> {
       'The frog eats the fly!';
 
   final String _wordList = 'frog arms legs water swims pond fly jump';
-
   List<String> _words = [];
 
   @override
@@ -80,6 +81,9 @@ class _TheGreenFrogReadingPageState extends State<TheGreenFrogReadingPage> {
       isReading = false;
       _currentWordIndex = -1;
     });
+
+    // Notify parent that reading is done
+    widget.onCompleted?.call();
   }
 
   void _stopReading() {
@@ -131,7 +135,10 @@ class _TheGreenFrogReadingPageState extends State<TheGreenFrogReadingPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('The Green Frog')),
+      appBar: AppBar(
+        title: const Text('The Green Frog'),
+        automaticallyImplyLeading: false,
+      ),
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -140,7 +147,6 @@ class _TheGreenFrogReadingPageState extends State<TheGreenFrogReadingPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Word list box with aligned floating button
                 Align(
                   alignment: Alignment.topRight,
                   child: Container(
@@ -171,20 +177,14 @@ class _TheGreenFrogReadingPageState extends State<TheGreenFrogReadingPage> {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
                 Text(
                   'The Green Frog',
                   style: Theme.of(context).textTheme.headlineMedium,
                 ),
-
                 const SizedBox(height: 20),
-
                 _buildStoryText(),
-
                 const SizedBox(height: 10),
-
                 Align(
                   alignment: Alignment.centerRight,
                   child: Image.asset(
@@ -196,13 +196,10 @@ class _TheGreenFrogReadingPageState extends State<TheGreenFrogReadingPage> {
                             const Icon(Icons.image_not_supported, size: 100),
                   ),
                 ),
-
-                const SizedBox(height: 80), // Space for FAB
+                const SizedBox(height: 80),
               ],
             ),
           ),
-
-          // Story play/stop floating button
           Positioned(
             bottom: 50,
             right: 20,

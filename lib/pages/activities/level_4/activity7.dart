@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-// Import your updated Activity 7 pages here
 import 'activity7pages/icfs_mpc.dart';
 import 'activity7pages/icfs_reading_page.dart';
 
@@ -16,10 +15,25 @@ class _Activity7PageState extends State<Activity7Page>
   int _currentPage = 0;
   bool _isLoading = false;
 
-  final List<Widget> _pages = const [
-    IcfsReadingPage(),
-    IcfsMultipleChoicePage(),
-  ];
+  late final List<Widget> _pages;
+  List<bool> _pageCompleted = [false, false];
+
+  @override
+  void initState() {
+    super.initState();
+    _pages = [
+      IcfsReadingPage(onCompleted: () => _markPageComplete(0)),
+      IcfsMultipleChoicePage(onCompleted: () => _markPageComplete(1)),
+    ];
+  }
+
+  void _markPageComplete(int pageIndex) {
+    if (!_pageCompleted[pageIndex]) {
+      setState(() {
+        _pageCompleted[pageIndex] = true;
+      });
+    }
+  }
 
   Future<void> _goToPreviousPage() async {
     if (_currentPage > 0) {
@@ -108,7 +122,9 @@ class _Activity7PageState extends State<Activity7Page>
           ),
           ElevatedButton.icon(
             onPressed:
-                _currentPage < _pages.length - 1 && !_isLoading
+                _currentPage < _pages.length - 1 &&
+                        !_isLoading &&
+                        _pageCompleted[_currentPage]
                     ? _goToNextPage
                     : null,
             icon: const Icon(Icons.arrow_forward_ios),

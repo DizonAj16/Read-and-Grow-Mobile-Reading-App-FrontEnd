@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
 class PenguinsPage extends StatefulWidget {
-  const PenguinsPage({super.key});
+  final VoidCallback? onCompleted;
+
+  const PenguinsPage({super.key, this.onCompleted});
 
   @override
   State<PenguinsPage> createState() => _PenguinsPageState();
@@ -79,6 +81,8 @@ class _PenguinsPageState extends State<PenguinsPage> {
       isReading = false;
       _currentWordIndex = -1;
     });
+
+    widget.onCompleted?.call(); // ✅ Call when finished reading
   }
 
   void _stopReading() {
@@ -204,9 +208,9 @@ class _PenguinsPageState extends State<PenguinsPage> {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      Expanded(
+                      const Expanded(
                         flex: 1,
-                        child: Container(), // Empty placeholder
+                        child: SizedBox(), // Empty placeholder
                       ),
                     ],
                   ),

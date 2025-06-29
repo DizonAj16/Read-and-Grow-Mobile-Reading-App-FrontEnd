@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
 class TheBirdPage extends StatefulWidget {
-  const TheBirdPage({super.key});
+  final VoidCallback? onCompleted;
+
+  const TheBirdPage({super.key, this.onCompleted});
 
   @override
   State<TheBirdPage> createState() => _TheBirdPageState();
@@ -84,6 +86,9 @@ class _TheBirdPageState extends State<TheBirdPage> {
         isReading = false;
         _currentWordIndex = -1;
       });
+
+      // 🔔 Call onCompleted when reading ends
+      widget.onCompleted?.call();
     }
   }
 
@@ -211,8 +216,8 @@ class _TheBirdPageState extends State<TheBirdPage> {
             top: 50,
             right: 5,
             child: Container(
-              width: 200, // Longer width
-              height: 80, // Shorter height
+              width: 200,
+              height: 80,
               padding: const EdgeInsets.all(8.0),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
@@ -225,7 +230,6 @@ class _TheBirdPageState extends State<TheBirdPage> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Word list text
                   const Flexible(
                     child: Text(
                       "bird  fly  tree  sings\nwings  sky",
@@ -236,7 +240,6 @@ class _TheBirdPageState extends State<TheBirdPage> {
                       softWrap: true,
                     ),
                   ),
-                  // Speaker button
                   FloatingActionButton(
                     heroTag: "wordListButton",
                     onPressed: _speakWordList,
@@ -281,7 +284,6 @@ class _TheBirdPageState extends State<TheBirdPage> {
             ),
           ),
 
-          // Copyright
           Align(
             alignment: Alignment.bottomRight,
             child: Padding(

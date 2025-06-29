@@ -1,10 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
 
 class TheBirdMultipleChoicePage extends StatefulWidget {
-  const TheBirdMultipleChoicePage({super.key});
+  final VoidCallback? onCompleted;
+
+  const TheBirdMultipleChoicePage({super.key, this.onCompleted});
 
   @override
   State<TheBirdMultipleChoicePage> createState() =>
@@ -14,332 +15,239 @@ class TheBirdMultipleChoicePage extends StatefulWidget {
 class _TheBirdMultipleChoicePageState extends State<TheBirdMultipleChoicePage> {
   final List<Map<String, dynamic>> questions = [
     {
-      'question': 'Where is the bird?',
-      'options': ['in the car', 'in the bed', 'in the sky', 'in the box'],
-      'answer': 'in the sky',
+      "question": "Where is the bird ?",
+      "options": ["In the Sky", "In the Bed", "In the car", "In the box"],
+      "answer": "In the Sky",
     },
     {
-      'question': 'What is in the tree?',
-      'options': ['a cat', 'a kite', 'a rope swing', 'a nest'],
-      'answer': 'a nest',
+      "question": "What is in the tree?",
+      "options": ["a kite", "a nest", "a rope swing", "a cat"],
+      "answer": "a nest",
     },
     {
-      'question': 'What does the bird do at the end of the story?',
-      'options': [
-        'sleeps in a nest',
-        'eats a worm',
-        'flies away',
-        'sings a song',
+      "question": "What does the bird do at the end of the story",
+      "options": [
+        "flies away",
+        "sing a song",
+        "sleep it nest ",
+        "eats  a worm",
       ],
-      'answer': 'flies away',
+      "answer": "flies away",
     },
   ];
 
-  int currentIndex = 0;
-  int correctCount = 0;
-  int wrongCount = 0;
+  int currentQuestionIndex = 0;
+  bool answered = false;
+  String? selectedOption;
+  Timer? _timer;
+  int timeRemaining = 10;
   bool finished = false;
 
-  Timer? timer;
-  int maxTimePerQuestion = 15;
-  int remainingTime = 15;
-
-  int totalCorrectAnswers = 0;
-  double totalScore = 0;
+  int wrongAnswers = 0;
 
   @override
   void initState() {
     super.initState();
-    startTimer();
+    _startTimer();
   }
 
-  void startTimer() {
-    remainingTime = maxTimePerQuestion;
-    timer?.cancel();
-    timer = Timer.periodic(const Duration(seconds: 1), (Timer t) {
-      if (remainingTime > 0) {
+  void _startTimer() {
+    _timer?.cancel();
+    timeRemaining = 10;
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
         setState(() {
-          remainingTime--;
+          timeRemaining--;
         });
-      } else {
-        t.cancel();
-        handleTimeout();
+      }
+
+      if (timeRemaining == 0) {
+        timer.cancel();
+        _handleTimeout();
       }
     });
   }
 
-  void stopTimer() {
-    timer?.cancel();
-  }
-
-  void handleTimeout() {
-    wrongCount++;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder:
-          (_) => AlertDialog(
-            contentPadding: const EdgeInsets.all(16),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  height: 120,
-                  width: 120,
-                  child: Lottie.asset(
-                    'assets/animation/wrong.json',
-                    repeat: false,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Time\'s up!',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red,
-                  ),
-                ),
-              ],
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-    );
-
-    Future.delayed(const Duration(seconds: 3), () {
-      Navigator.of(context).pop();
-
-      if (currentIndex < questions.length - 1) {
-        setState(() {
-          currentIndex++;
-        });
-        startTimer();
-      } else {
-        setState(() {
-          finished = true;
-        });
-      }
-    });
+  void _handleTimeout() {
+    if (!answered) {
+      wrongAnswers++;
+      _goToNextQuestion();
+    }
   }
 
   void selectOption(String option) {
-    stopTimer();
+    if (answered) return;
 
-    final correctAnswer = questions[currentIndex]['answer'];
-    final isCorrect = option == correctAnswer;
-
-    if (isCorrect) {
-      correctCount++;
-      totalCorrectAnswers++;
-      totalScore += remainingTime;
-    } else {
-      wrongCount++;
-    }
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder:
-          (_) => AlertDialog(
-            contentPadding: const EdgeInsets.all(16),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  height: 120,
-                  width: 120,
-                  child: Lottie.asset(
-                    isCorrect
-                        ? 'assets/animation/correct.json'
-                        : 'assets/animation/wrong.json',
-                    repeat: false,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  isCorrect ? 'Correct!' : 'Wrong!',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: isCorrect ? Colors.green : Colors.red,
-                  ),
-                ),
-              ],
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-    );
-
-    Future.delayed(const Duration(seconds: 3), () {
-      Navigator.of(context).pop();
-
-      if (currentIndex < questions.length - 1) {
-        setState(() {
-          currentIndex++;
-        });
-        startTimer();
-      } else {
-        setState(() {
-          finished = true;
-        });
+    setState(() {
+      answered = true;
+      selectedOption = option;
+      if (option != questions[currentQuestionIndex]["answer"]) {
+        wrongAnswers++;
       }
+    });
+
+    Future.delayed(const Duration(seconds: 1), () {
+      _goToNextQuestion();
     });
   }
 
-  void resetQuiz() {
-    setState(() {
-      currentIndex = 0;
-      correctCount = 0;
-      wrongCount = 0;
-      finished = false;
-      totalCorrectAnswers = 0;
-      totalScore = 0;
-    });
-    startTimer();
+  void _goToNextQuestion() {
+    _timer?.cancel();
+    if (currentQuestionIndex < questions.length - 1) {
+      setState(() {
+        currentQuestionIndex++;
+        answered = false;
+        selectedOption = null;
+      });
+      _startTimer();
+    } else {
+      setState(() {
+        finished = true;
+      });
+      widget.onCompleted?.call();
+    }
+  }
+
+  Color _getOptionColor(String option) {
+    if (!answered) return Colors.grey.shade200;
+    if (option == questions[currentQuestionIndex]["answer"]) {
+      return Colors.green.shade200;
+    } else if (option == selectedOption) {
+      return Colors.red.shade200;
+    }
+    return Colors.grey.shade200;
   }
 
   @override
   void dispose() {
-    timer?.cancel();
+    _timer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     if (finished) {
-      return Scaffold(
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          title: const Text('The Bird - Quiz'),
-        ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                'Quiz Finished!',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'Total Correct Answers: $totalCorrectAnswers',
-                style: const TextStyle(fontSize: 20, color: Colors.green),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Total Score: ${totalScore.toStringAsFixed(1)}',
-                style: const TextStyle(fontSize: 20, color: Colors.blue),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Wrong Answers: $wrongCount',
-                style: const TextStyle(fontSize: 20, color: Colors.red),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: resetQuiz,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
-                  backgroundColor: Colors.deepPurple,
-                ),
-                child: const Text('Try Again', style: TextStyle(fontSize: 18)),
-              ),
-            ],
-          ),
-        ),
-      );
+      return _buildScorePage();
     }
 
-    final questionData = questions[currentIndex];
+    final question = questions[currentQuestionIndex];
+    final options = List<String>.from(question["options"]);
 
-    return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text('The Bird - Multiple Choice'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            LinearProgressIndicator(
-              value: (currentIndex + 1) / questions.length,
-              backgroundColor: Colors.grey.shade300,
-              color: Colors.deepPurple,
-              minHeight: 8,
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Question ${currentIndex + 1} of ${questions.length}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'Time: $remainingTime s',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.red,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              questionData['question'],
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 3,
-                children:
-                    questionData['options'].map<Widget>((option) {
-                      return ElevatedButton(
-                        onPressed: () => selectOption(option),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.deepPurple.shade100,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: Text(
-                          option,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: Colors.black,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      );
-                    }).toList(),
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          "Time: $timeRemaining",
+          style: const TextStyle(fontSize: 18, color: Colors.red),
+        ),
+        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Text(
+            question["question"],
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        const SizedBox(height: 24),
+        ...options.map(
+          (option) => GestureDetector(
+            onTap: () => selectOption(option),
+            child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 24),
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: _getOptionColor(option),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.deepPurple),
+              ),
+              child: Text(
+                option,
+                style: const TextStyle(fontSize: 18),
+                textAlign: TextAlign.center,
               ),
             ),
-            Align(
-              alignment: Alignment.bottomRight,
-              child: Padding(
-                padding: const EdgeInsets.only(right: 10.0, bottom: 10.0),
-                child: Text(
-                  "© K5 Learning 2019",
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w500,
-                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildScorePage() {
+    int finalScore = 30 - (wrongAnswers * 10);
+    if (finalScore < 0) finalScore = 0;
+
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.deepPurple.withOpacity(0.2),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              "🎉 Great Job!",
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Colors.deepPurple,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              "You completed the quiz!",
+              style: TextStyle(fontSize: 20),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              "Correct: ${questions.length - wrongAnswers} / ${questions.length}",
+              style: const TextStyle(fontSize: 20),
+            ),
+            const SizedBox(height: 12),
+            Text("Wrong: $wrongAnswers", style: const TextStyle(fontSize: 20)),
+            const SizedBox(height: 12),
+            Text(
+              "Final Score: $finalScore",
+              style: const TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: Colors.deepPurple,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () {
+                setState(() {
+                  currentQuestionIndex = 0;
+                  answered = false;
+                  selectedOption = null;
+                  finished = false;
+                  wrongAnswers = 0;
+                });
+                _startTimer();
+              },
+              icon: const Icon(Icons.refresh),
+              label: const Text("Try Again"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
             ),

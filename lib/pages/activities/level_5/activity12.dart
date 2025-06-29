@@ -14,10 +14,26 @@ class _Activity12PageState extends State<Activity12Page> {
   int _currentPage = 0;
   bool _isLoading = false;
 
-  final List<Widget> _pages = const [
-    DayThreeStoryPage(),
-    DayThreeMultipleChoicePage(),
-  ];
+  late final List<Widget> _pages;
+  final List<bool> _pageCompleted = [false, false];
+
+  @override
+  void initState() {
+    super.initState();
+
+    _pages = [
+      DayThreeStoryPage(onCompleted: () => _markPageComplete(0)),
+      DayThreeMultipleChoicePage(onCompleted: () => _markPageComplete(1)),
+    ];
+  }
+
+  void _markPageComplete(int index) {
+    if (!_pageCompleted[index]) {
+      setState(() {
+        _pageCompleted[index] = true;
+      });
+    }
+  }
 
   Future<void> _goToPage(int newPage) async {
     if (_isLoading || newPage < 0 || newPage >= _pages.length) return;
@@ -99,7 +115,9 @@ class _Activity12PageState extends State<Activity12Page> {
           ),
           ElevatedButton.icon(
             onPressed:
-                _currentPage < _pages.length - 1 && !_isLoading
+                _currentPage < _pages.length - 1 &&
+                        !_isLoading &&
+                        _pageCompleted[_currentPage]
                     ? () => _goToPage(_currentPage + 1)
                     : null,
             icon: const Icon(Icons.arrow_forward_ios),

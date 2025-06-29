@@ -1,10 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
 
 class PenguinMultipleChoicePage extends StatefulWidget {
-  const PenguinMultipleChoicePage({super.key});
+  final VoidCallback? onCompleted;
+
+  const PenguinMultipleChoicePage({super.key, this.onCompleted});
 
   @override
   State<PenguinMultipleChoicePage> createState() =>
@@ -12,45 +13,31 @@ class PenguinMultipleChoicePage extends StatefulWidget {
 }
 
 class _PenguinMultipleChoicePageState extends State<PenguinMultipleChoicePage> {
+  int currentIndex = 0;
+  int score = 0;
+  int wrongAnswers = 0;
+  bool answered = false;
+  bool finished = false;
+  int remainingTime = 60;
+  late Timer timer;
+
   final List<Map<String, dynamic>> questions = [
     {
+      'question': 'Where do penguins live?',
+      'options': ['Africa', 'Antarctica', 'Asia', 'Australia'],
+      'answer': 'Antarctica',
+    },
+    {
       'question': 'What do penguins eat?',
-      'options': ['fruit', 'fish', 'bugs', 'vegetables'],
-      'answer': 'fish',
+      'options': ['Bananas', 'Fish', 'Grass', 'Meat'],
+      'answer': 'Fish',
     },
     {
-      'question': 'Which one is not true about penguins?',
-      'options': [
-        'They can swim.',
-        'They live in the cold.',
-        'They can fly.',
-        'They can dive.',
-      ],
-      'answer': 'They can fly.',
-    },
-    {
-      'question': 'What colors are penguins?',
-      'options': [
-        'red and blue',
-        'black and yellow',
-        'green and white',
-        'white and black',
-      ],
-      'answer': 'white and black',
+      'question': 'Can penguins fly?',
+      'options': ['Yes', 'No'],
+      'answer': 'No',
     },
   ];
-
-  int currentIndex = 0;
-  int correctCount = 0;
-  int wrongCount = 0;
-  bool finished = false;
-
-  Timer? timer;
-  int maxTimePerQuestion = 15;
-  int remainingTime = 15;
-
-  int totalCorrectAnswers = 0;
-  double totalScore = 0;
 
   @override
   void initState() {
@@ -59,296 +46,182 @@ class _PenguinMultipleChoicePageState extends State<PenguinMultipleChoicePage> {
   }
 
   void startTimer() {
-    remainingTime = maxTimePerQuestion;
-    timer?.cancel();
-    timer = Timer.periodic(const Duration(seconds: 1), (Timer t) {
+    timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (remainingTime > 0) {
-        setState(() {
-          remainingTime--;
-        });
+        setState(() => remainingTime--);
       } else {
-        t.cancel();
         handleTimeout();
       }
     });
   }
 
-  void stopTimer() {
-    timer?.cancel();
-  }
-
   void handleTimeout() {
-    wrongCount++;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder:
-          (_) => AlertDialog(
-            contentPadding: const EdgeInsets.all(16),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  height: 120,
-                  width: 120,
-                  child: Lottie.asset(
-                    'assets/animation/wrong.json',
-                    repeat: false,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Time\'s up!',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red,
-                  ),
-                ),
-              ],
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-    );
-
-    Future.delayed(const Duration(seconds: 3), () {
-      Navigator.of(context).pop();
-
-      if (currentIndex < questions.length - 1) {
-        setState(() {
-          currentIndex++;
-        });
-        startTimer();
-      } else {
-        setState(() {
-          finished = true;
-        });
-      }
-    });
+    timer.cancel();
+    setState(() => finished = true);
+    widget.onCompleted?.call();
   }
 
-  void selectOption(String option) {
-    stopTimer();
+  void selectOption(String selectedOption) {
+    if (answered || finished) return;
 
-    final correctAnswer = questions[currentIndex]['answer'];
-    final isCorrect = option == correctAnswer;
-
-    if (isCorrect) {
-      correctCount++;
-      totalCorrectAnswers++;
-      totalScore += remainingTime;
-    } else {
-      wrongCount++;
-    }
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder:
-          (_) => AlertDialog(
-            contentPadding: const EdgeInsets.all(16),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  height: 120,
-                  width: 120,
-                  child: Lottie.asset(
-                    isCorrect
-                        ? 'assets/animation/correct.json'
-                        : 'assets/animation/wrong.json',
-                    repeat: false,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  isCorrect ? 'Correct!' : 'Wrong!',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: isCorrect ? Colors.green : Colors.red,
-                  ),
-                ),
-              ],
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-    );
-
-    Future.delayed(const Duration(seconds: 3), () {
-      Navigator.of(context).pop();
-
-      if (currentIndex < questions.length - 1) {
-        setState(() {
-          currentIndex++;
-        });
-        startTimer();
-      } else {
-        setState(() {
-          finished = true;
-        });
-      }
-    });
-  }
-
-  void resetQuiz() {
     setState(() {
-      currentIndex = 0;
-      correctCount = 0;
-      wrongCount = 0;
-      finished = false;
-      totalCorrectAnswers = 0;
-      totalScore = 0;
+      answered = true;
+      if (selectedOption == questions[currentIndex]['answer']) {
+        score++;
+      } else {
+        wrongAnswers++;
+      }
     });
-    startTimer();
+
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (currentIndex < questions.length - 1) {
+        setState(() {
+          currentIndex++;
+          answered = false;
+        });
+      } else {
+        timer.cancel();
+        setState(() => finished = true);
+        widget.onCompleted?.call();
+      }
+    });
   }
 
   @override
   void dispose() {
-    timer?.cancel();
+    timer.cancel();
     super.dispose();
+  }
+
+  Widget buildQuestion() {
+    final question = questions[currentIndex];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          "Penguin Quiz",
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.bold,
+            color: Colors.deepPurple,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          "Time Left: $remainingTime s",
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 32),
+        Text(
+          question['question'],
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 24),
+        ...question['options'].map<Widget>((option) {
+          final correctAnswer = question['answer'];
+          Color color = Colors.white;
+          if (answered) {
+            if (option == correctAnswer) {
+              color = Colors.green.shade200;
+            } else if (option == option) {
+              color = Colors.red.shade200;
+            }
+          }
+
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            child: ElevatedButton(
+              onPressed: () => selectOption(option),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: color,
+                foregroundColor: Colors.black,
+                minimumSize: const Size(double.infinity, 50),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(option, style: const TextStyle(fontSize: 18)),
+            ),
+          );
+        }).toList(),
+      ],
+    );
+  }
+
+  Widget buildScorePage() {
+    final int total = questions.length;
+    final int finalScore =
+        (score * 100 ~/ total) - wrongAnswers * 5 - (60 - remainingTime);
+    final bool passed = score >= (total / 2);
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          passed ? Icons.emoji_events : Icons.mood,
+          color: passed ? Colors.amber : Colors.orange,
+          size: 100,
+        ),
+        const SizedBox(height: 20),
+        Text(
+          passed ? "Well Done!" : "Keep Going!",
+          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 16),
+        Text("Correct: $score / $total", style: const TextStyle(fontSize: 20)),
+        Text(
+          "Wrong: $wrongAnswers",
+          style: const TextStyle(fontSize: 20, color: Colors.red),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          "Final Score: $finalScore",
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.deepPurple,
+          ),
+        ),
+        const SizedBox(height: 32),
+        ElevatedButton(
+          onPressed: () {
+            setState(() {
+              currentIndex = 0;
+              score = 0;
+              wrongAnswers = 0;
+              finished = false;
+              remainingTime = 60;
+              answered = false;
+            });
+            startTimer();
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.deepPurple,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          child: const Text("Try Again", style: TextStyle(fontSize: 18)),
+        ),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (finished) {
-      return Scaffold(
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          title: const Text('Penguin - Quiz'),
-        ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                'Quiz Finished!',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'Total Correct Answers: $totalCorrectAnswers',
-                style: const TextStyle(fontSize: 20, color: Colors.green),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Total Score: ${totalScore.toStringAsFixed(1)}',
-                style: const TextStyle(fontSize: 20, color: Colors.blue),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Wrong Answers: $wrongCount',
-                style: const TextStyle(fontSize: 20, color: Colors.red),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: resetQuiz,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
-                  backgroundColor: Colors.deepPurple,
-                ),
-                child: const Text('Try Again', style: TextStyle(fontSize: 18)),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    final questionData = questions[currentIndex];
-
-    return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text('Penguin - Multiple Choice'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            LinearProgressIndicator(
-              value: (currentIndex + 1) / questions.length,
-              backgroundColor: Colors.grey.shade300,
-              color: Colors.deepPurple,
-              minHeight: 8,
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Question ${currentIndex + 1} of ${questions.length}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'Time: $remainingTime s',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.red,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              questionData['question'],
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 3,
-                children:
-                    questionData['options'].map<Widget>((option) {
-                      return ElevatedButton(
-                        onPressed: () => selectOption(option),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.deepPurple.shade100,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: Text(
-                          option,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: Colors.black,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      );
-                    }).toList(),
-              ),
-            ),
-            Align(
-              alignment: Alignment.bottomRight,
-              child: Padding(
-                padding: const EdgeInsets.only(right: 10.0, bottom: 10.0),
-                child: Text(
-                  "© K5 Learning 2019",
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ),
-          ],
+    return SafeArea(
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: finished ? buildScorePage() : buildQuestion(),
         ),
       ),
     );

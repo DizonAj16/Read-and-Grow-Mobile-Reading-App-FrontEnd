@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
 class ReadingPage extends StatefulWidget {
-  const ReadingPage({super.key});
+  final VoidCallback? onCompleted;
+
+  const ReadingPage({super.key, this.onCompleted});
 
   @override
-  _ReadingPageState createState() => _ReadingPageState();
+  State<ReadingPage> createState() => _ReadingPageState();
 }
 
 class _ReadingPageState extends State<ReadingPage> {
@@ -20,7 +22,6 @@ class _ReadingPageState extends State<ReadingPage> {
 
   int _currentSentenceIndex = 0;
   int _currentWordIndex = 0;
-
   bool isPlaying = false;
 
   @override
@@ -29,10 +30,11 @@ class _ReadingPageState extends State<ReadingPage> {
     _setupTts();
   }
 
-  void _setupTts() async {
+  Future<void> _setupTts() async {
     await _flutterTts.setLanguage("en-PH");
-    await _flutterTts.setSpeechRate(0.4);
-    await _flutterTts.setPitch(1.2);
+    await _flutterTts.setSpeechRate(0.25); // Slow
+    await _flutterTts.setPitch(1.0);
+    await _flutterTts.setVolume(1.0);
   }
 
   Future<void> _togglePlayPause() async {
@@ -52,49 +54,56 @@ class _ReadingPageState extends State<ReadingPage> {
   Future<void> _readAllSentences() async {
     while (isPlaying && _currentSentenceIndex < sentences.length) {
       List<String> words = sentences[_currentSentenceIndex].split(' ');
+
       while (isPlaying && _currentWordIndex < words.length) {
-        String currentWord = words[_currentWordIndex].replaceAll(
+        String word = words[_currentWordIndex].replaceAll(
           RegExp(r'[^\w\s]'),
           '',
         );
         setState(() {});
-        await _flutterTts.speak(currentWord);
-        await Future.delayed(const Duration(seconds: 1));
+        await _flutterTts.speak(word);
+        await Future.delayed(const Duration(seconds: 2));
         if (!isPlaying) return;
         _currentWordIndex++;
       }
+
       _currentSentenceIndex++;
       _currentWordIndex = 0;
     }
+
     setState(() => isPlaying = false);
+
+    if (widget.onCompleted != null) {
+      widget.onCompleted!();
+    }
   }
 
   Widget _buildSentence(int index) {
     List<String> words = sentences[index].split(' ');
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12.0),
-      child: Wrap(
-        spacing: 10.0,
-        runSpacing: 10.0,
-        children:
-            words.asMap().entries.map((entry) {
-              int wordIndex = entry.key;
-              String word = entry.value;
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Text.rich(
+        TextSpan(
+          children:
+              words.asMap().entries.map((entry) {
+                int wordIndex = entry.key;
+                String word = entry.value;
 
-              bool isHighlighted =
-                  index == _currentSentenceIndex &&
-                  wordIndex == _currentWordIndex;
+                bool isHighlighted =
+                    index == _currentSentenceIndex &&
+                    wordIndex == _currentWordIndex;
 
-              return Text(
-                word,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.normal,
-                  color: isHighlighted ? Colors.red : Colors.black,
-                ),
-              );
-            }).toList(),
+                return TextSpan(
+                  text: '$word ',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w500,
+                    color: isHighlighted ? Colors.red : Colors.black87,
+                  ),
+                );
+              }).toList(),
+        ),
       ),
     );
   }
@@ -110,18 +119,18 @@ class _ReadingPageState extends State<ReadingPage> {
     return Scaffold(
       backgroundColor: Colors.blue.shade50,
       body: SafeArea(
-        child: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Stack(
+            children: [
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Press play to read aloud.",
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    "Listen and follow along",
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Colors.blueAccent,
+                      color: Colors.blue.shade700,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -135,31 +144,28 @@ class _ReadingPageState extends State<ReadingPage> {
                   ),
                 ],
               ),
-            ),
-            Positioned(
-              bottom: 50,
-              right: 20,
-              child: FloatingActionButton(
-                backgroundColor: Colors.green,
-                onPressed: _togglePlayPause,
-                tooltip: isPlaying ? 'Pause' : 'Play',
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  transitionBuilder: (
-                    Widget child,
-                    Animation<double> animation,
-                  ) {
-                    return ScaleTransition(scale: animation, child: child);
-                  },
-                  child: Icon(
-                    isPlaying ? Icons.pause : Icons.play_arrow,
-                    key: ValueKey(isPlaying),
-                    size: 32,
+              Positioned(
+                bottom: 30,
+                right: 30,
+                child: FloatingActionButton(
+                  backgroundColor: Colors.green.shade600,
+                  onPressed: _togglePlayPause,
+                  tooltip: isPlaying ? 'Pause Reading' : 'Start Reading',
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    transitionBuilder:
+                        (child, animation) =>
+                            ScaleTransition(scale: animation, child: child),
+                    child: Icon(
+                      isPlaying ? Icons.pause : Icons.play_arrow,
+                      key: ValueKey<bool>(isPlaying),
+                      size: 32,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

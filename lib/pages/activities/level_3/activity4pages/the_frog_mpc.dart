@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
 class GreenFrogMultipleChoicePage extends StatefulWidget {
-  const GreenFrogMultipleChoicePage({super.key});
+  final VoidCallback? onCompleted;
+
+  const GreenFrogMultipleChoicePage({super.key, this.onCompleted});
 
   @override
   State<GreenFrogMultipleChoicePage> createState() =>
@@ -36,7 +38,6 @@ class _GreenFrogMultipleChoicePageState
   int wrongCount = 0;
   bool finished = false;
 
-  // Timer and scoring
   Timer? timer;
   int maxTimePerQuestion = 15;
   int remainingTime = 15;
@@ -117,6 +118,7 @@ class _GreenFrogMultipleChoicePageState
         setState(() {
           finished = true;
         });
+        widget.onCompleted?.call(); // ✅ Notify completion
       }
     });
   }
@@ -183,6 +185,7 @@ class _GreenFrogMultipleChoicePageState
         setState(() {
           finished = true;
         });
+        widget.onCompleted?.call(); // ✅ Notify completion
       }
     });
   }
@@ -209,7 +212,10 @@ class _GreenFrogMultipleChoicePageState
   Widget build(BuildContext context) {
     if (finished) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Green Frog - Quiz')),
+        appBar: AppBar(
+          title: const Text('Green Frog - Quiz'),
+          automaticallyImplyLeading: false,
+        ),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,

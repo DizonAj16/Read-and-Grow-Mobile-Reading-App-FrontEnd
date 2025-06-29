@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
 class TheOwlAndTheRoosterMultipleChoicePage extends StatefulWidget {
-  const TheOwlAndTheRoosterMultipleChoicePage({super.key});
+  final VoidCallback? onCompleted;
+
+  const TheOwlAndTheRoosterMultipleChoicePage({super.key, this.onCompleted});
 
   @override
   State<TheOwlAndTheRoosterMultipleChoicePage> createState() =>
@@ -15,42 +17,54 @@ class _TheOwlAndTheRoosterMultipleChoicePageState
     extends State<TheOwlAndTheRoosterMultipleChoicePage> {
   final List<Map<String, dynamic>> questions = [
     {
-      'question': '16. What was the owl’s problem?',
+      'question': '1. At the beginning of the story, where was Mia?',
       'options': [
-        'She slept in the morning.',
-        'She couldn’t hoot at night.',
-        'She was awake all night long.',
-        'She couldn’t wake the people up.',
+        'She was in her bedroom.',
+        'She was in the bathroom.',
+        'She was at the kitchen table.',
+        'She was on a bench outside.',
       ],
-      'answer': 'She couldn’t hoot at night.',
+      'answer': 'She was in her bedroom.',
     },
     {
-      'question': '17. What was the rooster’s problem?',
+      'question': '2. What time of the day was it?',
       'options': [
-        'He couldn’t hoot with the owl.',
-        'He couldn’t wake the people up.',
-        'He couldn’t sleep in the morning.',
-        'He couldn’t be with his friends.',
+        'middle of the day',
+        'late in the evening',
+        'early in the morning',
+        'late in the afternoon',
       ],
-      'answer': 'He couldn’t wake the people up.',
+      'answer': 'early in the morning',
     },
     {
-      'question':
-          '18. The word "rouse" has a synonym in the selection. What is this word?',
-      'options': ['Wake', 'Solve', 'Slept', 'Hoot'],
-      'answer': 'Wake',
+      'question': '3. What do you think will happen next?',
+      'options': [
+        'She will have lunch.',
+        'She will have dinner.',
+        'She will have a snack.',
+        'She will have breakfast.',
+      ],
+      'answer': 'She will have breakfast.',
     },
     {
-      'question':
-          '19. How did the owl and the rooster feel at the end of the passage?',
-      'options': ['Worried', 'Alarmed', 'Relieved', 'Unhappy'],
-      'answer': 'Relieved',
+      'question': '4. What will she say when she gets up?',
+      'options': [
+        'Good evening.',
+        'Good afternoon!',
+        'Good morning!',
+        'Thank you very much!',
+      ],
+      'answer': 'Good morning!',
     },
     {
-      'question':
-          '20. What was the author’s purpose when she wrote the selection?',
-      'options': ['To inform', 'To entertain', 'To evaluate', 'To convince'],
-      'answer': 'To entertain',
+      'question': '5. What other title can be given for this story?',
+      'options': [
+        'The End of the Day',
+        'The Start of the Day',
+        'Just Before Sleeping',
+        'The Middle of the Day',
+      ],
+      'answer': 'The Start of the Day',
     },
   ];
 
@@ -60,10 +74,8 @@ class _TheOwlAndTheRoosterMultipleChoicePageState
   bool finished = false;
 
   Timer? timer;
-  int maxTimePerQuestion = 15;
-  int remainingTime = 15;
-
-  int totalCorrectAnswers = 0;
+  int maxTimePerQuestion = 20;
+  int remainingTime = 20;
   double totalScore = 0;
 
   @override
@@ -75,11 +87,9 @@ class _TheOwlAndTheRoosterMultipleChoicePageState
   void startTimer() {
     remainingTime = maxTimePerQuestion;
     timer?.cancel();
-    timer = Timer.periodic(const Duration(seconds: 1), (Timer t) {
+    timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (remainingTime > 0) {
-        setState(() {
-          remainingTime--;
-        });
+        setState(() => remainingTime--);
       } else {
         t.cancel();
         handleTimeout();
@@ -98,17 +108,13 @@ class _TheOwlAndTheRoosterMultipleChoicePageState
       barrierDismissible: false,
       builder:
           (_) => AlertDialog(
-            contentPadding: const EdgeInsets.all(16),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(
+                Lottie.asset(
+                  'assets/animation/wrong.json',
                   height: 120,
-                  width: 120,
-                  child: Lottie.asset(
-                    'assets/animation/wrong.json',
-                    repeat: false,
-                  ),
+                  repeat: false,
                 ),
                 const SizedBox(height: 12),
                 const Text(
@@ -130,26 +136,21 @@ class _TheOwlAndTheRoosterMultipleChoicePageState
     Future.delayed(const Duration(seconds: 3), () {
       Navigator.of(context).pop();
       if (currentIndex < questions.length - 1) {
-        setState(() {
-          currentIndex++;
-        });
+        setState(() => currentIndex++);
         startTimer();
       } else {
-        setState(() {
-          finished = true;
-        });
+        setState(() => finished = true);
+        widget.onCompleted?.call();
       }
     });
   }
 
   void selectOption(String option) {
     stopTimer();
-    final correctAnswer = questions[currentIndex]['answer'];
-    final isCorrect = option == correctAnswer;
+    final isCorrect = option == questions[currentIndex]['answer'];
 
     if (isCorrect) {
       correctCount++;
-      totalCorrectAnswers++;
       totalScore += remainingTime;
     } else {
       wrongCount++;
@@ -160,19 +161,15 @@ class _TheOwlAndTheRoosterMultipleChoicePageState
       barrierDismissible: false,
       builder:
           (_) => AlertDialog(
-            contentPadding: const EdgeInsets.all(16),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(
+                Lottie.asset(
+                  isCorrect
+                      ? 'assets/animation/correct.json'
+                      : 'assets/animation/wrong.json',
                   height: 120,
-                  width: 120,
-                  child: Lottie.asset(
-                    isCorrect
-                        ? 'assets/animation/correct.json'
-                        : 'assets/animation/wrong.json',
-                    repeat: false,
-                  ),
+                  repeat: false,
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -194,14 +191,11 @@ class _TheOwlAndTheRoosterMultipleChoicePageState
     Future.delayed(const Duration(seconds: 3), () {
       Navigator.of(context).pop();
       if (currentIndex < questions.length - 1) {
-        setState(() {
-          currentIndex++;
-        });
+        setState(() => currentIndex++);
         startTimer();
       } else {
-        setState(() {
-          finished = true;
-        });
+        setState(() => finished = true);
+        widget.onCompleted?.call();
       }
     });
   }
@@ -212,7 +206,6 @@ class _TheOwlAndTheRoosterMultipleChoicePageState
       correctCount = 0;
       wrongCount = 0;
       finished = false;
-      totalCorrectAnswers = 0;
       totalScore = 0;
     });
     startTimer();
@@ -229,8 +222,8 @@ class _TheOwlAndTheRoosterMultipleChoicePageState
     if (finished) {
       return Scaffold(
         appBar: AppBar(
-          automaticallyImplyLeading: false,
           title: const Text('The Owl and The Rooster - Quiz'),
+          automaticallyImplyLeading: false,
         ),
         body: Center(
           child: Column(
@@ -242,27 +235,21 @@ class _TheOwlAndTheRoosterMultipleChoicePageState
               ),
               const SizedBox(height: 20),
               Text(
-                'Total Correct Answers: $totalCorrectAnswers',
+                'Correct Answers: $correctCount',
                 style: const TextStyle(fontSize: 20, color: Colors.green),
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Total Score: ${totalScore.toStringAsFixed(1)}',
-                style: const TextStyle(fontSize: 20, color: Colors.blue),
-              ),
-              const SizedBox(height: 8),
               Text(
                 'Wrong Answers: $wrongCount',
                 style: const TextStyle(fontSize: 20, color: Colors.red),
+              ),
+              Text(
+                'Score: ${totalScore.toStringAsFixed(1)}',
+                style: const TextStyle(fontSize: 20, color: Colors.blue),
               ),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: resetQuiz,
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
                   backgroundColor: Colors.deepPurple,
                 ),
                 child: const Text('Try Again', style: TextStyle(fontSize: 18)),
@@ -273,21 +260,21 @@ class _TheOwlAndTheRoosterMultipleChoicePageState
       );
     }
 
-    final questionData = questions[currentIndex];
+    final question = questions[currentIndex];
 
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: false,
         title: const Text('The Owl and The Rooster - Multiple Choice'),
+        automaticallyImplyLeading: false,
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           LinearProgressIndicator(
             value: (currentIndex + 1) / questions.length,
+            minHeight: 8,
             backgroundColor: Colors.grey.shade300,
             color: Colors.deepPurple,
-            minHeight: 8,
           ),
           const SizedBox(height: 12),
           Padding(
@@ -297,27 +284,23 @@ class _TheOwlAndTheRoosterMultipleChoicePageState
               children: [
                 Text(
                   'Question ${currentIndex + 1} of ${questions.length}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 Text(
                   'Time: $remainingTime s',
                   style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.red,
                     fontWeight: FontWeight.bold,
+                    color: Colors.red,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              questionData['question'],
+              question['question'],
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
             ),
           ),
@@ -325,21 +308,18 @@ class _TheOwlAndTheRoosterMultipleChoicePageState
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: questionData['options'].length,
+              itemCount: question['options'].length,
               itemBuilder: (context, index) {
-                final option = questionData['options'][index];
+                final option = question['options'][index];
                 return Container(
-                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  margin: const EdgeInsets.symmetric(vertical: 6),
                   child: ElevatedButton(
                     onPressed: () => selectOption(option),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.deepPurple.shade100,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 16,
-                        horizontal: 12,
                       ),
                     ),
                     child: Text(
@@ -355,13 +335,10 @@ class _TheOwlAndTheRoosterMultipleChoicePageState
           Align(
             alignment: Alignment.bottomRight,
             child: Padding(
-              padding: const EdgeInsets.only(right: 10.0, bottom: 10.0),
+              padding: const EdgeInsets.only(right: 12, bottom: 8),
               child: Text(
-                "© K5 Learning 2019",
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w500,
-                ),
+                '© K5 Learning 2019',
+                style: TextStyle(color: Colors.grey.shade600),
               ),
             ),
           ),

@@ -15,10 +15,26 @@ class _Activity10PageState extends State<Activity10Page> {
   int _currentPage = 0;
   bool _isLoading = false;
 
-  final List<Widget> _pages = const [
-    DayOneStoryPage(),
-    Day1MultipleChoicePage(),
-  ];
+  late final List<Widget> _pages;
+  final List<bool> _pageCompleted = [false, false]; // track completion
+
+  @override
+  void initState() {
+    super.initState();
+
+    _pages = [
+      DayOneStoryPage(onCompleted: () => _markPageComplete(0)),
+      Day1MultipleChoicePage(onCompleted: () => _markPageComplete(1)),
+    ];
+  }
+
+  void _markPageComplete(int index) {
+    if (!_pageCompleted[index]) {
+      setState(() {
+        _pageCompleted[index] = true;
+      });
+    }
+  }
 
   Future<void> _goToPage(int newPage) async {
     if (_isLoading || newPage < 0 || newPage >= _pages.length) return;
@@ -100,7 +116,9 @@ class _Activity10PageState extends State<Activity10Page> {
           ),
           ElevatedButton.icon(
             onPressed:
-                _currentPage < _pages.length - 1 && !_isLoading
+                _currentPage < _pages.length - 1 &&
+                        !_isLoading &&
+                        _pageCompleted[_currentPage] // lock until completed
                     ? () => _goToPage(_currentPage + 1)
                     : null,
             icon: const Icon(Icons.arrow_forward_ios),

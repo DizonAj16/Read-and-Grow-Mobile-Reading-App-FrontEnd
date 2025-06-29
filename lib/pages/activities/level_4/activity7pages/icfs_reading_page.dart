@@ -1,31 +1,155 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 
-class IcfsReadingPage extends StatelessWidget {
-  const IcfsReadingPage({super.key});
+import 'package:flutter/material.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+
+class IcfsReadingPage extends StatefulWidget {
+  final VoidCallback? onCompleted;
+
+  const IcfsReadingPage({super.key, this.onCompleted});
+
+  @override
+  State<IcfsReadingPage> createState() => _IcfsReadingPageState();
+}
+
+class _IcfsReadingPageState extends State<IcfsReadingPage>
+    with SingleTickerProviderStateMixin {
+  final FlutterTts _flutterTts = FlutterTts();
+  final ScrollController _scrollController = ScrollController();
+
+  bool isReading = false;
+  int currentParagraphIndex = -1;
+  int currentWordIndex = -1;
+
+  late AnimationController _iconController;
+
+  final List<String> paragraphs = [
+    '"Cling! Cling! Cling!" Benito and his sister Nelia raced out the door.',
+    'He took some coins from his pocket and counted them. "I can have two scoops," he thought.',
+    'But then his little sister Nelia asked, "Can I have an ice cream?"',
+    'Benito looked at his coins again. "May I have two cones?" he asked. The vendor nodded.',
+    'Benito and Nelia left with a smile.',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+
+    _iconController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+
+    _flutterTts.setSpeechRate(0.6);
+    _flutterTts.setPitch(2.0);
+    _flutterTts.setLanguage("en-US");
+    _flutterTts.awaitSpeakCompletion(true);
+
+    _flutterTts.setCompletionHandler(() {
+      setState(() {
+        currentWordIndex = -1;
+      });
+    });
+  }
+
+  Future<void> _readAloud() async {
+    if (isReading) {
+      await _flutterTts.stop();
+      setState(() {
+        isReading = false;
+        currentParagraphIndex = -1;
+        currentWordIndex = -1;
+      });
+      _iconController.reverse();
+      return;
+    }
+
+    setState(() {
+      isReading = true;
+    });
+    _iconController.forward();
+
+    for (int p = 0; p < paragraphs.length; p++) {
+      final words = paragraphs[p].split(' ');
+
+      for (int w = 0; w < words.length; w++) {
+        if (!mounted || !isReading) break;
+
+        setState(() {
+          currentParagraphIndex = p;
+          currentWordIndex = w;
+        });
+
+        _scrollToParagraph(p);
+
+        await _flutterTts.speak(words[w]);
+        await Future.delayed(const Duration(milliseconds: 400));
+      }
+
+      await Future.delayed(const Duration(milliseconds: 600));
+    }
+
+    setState(() {
+      isReading = false;
+      currentParagraphIndex = -1;
+      currentWordIndex = -1;
+    });
+    _iconController.reverse();
+
+    widget.onCompleted?.call();
+  }
+
+  void _scrollToParagraph(int index) {
+    final offset = index * 110.0;
+    _scrollController.animateTo(
+      offset,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _flutterTts.stop();
+    _scrollController.dispose();
+    _iconController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[200],
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.green,
+        onPressed: _readAloud,
+        child: AnimatedIcon(
+          icon: AnimatedIcons.play_pause,
+          progress: _iconController,
+        ),
+      ),
       appBar: AppBar(
-        automaticallyImplyLeading: false, // No back arrow
-        centerTitle: true, // Center the title
-        title: const Text('Ice Cream for Sale'),
+        automaticallyImplyLeading: false,
+        centerTitle: true,
+        title: const Text(
+          'Ice Cream for Sale',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+        ),
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Instruction Container
           Container(
-            padding: const EdgeInsets.all(20.0),
             margin: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(20.0),
             decoration: BoxDecoration(
               color: Colors.lightBlue[50],
               borderRadius: BorderRadius.circular(16.0),
               boxShadow: [
                 BoxShadow(
                   color: Colors.grey.withOpacity(0.3),
-                  spreadRadius: 2,
                   blurRadius: 6,
+                  spreadRadius: 2,
                   offset: const Offset(0, 3),
                 ),
               ],
@@ -36,8 +160,6 @@ class IcfsReadingPage extends StatelessWidget {
               textAlign: TextAlign.justify,
             ),
           ),
-
-          // Scrollable Story Container
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -49,59 +171,66 @@ class IcfsReadingPage extends StatelessWidget {
                   boxShadow: [
                     BoxShadow(
                       color: Colors.grey.withOpacity(0.3),
-                      spreadRadius: 2,
                       blurRadius: 6,
+                      spreadRadius: 2,
                       offset: const Offset(0, 3),
                     ),
                   ],
                 ),
                 child: SingleChildScrollView(
+                  controller: _scrollController,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
-                        '"Cling! Cling! Cling!" Benito and his sister Nelia raced out the door.',
-                        style: TextStyle(fontSize: 18, height: 1.8),
-                        textAlign: TextAlign.justify,
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        'He took some coins from his pocket and counted them. "I can have two scoops," he thought.',
-                        style: TextStyle(fontSize: 18, height: 1.8),
-                        textAlign: TextAlign.justify,
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        'But then his little sister Nelia asked, "Can I have an ice cream?"',
-                        style: TextStyle(fontSize: 18, height: 1.8),
-                        textAlign: TextAlign.justify,
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        'Benito looked at his coins again. "May I have two cones?" he asked. The vendor nodded.',
-                        style: TextStyle(fontSize: 18, height: 1.8),
-                        textAlign: TextAlign.justify,
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        'Benito and Nelia left with a smile.',
-                        style: TextStyle(fontSize: 18, height: 1.8),
-                        textAlign: TextAlign.justify,
-                      ),
-                    ],
+                    children: List.generate(paragraphs.length, (pIndex) {
+                      final words = paragraphs[pIndex].split(' ');
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 20.0),
+                        child: RichText(
+                          textAlign: TextAlign.justify,
+                          text: TextSpan(
+                            style: const TextStyle(
+                              fontSize: 18,
+                              height: 1.8,
+                              color: Colors.black,
+                            ),
+                            children:
+                                words.asMap().entries.map((entry) {
+                                  final wIndex = entry.key;
+                                  final word = entry.value;
+                                  final isHighlighted =
+                                      pIndex == currentParagraphIndex &&
+                                      wIndex == currentWordIndex;
+
+                                  return TextSpan(
+                                    text: '$word ',
+                                    style: TextStyle(
+                                      color:
+                                          isHighlighted
+                                              ? Colors.red
+                                              : Colors.black,
+                                      fontWeight:
+                                          isHighlighted
+                                              ? FontWeight.bold
+                                              : FontWeight.normal,
+                                    ),
+                                  );
+                                }).toList(),
+                          ),
+                        ),
+                      );
+                    }),
                   ),
                 ),
               ),
             ),
           ),
-
-          // Copyright
           Align(
             alignment: Alignment.bottomRight,
             child: Padding(
-              padding: const EdgeInsets.only(right: 10.0, bottom: 20.0),
+              padding: const EdgeInsets.only(right: 16.0, bottom: 20.0),
               child: Text(
-                "© K5 Learning 2019",
+                '© K5 Learning 2019',
                 style: TextStyle(
                   color: Colors.grey.shade600,
                   fontWeight: FontWeight.w500,
@@ -111,7 +240,6 @@ class IcfsReadingPage extends StatelessWidget {
           ),
         ],
       ),
-      backgroundColor: Colors.grey[200],
     );
   }
 }

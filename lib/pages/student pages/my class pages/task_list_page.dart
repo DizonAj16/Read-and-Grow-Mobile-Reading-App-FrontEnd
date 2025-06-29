@@ -90,8 +90,7 @@ class TaskListPage extends StatelessWidget {
           {"title": "Task 1 - Day 1", "status": "Pending"},
           {"title": "Task 2 - Day 2", "status": "Pending"},
           {"title": "Task 3 - Day 3", "status": "Pending"},
-          {"title": "Task 4 - Day 4", "status": "Pending"},
-          {"title": "Task 5 - Day 5", "status": "Pending"},
+          {"title": "Task 4-5 - Day 4-5", "status": "Pending"},
         ];
     }
   }

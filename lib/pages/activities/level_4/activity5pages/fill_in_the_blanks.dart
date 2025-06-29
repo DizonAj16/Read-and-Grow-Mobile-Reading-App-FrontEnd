@@ -1,35 +1,31 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
 
 class FillInTheBlanksPage extends StatefulWidget {
-  const FillInTheBlanksPage({super.key});
+  final VoidCallback? onCompleted;
+
+  const FillInTheBlanksPage({super.key, this.onCompleted});
 
   @override
   State<FillInTheBlanksPage> createState() => _FillInTheBlanksPageState();
 }
 
 class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
-  final List<Map<String, dynamic>> questions = [
-    {"template": "Penguins love the ________", "answer": "water"},
-    {"template": "Penguins eat ________", "answer": "fish"},
-    {
-      "template": "Penguins can ________ but not ________",
-      "answer": "swim fly",
-    },
+  final List<Map<String, String>> questions = [
+    {"text": "Penguins live in __ places.", "answer": "cold"},
+    {"text": "Penguins cannot __.", "answer": "fly"},
+    {"text": "They use their wings to __.", "answer": "swim"},
   ];
 
+  final TextEditingController answerController = TextEditingController();
   int currentIndex = 0;
-  int totalScore = 0;
-  int wrongAnswers = 0;
-
-  final TextEditingController _controller = TextEditingController();
-  bool? isCorrect;
+  int correct = 0;
+  int wrong = 0;
+  int timeLeft = 60;
   bool isFinished = false;
 
   Timer? timer;
-  int remainingTime = 60;
 
   @override
   void initState() {
@@ -37,325 +33,158 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
     startTimer();
   }
 
-  void startTimer() {
-    remainingTime = 60;
+  @override
+  void dispose() {
     timer?.cancel();
-    timer = Timer.periodic(const Duration(seconds: 1), (Timer t) {
-      if (remainingTime > 0) {
-        setState(() {
-          remainingTime--;
-        });
+    answerController.dispose();
+    super.dispose();
+  }
+
+  void startTimer() {
+    timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (timeLeft > 0) {
+        setState(() => timeLeft--);
       } else {
-        t.cancel();
         handleTimeout();
       }
     });
   }
 
-  void stopTimer() {
-    timer?.cancel();
-  }
-
   void handleTimeout() {
-    wrongAnswers++;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder:
-          (_) => AlertDialog(
-            contentPadding: const EdgeInsets.all(16),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  height: 150,
-                  width: 150,
-                  child: Lottie.asset(
-                    'assets/animation/wrong.json',
-                    repeat: false,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Time\'s up!',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text('Press OK to continue.'),
-              ],
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  if (currentIndex < questions.length - 1) {
-                    setState(() {
-                      currentIndex++;
-                      _controller.clear();
-                      isCorrect = null;
-                    });
-                    startTimer();
-                  } else {
-                    setState(() {
-                      isFinished = true;
-                    });
-                  }
-                },
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-    );
+    timer?.cancel();
+    if (!isFinished) {
+      setState(() {
+        isFinished = true;
+      });
+      widget.onCompleted?.call();
+    }
   }
 
   void checkAnswer() {
-    stopTimer();
-    String userAnswer = _controller.text.trim().toLowerCase();
-    String correctAnswer = questions[currentIndex]['answer'];
+    String userAnswer = answerController.text.trim().toLowerCase();
+    String correctAnswer = questions[currentIndex]["answer"]!.toLowerCase();
 
-    setState(() {
-      isCorrect = userAnswer == correctAnswer;
-      if (isCorrect!) {
-        totalScore += remainingTime;
-      } else {
-        wrongAnswers++;
-      }
-    });
+    if (userAnswer == correctAnswer) {
+      correct++;
+    } else {
+      wrong++;
+    }
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder:
-          (_) => AlertDialog(
-            contentPadding: const EdgeInsets.all(16),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  height: 150,
-                  width: 150,
-                  child: Lottie.asset(
-                    isCorrect!
-                        ? 'assets/animation/correct.json'
-                        : 'assets/animation/wrong.json',
-                    repeat: false,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  isCorrect! ? 'Correct!' : 'Wrong!',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: isCorrect! ? Colors.green : Colors.red,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text('Press OK to continue.'),
-              ],
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  if (currentIndex < questions.length - 1) {
-                    setState(() {
-                      currentIndex++;
-                      _controller.clear();
-                      isCorrect = null;
-                    });
-                    startTimer();
-                  } else {
-                    setState(() {
-                      isFinished = true;
-                    });
-                  }
-                },
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  void resetQuiz() {
-    setState(() {
-      currentIndex = 0;
-      totalScore = 0;
-      wrongAnswers = 0;
-      isCorrect = null;
-      isFinished = false;
-      _controller.clear();
-    });
-    startTimer();
-  }
-
-  @override
-  void dispose() {
-    timer?.cancel();
-    super.dispose();
+    if (currentIndex < questions.length - 1) {
+      setState(() {
+        currentIndex++;
+        answerController.clear();
+      });
+    } else {
+      timer?.cancel();
+      setState(() {
+        isFinished = true;
+      });
+      widget.onCompleted?.call();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (isFinished) {
-      return Scaffold(
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          title: const Text('Fill in the Blanks'),
+    return Column(
+      children: [
+        const SizedBox(height: 24),
+        Text(
+          "Fill in the Blanks",
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
         ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                'Great job!',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+        const SizedBox(height: 8),
+        const Text(
+          "Type the missing word to complete each sentence.",
+          style: TextStyle(fontSize: 16),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 16),
+        if (!isFinished)
+          Text(
+            "Time Left: $timeLeft",
+            style: const TextStyle(fontSize: 20, color: Colors.red),
+            textAlign: TextAlign.center,
+          ),
+        const SizedBox(height: 20),
+        if (!isFinished) _buildQuizContent() else _buildScorePage(),
+      ],
+    );
+  }
+
+  Widget _buildQuizContent() {
+    return Column(
+      children: [
+        Text(
+          questions[currentIndex]["text"]!,
+          style: const TextStyle(fontSize: 20),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: TextField(
+            controller: answerController,
+            textAlign: TextAlign.center,
+            decoration: const InputDecoration(
+              hintText: "Enter your answer",
+              border: OutlineInputBorder(),
+              contentPadding: EdgeInsets.symmetric(
+                vertical: 12,
+                horizontal: 16,
               ),
-              const SizedBox(height: 20),
-              Text(
-                'Total Score: $totalScore',
-                style: const TextStyle(fontSize: 22),
-              ),
-              Text(
-                'Wrong Answers: $wrongAnswers',
-                style: const TextStyle(fontSize: 22),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: resetQuiz,
-                child: const Text('Try Again'),
-              ),
-              const SizedBox(height: 30),
-              const Text(
-                '© K5 Learning 2019',
-                style: TextStyle(color: Colors.grey),
-              ),
-            ],
+            ),
           ),
         ),
-      );
-    }
-
-    final currentQuestion = questions[currentIndex];
-
-    return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text('Fill in the Blanks'),
-      ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                'Time: $remainingTime s',
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Colors.red,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                currentQuestion['template'],
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 30),
-              SizedBox(
-                width: 250,
-                child: TextField(
-                  controller: _controller,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    color: Colors.blueAccent,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(
-                      vertical: 12,
-                      horizontal: 16,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(30),
-                      borderSide: const BorderSide(
-                        color: Colors.blueAccent,
-                        width: 2,
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(30),
-                      borderSide: const BorderSide(
-                        color: Colors.blueAccent,
-                        width: 2,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(30),
-                      borderSide: const BorderSide(
-                        color: Colors.deepPurple,
-                        width: 3,
-                      ),
-                    ),
-                    hintText: 'Answer',
-                    hintStyle: const TextStyle(
-                      fontSize: 20,
-                      color: Colors.grey,
-                    ),
-                    filled: true,
-                    fillColor: Colors.lightBlue.shade50,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 30),
-              SizedBox(
-                width: 120,
-                height: 45,
-                child: ElevatedButton(
-                  onPressed: () {
-                    if (_controller.text.trim().isEmpty) return;
-                    checkAnswer();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orangeAccent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    textStyle: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  child: const Text('Submit'),
-                ),
-              ),
-              const SizedBox(height: 30),
-              const Text(
-                '© K5 Learning 2019',
-                style: TextStyle(color: Colors.grey),
-              ),
-            ],
-          ),
+        const SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: answerController.text.trim().isEmpty ? null : checkAnswer,
+          child: const Text("Submit"),
         ),
-      ),
+      ],
+    );
+  }
+
+  Widget _buildScorePage() {
+    int score =
+        ((correct * 100) ~/ questions.length) - wrong * 10 - (60 - timeLeft);
+
+    if (score < 0) score = 0;
+
+    return Column(
+      children: [
+        Text(
+          score >= 60 ? "Great Job!" : "Keep Going!",
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: score >= 60 ? Colors.green : Colors.orange,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 16),
+        Text("Correct: $correct", style: const TextStyle(fontSize: 18)),
+        Text("Wrong: $wrong", style: const TextStyle(fontSize: 18)),
+        Text("Final Score: $score", style: const TextStyle(fontSize: 18)),
+        const SizedBox(height: 24),
+        ElevatedButton(
+          onPressed: () {
+            setState(() {
+              currentIndex = 0;
+              correct = 0;
+              wrong = 0;
+              timeLeft = 60;
+              isFinished = false;
+              answerController.clear();
+              startTimer();
+            });
+          },
+          child: const Text("Try Again"),
+        ),
+      ],
     );
   }
 }

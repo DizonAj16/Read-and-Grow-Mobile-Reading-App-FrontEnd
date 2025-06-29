@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
 class IcfsMultipleChoicePage extends StatefulWidget {
-  const IcfsMultipleChoicePage({super.key});
+  final VoidCallback? onCompleted;
+
+  const IcfsMultipleChoicePage({super.key, this.onCompleted});
 
   @override
   State<IcfsMultipleChoicePage> createState() => _IcfsMultipleChoicePageState();
@@ -149,6 +151,7 @@ class _IcfsMultipleChoicePageState extends State<IcfsMultipleChoicePage> {
         setState(() {
           finished = true;
         });
+        widget.onCompleted?.call();
       }
     });
   }
@@ -215,6 +218,7 @@ class _IcfsMultipleChoicePageState extends State<IcfsMultipleChoicePage> {
         setState(() {
           finished = true;
         });
+        widget.onCompleted?.call();
       }
     });
   }

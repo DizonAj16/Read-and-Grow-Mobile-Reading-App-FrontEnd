@@ -18,12 +18,27 @@ class _Activity5PageState extends State<Activity5Page>
   int _currentPage = 0;
   bool _isLoading = false;
 
-  final List<Widget> _pages = const [
-    PenguinsPage(),
-    PenguinMultipleChoicePage(),
-    DragTheWordToPicturePage(),
-    FillInTheBlanksPage(),
-  ];
+  late final List<Widget> _pages;
+  final List<bool> _completedPages = [false, false, false, false];
+
+  @override
+  void initState() {
+    super.initState();
+    _pages = [
+      PenguinsPage(onCompleted: () => _markPageComplete(0)),
+      PenguinMultipleChoicePage(onCompleted: () => _markPageComplete(1)),
+      DragTheWordToPicturePage(onCompleted: () => _markPageComplete(2)),
+      FillInTheBlanksPage(onCompleted: () => _markPageComplete(3)),
+    ];
+  }
+
+  void _markPageComplete(int index) {
+    if (!_completedPages[index]) {
+      setState(() {
+        _completedPages[index] = true;
+      });
+    }
+  }
 
   Future<void> _goToPreviousPage() async {
     if (_currentPage > 0) {
@@ -112,7 +127,9 @@ class _Activity5PageState extends State<Activity5Page>
           ),
           ElevatedButton.icon(
             onPressed:
-                _currentPage < _pages.length - 1 && !_isLoading
+                _currentPage < _pages.length - 1 &&
+                        !_isLoading &&
+                        _completedPages[_currentPage]
                     ? _goToNextPage
                     : null,
             icon: const Icon(Icons.arrow_forward_ios),
