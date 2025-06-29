@@ -222,7 +222,7 @@ class _PenguinsPageState extends State<PenguinsPage> {
             bottom: 90,
             right: 20,
             child: Image.asset(
-              "assets/activity_images/penguin.jpg",
+              "assets/activity_images/penguin.png",
               height: 120,
               fit: BoxFit.contain,
               errorBuilder:

@@ -1,16 +1,24 @@
 import 'package:flutter/material.dart';
 
+// Level 1
 import 'level_1/activity_1.dart';
 import 'level_1/activity_2.dart';
+// Level 2
 import 'level_2/activity3.dart';
+// Level 3
 import 'level_3/activity4.dart';
+// Level 4
 import 'level_4/activity5.dart';
 import 'level_4/activity6.dart';
 import 'level_4/activity7.dart';
 import 'level_4/activity8.dart';
 import 'level_4/activity9.dart';
-//import 'level_5/activity10.dart
-//import 'level_5/activity11.dart
+// Level 5
+import 'level_5/activity10.dart';
+import 'level_5/activity11.dart';
+import 'level_5/activity12.dart';
+import 'level_5/activity13.dart';
+import 'level_5/activity14.dart';
 
 class ActivityController extends StatelessWidget {
   final String activityTitle;
@@ -24,7 +32,7 @@ class ActivityController extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget activityPage = _getActivityPage(studentLevel, activityTitle);
+    final Widget activityPage = _getActivityPage(studentLevel, activityTitle);
 
     return Scaffold(
       appBar: AppBar(
@@ -37,7 +45,7 @@ class ActivityController extends StatelessWidget {
   }
 
   Widget _getActivityPage(int level, String activityTitle) {
-    print('Loading: Level $level - $activityTitle');
+    debugPrint('Loading: Level $level - $activityTitle');
 
     switch (level) {
       case 1:
@@ -48,12 +56,10 @@ class ActivityController extends StatelessWidget {
         return _getLevel3Activity(activityTitle);
       case 4:
         return _getLevel4Activity(activityTitle);
-      // case 5:
-      //   return _getLevel5Activity(activityTitle);
+      case 5:
+        return _getLevel5Activity(activityTitle);
       default:
-        return Center(
-          child: Text("No activity found for $activityTitle in Level $level."),
-        );
+        return _notFoundWidget(level, activityTitle);
     }
   }
 
@@ -64,9 +70,7 @@ class ActivityController extends StatelessWidget {
       case "Task 2":
         return const Activity2Page();
       default:
-        return Center(
-          child: Text("No activity found for $activityTitle in Level 1."),
-        );
+        return _notFoundWidget(1, activityTitle);
     }
   }
 
@@ -75,24 +79,18 @@ class ActivityController extends StatelessWidget {
       case "Task 1":
         return const Activity3Page();
       default:
-        return Center(
-          child: Text("No activity found for $activityTitle in Level 2."),
-        );
+        return _notFoundWidget(2, activityTitle);
     }
   }
 
   Widget _getLevel3Activity(String activityTitle) {
     switch (activityTitle) {
       case "Task 1":
-        return const Activity4Page();
       case "Task 2":
-        return const Activity4Page(); // Placeholder, update if different
       case "Task 3":
-        return const Activity4Page(); // Placeholder, update if different
+        return const Activity4Page(); // All map to Activity4Page
       default:
-        return Center(
-          child: Text("No activity found for $activityTitle in Level 3."),
-        );
+        return _notFoundWidget(3, activityTitle);
     }
   }
 
@@ -102,30 +100,41 @@ class ActivityController extends StatelessWidget {
         return const Activity5Page();
       case "Task 2":
         return const Activity6Page();
-      case "Task 3": // Fixed typo
+      case "Task 3":
         return const Activity7Page();
       case "Task 4":
         return const Activity8Page();
       case "Task 5":
         return const Activity9Page();
       default:
-        return Center(
-          child: Text("No activity found for $activityTitle in Level 4."),
-        );
+        return _notFoundWidget(4, activityTitle);
     }
   }
 
-  // Uncomment when Level 5 is active
-  // Widget _getLevel5Activity(String activityTitle) {
-  //   switch (activityTitle) {
-  //     case "Task 1":
-  //       return const Activity7Page();
-  //     case "Task 2":
-  //       return const Activity8Page();
-  //     default:
-  //       return Center(
-  //         child: Text("No activity found for $activityTitle in Level 5."),
-  //       );
-  //   }
-  // }
+  Widget _getLevel5Activity(String activityTitle) {
+    switch (activityTitle) {
+      case "Task 1 - Day 1":
+        return const Activity10Page();
+      case "Task 2 - Day 2":
+        return const Activity11Page();
+      case "Task 3 - Day 3":
+        return const Activity12Page();
+      case "Task 4 - Day 4":
+        return const Activity13Page();
+      case "Task 5 - Day 5":
+        return const Activity14Page();
+      default:
+        return _notFoundWidget(5, activityTitle);
+    }
+  }
+
+  Widget _notFoundWidget(int level, String title) {
+    return Center(
+      child: Text(
+        "No activity found for '$title' in Level $level.",
+        style: const TextStyle(fontSize: 18, color: Colors.red),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
 }
