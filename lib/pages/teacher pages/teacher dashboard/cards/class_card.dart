@@ -5,12 +5,22 @@ class TeacherDashboardClassCard extends StatelessWidget {
   final String className;
   final String section;
   final int studentCount;
+  final String teacherName; // 👈 add this
+  final int classId;
 
+  final VoidCallback onView;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
   const TeacherDashboardClassCard({
     Key? key,
+    required this.classId,
     required this.className,
     required this.section,
     required this.studentCount,
+    required this.teacherName,
+    required this.onView,
+    required this.onEdit,
+    required this.onDelete, // Default value for teacher name
   }) : super(key: key);
 
   @override
@@ -39,10 +49,7 @@ class TeacherDashboardClassCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   gradient: LinearGradient(
-                    colors: [
-                      Colors.black.withOpacity(0.6),
-                      Colors.transparent,
-                    ],
+                    colors: [Colors.black.withOpacity(0.6), Colors.transparent],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                   ),
@@ -59,17 +66,17 @@ class TeacherDashboardClassCard extends StatelessWidget {
                   Text(
                     className,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   // Section name
                   Text(
                     section,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Colors.white70,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                   Spacer(),
                   // Student count and teacher name
@@ -88,12 +95,12 @@ class TeacherDashboardClassCard extends StatelessWidget {
                         ],
                       ),
                       Text(
-                        "Teacher Name",
+                        teacherName,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -106,53 +113,56 @@ class TeacherDashboardClassCard extends StatelessWidget {
               right: 8,
               child: PopupMenuButton<String>(
                 onSelected: (value) {
-                  if (value == 'edit') {
-                    // Handle edit class logic
+                  if (value == 'view') {
+                    onView();
+                  } else if (value == 'edit') {
+                    onEdit();
                   } else if (value == 'delete') {
-                    // Handle delete class logic
+                    onDelete();
                   }
                 },
-                itemBuilder: (BuildContext context) => [
-                  PopupMenuItem(
-                    value: 'view',
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.visibility,
-                          color: Colors.blue, // Blue for view
+                itemBuilder:
+                    (BuildContext context) => [
+                      PopupMenuItem(
+                        value: 'view',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.visibility,
+                              color: Colors.blue, // Blue for view
+                            ),
+                            SizedBox(width: 8),
+                            Text('View Class'),
+                          ],
                         ),
-                        SizedBox(width: 8),
-                        Text('View Class'),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'edit',
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.edit,
-                          color: Colors.grey, // Gray for edit
+                      ),
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.edit,
+                              color: Colors.grey, // Gray for edit
+                            ),
+                            SizedBox(width: 8),
+                            Text('Edit Class'),
+                          ],
                         ),
-                        SizedBox(width: 8),
-                        Text('Edit Class'),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.delete,
-                          color: Colors.red, // Red for delete
+                      ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.delete,
+                              color: Colors.red, // Red for delete
+                            ),
+                            SizedBox(width: 8),
+                            Text('Delete Class'),
+                          ],
                         ),
-                        SizedBox(width: 8),
-                        Text('Delete Class'),
-                      ],
-                    ),
-                  ),
-                ],
+                      ),
+                    ],
                 icon: Icon(Icons.more_vert, color: Colors.white),
               ),
             ),

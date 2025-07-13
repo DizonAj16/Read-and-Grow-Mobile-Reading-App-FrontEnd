@@ -15,26 +15,22 @@ class StudentPage extends StatefulWidget {
 }
 
 class _StudentPageState extends State<StudentPage> {
-  int _currentIndex = 0; // Tracks selected tab index
-  final PageController _pageController =
-      PageController(); // Controls page transitions
+  int _currentIndex = 0;
+  final PageController _pageController = PageController();
 
-  // List of main pages for navigation
   final List<Widget> _pages = [StudentDashboardPage(), MyClassPage()];
 
-  // Handles tab selection and animates to the selected page
   void _onTabTapped(int index) {
     setState(() {
       _currentIndex = index;
     });
     _pageController.animateToPage(
       index,
-      duration: Duration(milliseconds: 300), // Animation duration
-      curve: Curves.easeInOut, // Animation curve
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
     );
   }
 
-  // Logout logic using API and SharedPreferences
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? '';
@@ -42,91 +38,93 @@ class _StudentPageState extends State<StudentPage> {
     final response = await ApiService.logout(token);
 
     if (response.statusCode == 200) {
-// Only remove token and user-related data, not all preferences
       await prefs.remove('token');
       await prefs.remove('student_name');
       await prefs.remove('student_email');
       await prefs.remove('student_id');
+      await prefs.remove('profile_picture');
       await prefs.remove('students_data');
-      // ...add/remove other student-specific keys as needed...
-      // Show loading dialog before navigating
+
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => Dialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CircularProgressIndicator(),
-                const SizedBox(height: 24),
-                Text(
-                  "Logging out...",
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
+        builder:
+            (context) => Dialog(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 32,
+                  horizontal: 32,
                 ),
-              ],
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 24),
+                    Text(
+                      "Logging out...",
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
-        ),
       );
       await Future.delayed(const Duration(seconds: 1));
       if (mounted) {
-        Navigator.of(context).pop(); // Close loading dialog
+        Navigator.of(context).pop();
         Navigator.of(context).pushAndRemoveUntil(
-          PageTransition(page: LandingPage()),
+          PageTransition(page: const LandingPage()),
           (route) => false,
         );
       }
     } else {
       showDialog(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Logout Failed'),
-          content: const Text('Unable to logout. Please try again.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
+        builder:
+            (context) => AlertDialog(
+              title: const Text('Logout Failed'),
+              content: const Text('Unable to logout. Please try again.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('OK'),
+                ),
+              ],
             ),
-          ],
-        ),
       );
     }
   }
 
-  // Shows logout confirmation dialog
   void _showLogoutDialog() {
     showDialog(
       context: context,
-      builder: (context) => _LogoutDialog(
-        onStay: () => Navigator.pop(context), // Close dialog
-        onLogout: logout, // Use the logout function above
-      ),
+      builder:
+          (context) => _LogoutDialog(
+            onStay: () => Navigator.pop(context),
+            onLogout: logout,
+          ),
     );
   }
 
-  // Builds the AppBar with dynamic title and actions
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      // Title changes based on selected tab
       title: Text(
         _currentIndex == 0 ? "Student Dashboard" : "Tasks/Activities",
-        style: TextStyle(color: Colors.white),
+        style: const TextStyle(color: Colors.white),
       ),
       backgroundColor: Theme.of(context).colorScheme.primary,
-      iconTheme: IconThemeData(color: Colors.white),
+      iconTheme: const IconThemeData(color: Colors.white),
       actions: [
-        // Profile popup menu with logout option
         _ProfilePopupMenu(onLogout: _showLogoutDialog),
-        // Placeholder for additional actions
-        IconButton(onPressed: () {}, icon: Icon(Icons.more_vert)),
+        IconButton(onPressed: () {}, icon: const Icon(Icons.more_vert)),
       ],
     );
   }
@@ -137,19 +135,13 @@ class _StudentPageState extends State<StudentPage> {
       appBar: _buildAppBar(),
       body: PageView(
         controller: _pageController,
-        // Updates current index when page is changed via swipe
-        onPageChanged: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+        onPageChanged: (index) => setState(() => _currentIndex = index),
         children: _pages,
       ),
-      // Bottom navigation bar for switching between pages
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: _onTabTapped, // Handle tab selection
-        items: [
+        onTap: _onTabTapped,
+        items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "Dashboard"),
           BottomNavigationBarItem(icon: Icon(Icons.task), label: "My Class"),
         ],
@@ -161,144 +153,159 @@ class _StudentPageState extends State<StudentPage> {
   }
 }
 
-// Popup menu for profile and logout actions
-class _ProfilePopupMenu extends StatelessWidget {
+class _ProfilePopupMenu extends StatefulWidget {
   final VoidCallback onLogout;
   const _ProfilePopupMenu({required this.onLogout});
 
-  Future<String> _getStudentName() async {
+  @override
+  State<_ProfilePopupMenu> createState() => _ProfilePopupMenuState();
+}
+
+class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
+  String _studentName = "Student";
+  String? _profilePictureUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStudentData();
+  }
+
+  Future<void> _loadStudentData() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('student_name') ?? "Student";
+    final savedBaseUrl =
+        prefs.getString('base_url') ?? 'http://10.0.2.2:8000/api';
+    final uri = Uri.parse(savedBaseUrl);
+    final baseUrl = '${uri.scheme}://${uri.authority}';
+
+    String? storedProfilePicture = prefs.getString('profile_picture');
+
+    if (storedProfilePicture != null &&
+        storedProfilePicture.isNotEmpty &&
+        !storedProfilePicture.startsWith('http')) {
+      storedProfilePicture =
+          '$baseUrl/storage/profile_images/$storedProfilePicture';
+    }
+
+    setState(() {
+      _studentName = prefs.getString('student_name') ?? "Student";
+      _profilePictureUrl = storedProfilePicture;
+    });
+
+    print('[DEBUG] Loaded profile picture URL: $_profilePictureUrl');
+  }
+
+  Widget _buildProfileAvatar({required double radius}) {
+    if (_profilePictureUrl != null && _profilePictureUrl!.isNotEmpty) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundImage: NetworkImage(_profilePictureUrl!),
+      );
+    } else {
+      return CircleAvatar(
+        radius: radius,
+        backgroundColor: const Color.fromARGB(255, 191, 8, 8),
+        child: Text(
+          _studentName.isNotEmpty ? _studentName[0].toUpperCase() : "S",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: radius,
+          ),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<String>(
-      // Profile avatar as menu icon
-      icon: FutureBuilder<String>(
-        future: _getStudentName(),
-        builder: (context, snapshot) {
-          final studentName = snapshot.data ?? "Student";
-          final firstLetter = studentName.isNotEmpty ? studentName[0].toUpperCase() : "S";
-          return CircleAvatar(
-            radius: 20,
-            backgroundColor: const Color.fromARGB(255, 191, 8, 8),
-            child: Text(
-              firstLetter,
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
-            ),
-          );
-        },
-      ),
+      icon: _buildProfileAvatar(radius: 20),
       tooltip: "Student Profile",
-      onSelected: (value) {
+      onSelected: (value) async {
         if (value == 'logout') {
-          onLogout();
+          widget.onLogout();
         } else if (value == 'profile') {
-          // Show the StudentProfilePage as a modal bottom sheet
-          showModalBottomSheet(
+          await showModalBottomSheet(
             context: context,
             isScrollControlled: true,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            builder: (context) => FractionallySizedBox(
-              heightFactor: 0.85,
-              child: StudentProfilePage(),
-            ),
+            backgroundColor: Colors.transparent,
+            builder:
+                (context) => ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
+                  child: FractionallySizedBox(
+                    heightFactor: 0.85,
+                    child: Material(
+                      color: Theme.of(context).colorScheme.surface,
+                      child: const StudentProfilePage(),
+                    ),
+                  ),
+                ),
           );
+          await _loadStudentData();
         }
       },
-      itemBuilder: (BuildContext context) => [
-        // Profile info section in popup
-        PopupMenuItem(
-          value: 'profile',
-          child: SizedBox(
-            height: 160, // Adjusted height for better spacing
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                FutureBuilder<String>(
-                  future: _getStudentName(),
-                  builder: (context, snapshot) {
-                    final studentName = snapshot.data ?? "Student";
-                    final firstLetter = studentName.isNotEmpty ? studentName[0].toUpperCase() : "S";
-                    return CircleAvatar(
-                      radius: 40,
-                      backgroundColor: const Color.fromARGB(255, 191, 8, 8),
-                      child: Text(
-                        firstLetter,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 30,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                SizedBox(height: 8),
-                FutureBuilder<String>(
-                  future: _getStudentName(),
-                  builder: (context, snapshot) {
-                    final studentName = snapshot.data ?? "Student";
-                    return Text(
-                      studentName,
+      itemBuilder:
+          (context) => [
+            PopupMenuItem(
+              value: 'profile',
+              child: SizedBox(
+                height: 160,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildProfileAvatar(radius: 40),
+                    const SizedBox(height: 8),
+                    Text(
+                      _studentName,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                    );
-                  },
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Student',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.grey,
+                        fontSize: 14,
+                      ),
+                    ),
+                    Divider(
+                      height: 20,
+                      thickness: 1,
+                      color: Colors.grey.shade300,
+                    ),
+                  ],
                 ),
-                SizedBox(height: 4),
-                Text(
-                  'Student',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(color: Colors.grey, fontSize: 14),
-                ),
-                Divider(
-                  height: 20,
-                  thickness: 1,
-                  color: Colors.grey.shade300,
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
-        // Logout option in popup
-        PopupMenuItem(
-          value: 'logout',
-          child: Row(
-            children: [
-              Icon(
-                Icons.logout,
-                color: Theme.of(context).colorScheme.error,
-                size: 24,
+            PopupMenuItem(
+              value: 'logout',
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.logout,
+                    color: Theme.of(context).colorScheme.error,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Logout',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
-              SizedBox(width: 12),
-              Text(
-                'Logout',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyLarge
-                    ?.copyWith(fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-        ),
-      ],
+            ),
+          ],
     );
   }
 }
 
-// Dialog for logout confirmation
 class _LogoutDialog extends StatelessWidget {
   final VoidCallback onStay;
   final VoidCallback onLogout;
@@ -310,36 +317,31 @@ class _LogoutDialog extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Column(
         children: [
-          // Logout icon at top of dialog
           Icon(
             Icons.logout,
             color: Theme.of(context).colorScheme.primary,
             size: 50,
           ),
-          SizedBox(height: 8),
-          // Dialog title
+          const SizedBox(height: 8),
           Text(
             "Are you leaving?",
-            style: Theme.of(context)
-                .textTheme
-                .headlineSmall
-                ?.copyWith(fontWeight: FontWeight.bold, color: Colors.black),
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
       ),
-      // Dialog message
       content: Text(
         "We hope to see you again soon! Are you sure you want to log out?",
-        style: Theme.of(context)
-            .textTheme
-            .bodyMedium
-            ?.copyWith(color: Colors.black87),
+        style: Theme.of(
+          context,
+        ).textTheme.bodyMedium?.copyWith(color: Colors.black87),
         textAlign: TextAlign.center,
       ),
       actionsAlignment: MainAxisAlignment.center,
       actions: [
-        // Stay button closes dialog
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.green,
@@ -348,9 +350,8 @@ class _LogoutDialog extends StatelessWidget {
             ),
           ),
           onPressed: onStay,
-          child: Text("Stay", style: TextStyle(color: Colors.white)),
+          child: const Text("Stay", style: TextStyle(color: Colors.white)),
         ),
-        // Logout button triggers logout callback
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: Theme.of(context).colorScheme.error,
@@ -359,7 +360,7 @@ class _LogoutDialog extends StatelessWidget {
             ),
           ),
           onPressed: onLogout,
-          child: Text("Log Out", style: TextStyle(color: Colors.white)),
+          child: const Text("Log Out", style: TextStyle(color: Colors.white)),
         ),
       ],
     );

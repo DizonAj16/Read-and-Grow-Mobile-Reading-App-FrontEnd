@@ -1,3 +1,4 @@
+import 'package:deped_reading_app_laravel/models/teacher.dart';
 import 'package:flutter/material.dart';
 import 'pupil_submissions_and_report_page.dart';
 import 'teacher dashboard/teacher_dashboard_page.dart';
@@ -20,6 +21,7 @@ class _TeacherPageState extends State<TeacherPage> {
   String _currentTitle = "Teacher Dashboard";
   String _currentRoute = '/dashboard';
   String _teacherName = "Teacher"; // Default
+  String? _profilePicture;
 
   /// Logs out the teacher:
   /// - Calls the API to logout.
@@ -33,62 +35,71 @@ class _TeacherPageState extends State<TeacherPage> {
     final response = await ApiService.logout(token);
 
     if (response.statusCode == 200) {
-      // Only remove token and user-related data, not all preferences
-      await prefs.remove('token');
-      await prefs.remove('teacher_name');
-      await prefs.remove('teacher_position');
-      await prefs.remove('teacher_email');
-      await prefs.remove('username');
-      // ...add/remove other teacher-specific keys as needed...
+      // ✅ Remove authentication and user-specific data
+      await Teacher.clearPrefs();
 
-      // Show loading dialog before navigating
+      // ✅ Remove stored classes and students data
+      await prefs.remove('teacher_classes');
+      await prefs.remove('students_data');
+
+      // ✅ Show logout progress dialog
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => Dialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CircularProgressIndicator(),
-                const SizedBox(height: 24),
-                Text(
-                  "Logging out...",
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
+        builder:
+            (context) => Dialog(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 32,
+                  horizontal: 32,
                 ),
-              ],
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 24),
+                    Text(
+                      "Logging out...",
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
-        ),
       );
+
       await Future.delayed(const Duration(seconds: 1));
+
       if (mounted) {
-        Navigator.of(context).pop(); // Close loading dialog
+        Navigator.of(context).pop(); // Close the loading dialog
         Navigator.of(context).pushAndRemoveUntil(
           PageTransition(page: LandingPage()),
           (route) => false,
         );
       }
     } else {
+      // ❌ Handle logout failure
       showDialog(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Logout Failed'),
-          content: const Text('Unable to logout. Please try again.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
+        builder:
+            (context) => AlertDialog(
+              title: const Text('Logout Failed'),
+              content: const Text('Unable to logout. Please try again.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('OK'),
+                ),
+              ],
             ),
-          ],
-        ),
       );
     }
   }
@@ -98,63 +109,69 @@ class _TeacherPageState extends State<TeacherPage> {
   void _showLogoutConfirmation(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: Column(
-          children: [
-            // Logout icon and title
-            Icon(
-              Icons.logout,
-              color: Theme.of(context).colorScheme.primary,
-              size: 50,
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
-            SizedBox(height: 8),
-            Text(
-              "Are you sure?",
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
+            title: Column(
+              children: [
+                // Logout icon and title
+                Icon(
+                  Icons.logout,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 50,
+                ),
+                SizedBox(height: 8),
+                Text(
+                  "Are you sure?",
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+            // Dialog message
+            content: Text(
+              "You are about to log out. Make sure to save your work before leaving.",
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface,
               ),
               textAlign: TextAlign.center,
             ),
-          ],
-        ),
-        // Dialog message
-        content: Text(
-          "You are about to log out. Make sure to save your work before leaving.",
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: Colors.black87),
-          textAlign: TextAlign.center,
-        ),
-        actionsAlignment: MainAxisAlignment.center,
-        actions: [
-          // Stay button
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+            actionsAlignment: MainAxisAlignment.center,
+            actions: [
+              // Stay button
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () => Navigator.pop(context), // Close dialog
+                child: Text(
+                  "Stay",
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimary,
+                  ),
+                ),
               ),
-            ),
-            onPressed: () => Navigator.pop(context), // Close dialog
-            child: Text("Stay", style: TextStyle(color: Colors.white)),
-          ),
-          // Log out button
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+              // Log out button
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: logout,
+                child: Text("Log Out", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
               ),
-            ),
-            onPressed: logout,
-            child: Text("Log Out", style: TextStyle(color: Colors.white)),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -181,14 +198,12 @@ class _TeacherPageState extends State<TeacherPage> {
   /// Loads the teacher's name from SharedPreferences.
   /// Updates the UI if a name is found.
   Future<void> _loadTeacherName() async {
-    final prefs = await SharedPreferences.getInstance();
-    // Try to get teacher_name from SharedPreferences
-    final name = prefs.getString('teacher_name');
-    if (name != null && name.isNotEmpty) {
-      setState(() {
-        _teacherName = name;
-      });
-    }
+    final teacher = await Teacher.fromPrefs();
+
+    setState(() {
+      _teacherName = teacher.name;
+      _profilePicture = teacher.profilePicture;
+    });
   }
 
   @override
@@ -211,44 +226,75 @@ class _TeacherPageState extends State<TeacherPage> {
           padding: EdgeInsets.zero,
           children: [
             SizedBox(
-              height: 250, // DrawerHeader height
+              height: 230, // DrawerHeader height
               child: DrawerHeader(
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 child: GestureDetector(
                   // Navigate to the teacher profile page on tap
-                  onTap: () {
-                    Navigator.push(
+                  onTap: () async {
+                    await Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => const TeacherProfilePage(),
                       ),
                     );
+                    await _loadTeacherName(); // Reload teacher_name and profile_picture from SharedPreferences
                   },
+
                   child: Column(
                     children: [
                       // Teacher profile avatar with Hero animation
                       Hero(
                         tag: 'teacher-profile-image',
-                        child: CircleAvatar(
-                          backgroundColor: Colors.white70,
-                          radius: 50,
-                          child: ClipOval(
-                            child: Image.asset(
-                              'assets/placeholder/teacher_placeholder.png',
-                              height: 80,
-                              width: 80,
-                              fit: BoxFit.cover,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: CircleAvatar(
+                            backgroundColor: Colors.white70,
+                            radius: 50,
+                            child: ClipOval(
+                              child:
+                                  _profilePicture != null &&
+                                          _profilePicture!.isNotEmpty
+                                      ? Image.network(
+                                        _profilePicture!,
+                                        height: 100,
+                                        width: 100,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (
+                                          context,
+                                          error,
+                                          stackTrace,
+                                        ) {
+                                          return Image.asset(
+                                            'assets/placeholder/teacher_placeholder.png',
+                                            height: 80,
+                                            width: 80,
+                                            fit: BoxFit.cover,
+                                          );
+                                        },
+                                      )
+                                      : Image.asset(
+                                        'assets/placeholder/teacher_placeholder.png',
+                                        height: 80,
+                                        width: 80,
+                                        fit: BoxFit.cover,
+                                      ),
                             ),
                           ),
                         ),
                       ),
+
                       SizedBox(height: 10),
                       // Teacher name label
                       Text(
                         _teacherName, // Use loaded teacher name
-                        style: TextStyle(color: Colors.white, fontSize: 24),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),

@@ -41,8 +41,14 @@ dependencies:
   flutter_tts: ^4.2.2
   http: ^1.4.0
   shared_preferences: ^2.5.3
+  image_picker: ^1.1.1 # use the latest version
+  permission_handler: ^11.0.1
+  intl: ^0.20.2
+
+
 
 dev_dependencies:
+  flutter_launcher_icons: ^0.13.1  # Use latest version
   flutter_test:
     sdk: flutter
 
@@ -57,6 +63,11 @@ dev_dependencies:
 # following page: https://dart.dev/tools/pub/pubspec
 
 # The following section is specific to Flutter packages.
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/logo/reading.png"  # Path to your icon file
 flutter:
 
   # The following line ensures that the Material Icons font is

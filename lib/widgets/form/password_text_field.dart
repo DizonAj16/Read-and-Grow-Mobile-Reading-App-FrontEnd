@@ -38,12 +38,18 @@ class _PasswordTextFieldState extends State<PasswordTextField> {
       decoration: InputDecoration(
         labelText: widget.labelText,
         hintText: widget.hintText,
-        hintStyle: const TextStyle(fontStyle: FontStyle.italic), // <-- italicized
+        hintStyle: TextStyle(
+          fontStyle: FontStyle.italic,
+          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+        ),
         labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface),
         filled: true,
         fillColor: const Color.fromARGB(52, 158, 158, 158),
         // Lock icon at the start
-        prefixIcon: Icon(Icons.lock, color: Theme.of(context).colorScheme.onSurface),
+        prefixIcon: Icon(
+          Icons.lock,
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
         // Eye icon to toggle password visibility
         suffixIcon: IconButton(
           icon: Icon(
@@ -67,7 +73,23 @@ class _PasswordTextFieldState extends State<PasswordTextField> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(12)),
-          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
+          borderSide: BorderSide(
+            color: Theme.of(context).colorScheme.primary,
+            width: 2,
+          ),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(12)),
+          borderSide: BorderSide(color: Colors.red, width: 2),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(12)),
+          borderSide: BorderSide(color: Colors.red, width: 2),
+        ),
+        errorStyle: TextStyle(
+          color: Colors.red,
+          fontWeight: FontWeight.bold,
+          fontSize: 13,
         ),
         contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
       ),

@@ -1,8 +1,7 @@
 import 'package:deped_reading_app_laravel/api/api_service.dart';
 import 'package:deped_reading_app_laravel/models/student.dart';
 import 'package:flutter/material.dart';
-
-
+import 'package:lottie/lottie.dart';
 
 class TeacherStudentListModal extends StatefulWidget {
   final List<Student> allStudents;
@@ -67,145 +66,205 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
     }
   }
 
+  void showLoadingDialog(String lottieAsset, String loadingText) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      useRootNavigator: true,
+      barrierColor: Colors.transparent,
+      builder:
+          (context) => Center(
+            child: Container(
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 100,
+                    height: 100,
+                    child: Lottie.asset(lottieAsset),
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    loadingText,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+    );
+  }
+
+  Future<void> hideLoadingDialog() async {
+    await Future.delayed(Duration(milliseconds: 2500));
+    if (Navigator.of(context, rootNavigator: true).canPop()) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+  }
+
   /// Shows a dialog with student info
   void _showStudentInfoDialog(Student student) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     showDialog(
       context: context,
       builder:
           (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            backgroundColor: colorScheme.surfaceVariant.withOpacity(0.95),
             title: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  Icons.person,
-                  color: Theme.of(context).colorScheme.primary,
-                  size: 32,
+                  Icons.person_pin_rounded,
+                  color: colorScheme.primary,
+                  size: 36,
                 ),
-                SizedBox(width: 8),
-                Text('Student Info'),
+                const SizedBox(width: 10),
+                Text(
+                  'Student Profile',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 22,
+                    color: colorScheme.primary,
+                  ),
+                ),
               ],
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Avatar and Name
+                // Avatar + Name
                 Column(
                   children: [
                     CircleAvatar(
-                      backgroundColor: Theme.of(
-                        context,
-                      ).colorScheme.primary.withOpacity(0.85),
-                      radius: 36,
+                      backgroundColor: colorScheme.primary,
+                      radius: 40,
                       child: Text(
                         student.avatarLetter,
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
-                          fontSize: 32,
+                          fontSize: 34,
                         ),
                       ),
                     ),
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
                     Text(
                       student.studentName,
                       style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 22,
-                        color: Theme.of(context).colorScheme.primary,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: colorScheme.primary,
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       'Username: ${student.username ?? "-"}',
                       style: TextStyle(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withOpacity(0.7),
-                        fontSize: 15,
+                        fontSize: 14,
+                        color: colorScheme.onSurface.withOpacity(0.7),
                       ),
-                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
-                SizedBox(height: 18),
-                // Info section
+                const SizedBox(height: 20),
+                // Info Box
                 Container(
                   decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withOpacity(0.07),
-                    borderRadius: BorderRadius.circular(12),
+                    color: colorScheme.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 16,
+                  ),
                   child: Column(
                     children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.confirmation_number,
-                            color: Theme.of(context).colorScheme.primary,
-                            size: 22,
-                          ),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'LRN: ${student.studentLrn ?? "-"}',
-                              style: TextStyle(fontSize: 16),
-                              textAlign: TextAlign.left,
-                            ),
-                          ),
-                        ],
+                      _infoRow(
+                        icon: Icons.confirmation_num_rounded,
+                        label: 'LRN',
+                        value: student.studentLrn ?? "-",
+                        color: colorScheme.primary,
                       ),
-                      SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.grade,
-                            color: Theme.of(context).colorScheme.primary,
-                            size: 22,
-                          ),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Grade: ${student.studentGrade ?? "-"}',
-                              style: TextStyle(fontSize: 16),
-                              textAlign: TextAlign.left,
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 10),
+                      _infoRow(
+                        icon: Icons.school_rounded,
+                        label: 'Grade',
+                        value: student.studentGrade ?? "-",
+                        color: colorScheme.primary,
                       ),
-                      SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.group,
-                            color: Theme.of(context).colorScheme.primary,
-                            size: 22,
-                          ),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Section: ${student.studentSection ?? "-"}',
-                              style: TextStyle(fontSize: 16),
-                              textAlign: TextAlign.left,
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 10),
+                      _infoRow(
+                        icon: Icons.group_rounded,
+                        label: 'Section',
+                        value: student.studentSection ?? "-",
+                        color: colorScheme.primary,
                       ),
                     ],
                   ),
                 ),
               ],
             ),
+            actionsPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 10,
+            ),
             actions: [
-              TextButton(
+              TextButton.icon(
                 onPressed: () => Navigator.of(context).pop(),
-                child: Text('Close'),
+                icon: Icon(Icons.close, color: colorScheme.primary),
+                label: Text(
+                  'Close',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.primary,
+                  ),
+                ),
               ),
             ],
           ),
+    );
+  }
+
+  Widget _infoRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 24, color: color),
+        const SizedBox(width: 12),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: TextStyle(fontSize: 16, color: color.withOpacity(0.9)),
+              children: [
+                TextSpan(
+                  text: "$label: ",
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                TextSpan(text: value),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -222,7 +281,7 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
             height: 5,
             margin: EdgeInsets.only(bottom: 16),
             decoration: BoxDecoration(
-              color: Colors.grey[400],
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
               borderRadius: BorderRadius.circular(8),
             ),
           ),
@@ -238,7 +297,12 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
             ),
             Row(
               children: [
-                Text("Show: "),
+                Text(
+                  "Show: ",
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
                 DropdownButton<int>(
                   value: _pageSize,
                   items:
@@ -251,66 +315,108 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
                           )
                           .toList(),
                   onChanged: _onPageSizeChanged,
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontSize: 18,
+                  ),
                 ),
-                Text(" per page"),
+                Text(
+                  " per page",
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
               ],
             ),
           ],
         ),
         SizedBox(height: 10),
         if (widget.allStudents.isEmpty)
-          Center(child: Text('No students found.'))
+          Center(
+            child: Text(
+              'No students found.',
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            ),
+          )
         else
           Expanded(
             child: ListView.builder(
               itemCount: paginated.length,
               itemBuilder: (context, index) {
                 final student = paginated[index];
-                return Card(
-                  elevation: 2,
-                  margin: const EdgeInsets.symmetric(
-                    vertical: 6,
-                    horizontal: 0,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                return Container(
+                  margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface.withOpacity(0.97),
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 10,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: ListTile(
+                    contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 18),
                     leading: CircleAvatar(
-                      backgroundColor: Theme.of(
-                        context,
-                      ).colorScheme.primary.withOpacity(0.85),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                       child: Text(
                         student.avatarLetter,
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
-                          fontSize: 20,
+                          fontSize: 24,
                         ),
                       ),
-                      radius: 24,
+                      radius: 28,
                     ),
                     title: Text(
                       student.studentName,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.onSurface,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
+                        fontSize: 18,
                       ),
                     ),
-                    subtitle: Text(
-                      [
-                        if (student.studentSection != null &&
-                            student.studentSection!.isNotEmpty)
-                          "Section: ${student.studentSection}",
-                        if (student.studentGrade != null &&
-                            student.studentGrade!.isNotEmpty)
-                          "Grade: ${student.studentGrade}",
-                      ].join("   "),
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withOpacity(0.7),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Row(
+                        children: [
+                          if (student.studentSection != null && student.studentSection!.isNotEmpty)
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primary.withOpacity(0.10),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                "Section: ${student.studentSection}",
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          if (student.studentGrade != null && student.studentGrade!.isNotEmpty)
+                            Container(
+                              margin: EdgeInsets.only(left: 8),
+                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.secondary.withOpacity(0.10),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                "Grade: ${student.studentGrade}",
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.secondary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                     trailing: PopupMenuButton<String>(
@@ -339,7 +445,15 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
                             context: context,
                             builder:
                                 (context) => AlertDialog(
-                                  title: Text('Edit Student'),
+                                  title: Text(
+                                    '✏️ Edit Student',
+                                    style: TextStyle(
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onSurface,
+                                    ),
+                                  ),
                                   content: SingleChildScrollView(
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
@@ -365,21 +479,33 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
                                     ),
                                   ),
                                   actions: [
-                                    TextButton(
+                                    TextButton.icon(
                                       onPressed:
                                           () => Navigator.pop(context, false),
-                                      child: Text('Cancel'),
+                                      icon: Icon(Icons.cancel),
+                                      label: Text('Cancel'),
                                     ),
-                                    ElevatedButton(
+                                    ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
+                                        foregroundColor: Colors.white,
+                                      ),
                                       onPressed:
                                           () => Navigator.pop(context, true),
-                                      child: Text('Update'),
+                                      icon: Icon(Icons.check),
+                                      label: Text('Update'),
                                     ),
                                   ],
                                 ),
                           );
-
                           if (updated == true) {
+                            showLoadingDialog(
+                              'assets/animation/edit.json',
+                              "Updating Student...",
+                            );
                             try {
                               final response = await ApiService.updateUser(
                                 userId: student.userId!,
@@ -392,6 +518,8 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
                                       sectionController.text.trim(),
                                 },
                               );
+                              await hideLoadingDialog(); // Always close the dialog after the request
+
                               if (response.statusCode == 200) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
@@ -399,17 +527,28 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
                                       children: [
                                         Icon(
                                           Icons.check_circle,
-                                          color: Colors.white,
+                                          color:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.onPrimary,
                                           size: 22,
                                         ),
                                         SizedBox(width: 10),
-                                        Text("Student Updated successfully!"),
+                                        Text(
+                                          "Student Updated successfully!",
+                                          style: TextStyle(
+                                            color:
+                                                Theme.of(
+                                                  context,
+                                                ).colorScheme.onPrimary,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                     backgroundColor: Colors.lightBlue[700],
                                     behavior: SnackBarBehavior.floating,
                                     margin: EdgeInsets.only(
-                                      top: 20,
+                                      top: 80,
                                       left: 20,
                                       right: 20,
                                     ),
@@ -431,6 +570,8 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
                                 );
                               }
                             } catch (e) {
+                              await hideLoadingDialog();
+
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text('Error updating student'),
@@ -440,35 +581,78 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
                             }
                           }
                         } else if (value == 'delete') {
-                          // TODO: Implement delete logic
                           final confirm = await showDialog<bool>(
                             context: context,
                             builder:
                                 (context) => AlertDialog(
                                   title: Row(
                                     children: [
-                                      Icon(Icons.warning, color: Colors.red),
+                                      Icon(
+                                        Icons.warning_amber_rounded,
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
+                                        size: 30,
+                                      ),
+
                                       SizedBox(width: 8),
-                                      Text('Delete Student'),
+                                      Text(
+                                        "Confirm Delete",
+                                        style: TextStyle(
+                                          fontSize: 20,
+                                          color:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.onSurface,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                   content: Text(
-                                    'Are you sure you want to delete this student?',
+                                    "Are you sure you want to delete this class?",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onSurface,
+                                    ),
                                   ),
                                   actions: [
-                                    TextButton(
+                                    TextButton.icon(
+                                      icon: Icon(
+                                        Icons.cancel,
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
+                                      ),
+                                      label: Text('Cancel'),
+                                      style: TextButton.styleFrom(
+                                        foregroundColor:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
+                                      ),
                                       onPressed:
                                           () =>
                                               Navigator.of(context).pop(false),
-                                      child: Text('Cancel'),
                                     ),
-                                    ElevatedButton(
+                                    ElevatedButton.icon(
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.red,
+                                        backgroundColor:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
                                       ),
                                       onPressed:
                                           () => Navigator.of(context).pop(true),
-                                      child: Text(
+                                      icon: Icon(
+                                        Icons.delete,
+                                        color: Colors.white,
+                                      ),
+                                      label: Text(
                                         'Delete',
                                         style: TextStyle(color: Colors.white),
                                       ),
@@ -477,11 +661,16 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
                                 ),
                           );
                           if (confirm == true) {
+                            showLoadingDialog(
+                              'assets/animation/loading4.json',
+                              "Deleting Student...",
+                            );
                             try {
                               if (student.userId != null) {
                                 final response = await ApiService.deleteUser(
                                   student.userId,
                                 );
+                                await hideLoadingDialog();
 
                                 if (response.statusCode == 200) {
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -494,13 +683,21 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
                                             size: 22,
                                           ),
                                           SizedBox(width: 10),
-                                          Text("Student deleted successfully!"),
+                                          Text(
+                                            "Student deleted successfully!",
+                                            style: TextStyle(
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onPrimary,
+                                            ),
+                                          ),
                                         ],
                                       ),
-                                      backgroundColor: Colors.green[700],
+                                      backgroundColor: Colors.red[700],
                                       behavior: SnackBarBehavior.floating,
                                       margin: EdgeInsets.only(
-                                        top: 20,
+                                        top: 80,
                                         left: 20,
                                         right: 20,
                                       ),
@@ -527,6 +724,7 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
                                   );
                                 }
                               } else {
+                                await hideLoadingDialog(); // Ensure the loading closes even if userId is null
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text('Student user ID is missing'),
@@ -535,6 +733,8 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
                                 );
                               }
                             } catch (e) {
+                              await hideLoadingDialog(); // ✅ Ensure the loading closes on error
+
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text('Error deleting student'),
@@ -547,6 +747,16 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
                       },
                       itemBuilder:
                           (context) => [
+                            PopupMenuItem(
+                              value: 'add_to_class',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.add_circle, color: Colors.blue),
+                                  SizedBox(width: 8),
+                                  Text('Add to Class'),
+                                ],
+                              ),
+                            ),
                             PopupMenuItem(
                               value: 'view',
                               child: Row(
@@ -593,6 +803,10 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
             ),
             Text(
               'Page ${widget.allStudents.isEmpty ? 0 : _currentPage + 1} of $totalPages',
+              style: TextStyle(
+                fontSize: 18,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
             ),
             IconButton(
               icon: Icon(Icons.arrow_circle_right_sharp, size: 40),
@@ -606,20 +820,52 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
       ],
     );
   }
-  
-// --- Modal widget for student list (admin-style) ---
 
+  // --- Modal widget for student list (admin-style) ---
 
-Widget _buildInputField(String label, TextEditingController controller) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8.0),
-    child: TextField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(),
+  Widget _buildInputField(
+    String label,
+    TextEditingController controller, {
+    TextInputType inputType = TextInputType.text,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: TextField(
+        controller: controller,
+        keyboardType: inputType,
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: TextStyle(
+            color: colorScheme.primary,
+            fontWeight: FontWeight.w600,
+          ),
+          filled: true,
+          fillColor: colorScheme.primary.withOpacity(0.07),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: colorScheme.primary, width: 2),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: Colors.red, width: 2),
+          ),
+          focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: Colors.red, width: 2),
+          ),
+          contentPadding: EdgeInsets.symmetric(vertical: 18, horizontal: 18),
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 }

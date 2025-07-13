@@ -22,7 +22,7 @@ class LandingPage extends StatelessWidget {
               opacity: 0.25,
               child: Image.asset(
                 'assets/background/480681008_1020230633459316_6070422237958140538_n.jpg',
-                fit: BoxFit.fill,
+                fit: BoxFit.cover,
                 width: double.infinity,
                 height: double.infinity,
               ),

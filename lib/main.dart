@@ -1,3 +1,4 @@
+import 'package:deped_reading_app_laravel/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,47 +9,47 @@ import 'pages/auth pages/landing_page.dart';
 ThemeData buildLightTheme(BuildContext context) {
   return ThemeData.light().copyWith(
     colorScheme: ColorScheme.light(
-      primary: const Color(0xFFE53935),
-      secondary: const Color(0xFFFFD600),
-      surface: const Color(0xFFFFFFFF),
-      background: const Color(0xFFFFFFFF),
-      onPrimary: const Color(0xFFFFFFFF),
-      onSecondary: const Color(0xFF000000),
-      onSurface: const Color(0xFF000000),
-      onBackground: const Color(0xFF000000),
-      error: const Color(0xFFE53935),
+      primary: kPrimaryColor,
+      secondary: kSecondaryColor,
+      surface: kLightSurfaceColor,
+      background: kLightBackgroundColor,
+      onPrimary: kLightOnPrimary,
+      onSecondary: kLightOnSecondary,
+      onSurface: kLightOnSurface,
+      onBackground: kLightOnBackground,
+      error: kPrimaryColor,
     ),
     textTheme: GoogleFonts.poppinsTextTheme(
       Theme.of(context).textTheme.copyWith(
-        headlineLarge: const TextStyle(
+        headlineLarge: TextStyle(
           fontSize: 32,
           fontWeight: FontWeight.bold,
-          color: Color(0xFFE53935),
+          color: kPrimaryColor,
         ),
-        headlineMedium: const TextStyle(
+        headlineMedium: TextStyle(
           fontSize: 28,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF1976D2),
+          color: kHeadlineMediumColor,
         ),
-        headlineSmall: const TextStyle(
+        headlineSmall: TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.w500,
-          color: Color(0xFF388E3C),
+          color: kHeadlineSmallColor,
         ),
-        bodyLarge: const TextStyle(
+        bodyLarge: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w400,
-          color: Color(0xFF000000),
+          color: kLightOnBackground,
         ),
-        bodyMedium: const TextStyle(
+        bodyMedium: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w400,
-          color: Color(0xFF388E3C),
+          color: kHeadlineSmallColor,
         ),
-        bodySmall: const TextStyle(
+        bodySmall: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w300,
-          color: Color(0xFF1976D2),
+          color: kHeadlineMediumColor,
         ),
       ),
     ),
@@ -58,47 +59,47 @@ ThemeData buildLightTheme(BuildContext context) {
 ThemeData buildDarkTheme(BuildContext context) {
   return ThemeData.dark().copyWith(
     colorScheme: ColorScheme.dark(
-      primary: const Color(0xFFE53935),
-      secondary: const Color(0xFFFFD600),
-      surface: const Color(0xFF222222),
-      background: const Color(0xFF121212),
-      onPrimary: const Color(0xFFFFFFFF),
-      onSecondary: const Color(0xFF000000),
-      onSurface: const Color(0xFFFFFFFF),
-      onBackground: const Color(0xFFFFFFFF),
-      error: const Color(0xFFE53935),
+      primary: kPrimaryColor,
+      secondary: kSecondaryColor,
+      surface: kDarkSurfaceColor,
+      background: kDarkBackgroundColor,
+      onPrimary: kDarkOnPrimary,
+      onSecondary: kDarkOnSecondary,
+      onSurface: kDarkOnSurface,
+      onBackground: kDarkOnBackground,
+      error: kPrimaryColor,
     ),
     textTheme: GoogleFonts.poppinsTextTheme(
       Theme.of(context).textTheme.copyWith(
-        headlineLarge: const TextStyle(
+        headlineLarge: TextStyle(
           fontSize: 32,
           fontWeight: FontWeight.bold,
-          color: Color(0xFFFFD600),
+          color: kSecondaryColor,
         ),
-        headlineMedium: const TextStyle(
+        headlineMedium: TextStyle(
           fontSize: 28,
           fontWeight: FontWeight.w600,
-          color: Color(0xFFE53935),
+          color: kPrimaryColor,
         ),
-        headlineSmall: const TextStyle(
+        headlineSmall: TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.w500,
-          color: Color(0xFF388E3C),
+          color: kHeadlineSmallColor,
         ),
-        bodyLarge: const TextStyle(
+        bodyLarge: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w400,
-          color: Color(0xFFFFFFFF),
+          color: kDarkOnBackground,
         ),
-        bodyMedium: const TextStyle(
+        bodyMedium: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w400,
-          color: Color(0xFF1976D2),
+          color: kHeadlineMediumColor,
         ),
-        bodySmall: const TextStyle(
+        bodySmall: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w300,
-          color: Color(0xFFFFD600),
+          color: kSecondaryColor,
         ),
       ),
     ),
@@ -110,7 +111,7 @@ final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
-  await prefs.remove('base_url'); // Clear previous base_url on every app start
+  await prefs.remove('base_url');
   runApp(MyApp());
 }
 
