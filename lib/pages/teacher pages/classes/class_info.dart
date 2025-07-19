@@ -1,4 +1,3 @@
-// lib/class_info.dart
 import 'package:flutter/material.dart';
 
 class ClassInfoPage extends StatelessWidget {
@@ -8,41 +7,95 @@ class ClassInfoPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final surface = Theme.of(context).colorScheme.surface;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Padding(
       padding: const EdgeInsets.all(20),
-      child: Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        color: surface,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _infoTile(context, Icons.class_, "Class Name", classDetails['class_name']),
-              _infoTile(context, Icons.grade, "Grade Level", classDetails['grade_level']),
-              _infoTile(context, Icons.group, "Section", classDetails['section']),
-              _infoTile(context, Icons.people_alt, "Students", "${classDetails['student_count']}"),
-              _infoTile(context, Icons.person, "Teacher", classDetails['teacher_name'] ?? 'N/A'),
-            ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            "📚 Class Information",
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.primary,
+                ),
           ),
-        ),
+          const SizedBox(height: 16),
+
+          // ✅ Each info displayed as its own box
+          _infoBox(
+            context,
+            icon: Icons.class_,
+            label: "Class Name",
+            value: classDetails['class_name'],
+            color: colorScheme.primary,
+          ),
+          _infoBox(
+            context,
+            icon: Icons.grade,
+            label: "Grade Level",
+            value: classDetails['grade_level'],
+            color: Colors.blueAccent,
+          ),
+          _infoBox(
+            context,
+            icon: Icons.group,
+            label: "Section",
+            value: classDetails['section'] ?? "N/A",
+            color: Colors.teal,
+          ),
+          _infoBox(
+            context,
+            icon: Icons.people_alt,
+            label: "Students",
+            value: "${classDetails['student_count']}",
+            color: Colors.deepPurple,
+          ),
+          _infoBox(
+            context,
+            icon: Icons.person,
+            label: "Teacher",
+            value: classDetails['teacher_name'] ?? 'N/A',
+            color: Colors.orangeAccent,
+          ),
+        ],
       ),
     );
   }
 
-  Widget _infoTile(BuildContext context, IconData icon, String label, String? value) {
-    final primary = Theme.of(context).colorScheme.primary;
+  Widget _infoBox(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    final surface = Theme.of(context).colorScheme.surface;
     final onSurface = Theme.of(context).colorScheme.onSurface;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
+        border: Border.all(color: color.withOpacity(0.3), width: 1.2),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: primary, size: 28),
-          const SizedBox(width: 16),
+          CircleAvatar(
+            backgroundColor: color.withOpacity(0.15),
+            child: Icon(icon, color: color),
+          ),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -50,16 +103,17 @@ class ClassInfoPage extends StatelessWidget {
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 14,
-                    color: onSurface.withOpacity(0.7),
+                    fontSize: 13,
+                    color: onSurface.withOpacity(0.6),
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  value ?? 'N/A',
-                  style: const TextStyle(
+                  value,
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 17,
+                    color: onSurface,
                   ),
                 ),
               ],

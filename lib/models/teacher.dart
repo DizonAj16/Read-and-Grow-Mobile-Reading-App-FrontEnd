@@ -33,6 +33,7 @@ class Teacher {
     this.updatedAt,
   });
 
+  /// ✅ Create a Teacher object from SharedPreferences
   static Future<Teacher> fromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     return Teacher(
@@ -48,24 +49,26 @@ class Teacher {
     );
   }
 
-  factory Teacher.fromMap(Map<String, dynamic> map) {
+  /// ✅ Create a Teacher object from JSON or Map (single method)
+  factory Teacher.fromJson(Map<String, dynamic> json) {
     return Teacher(
-      id: _parseInt(map['teacher_id']),
-      userId: _parseInt(map['user_id']),
-      name: map['teacher_name'] ?? 'Teacher',
-      position: map['teacher_position'],
-      email: map['teacher_email'],
-      username: map['username'],
-      profilePicture: map['profile_picture'],
-      createdAt: map['created_at'] != null ? DateTime.tryParse(map['created_at']) : null,
-      updatedAt: map['updated_at'] != null ? DateTime.tryParse(map['updated_at']) : null,
+      id: _parseInt(json['teacher_id']),
+      userId: _parseInt(json['user_id']),
+      name: json['teacher_name'] ?? 'Teacher',
+      position: json['teacher_position'],
+      email: json['teacher_email'],
+      username: json['username'],
+      profilePicture: json['profile_picture'],
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'])
+          : null,
+      updatedAt: json['updated_at'] != null
+          ? DateTime.tryParse(json['updated_at'])
+          : null,
     );
   }
 
-  factory Teacher.fromJson(Map<String, dynamic> json) {
-    return Teacher.fromMap(json);
-  }
-
+  /// ✅ Convert to JSON
   Map<String, dynamic> toJson() => {
         'teacher_id': id,
         'user_id': userId,
@@ -78,6 +81,7 @@ class Teacher {
         'updated_at': updatedAt?.toIso8601String(),
       };
 
+  /// ✅ Save Teacher object to SharedPreferences
   Future<void> saveToPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kNameKey, name);
@@ -85,12 +89,15 @@ class Teacher {
     await prefs.setString(_kEmailKey, email ?? '');
     await prefs.setString(_kUsernameKey, username ?? '');
     await prefs.setString(_kProfilePictureKey, profilePicture ?? '');
-    await prefs.setString(_kCreatedAtKey, createdAt?.toIso8601String() ?? '');
-    await prefs.setString(_kUpdatedAtKey, updatedAt?.toIso8601String() ?? '');
+    await prefs.setString(
+        _kCreatedAtKey, createdAt?.toIso8601String() ?? '');
+    await prefs.setString(
+        _kUpdatedAtKey, updatedAt?.toIso8601String() ?? '');
     if (userId != null) await prefs.setString(_kUserIdKey, userId.toString());
     if (id != null) await prefs.setInt(_kTeacherIdKey, id!);
   }
 
+  /// ✅ Clear Teacher data from SharedPreferences
   static Future<void> clearPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_kTeacherIdKey);
@@ -104,6 +111,7 @@ class Teacher {
     await prefs.remove(_kUpdatedAtKey);
   }
 
+  /// ✅ Helper to safely parse integers
   static int? _parseInt(dynamic value) {
     if (value == null) return null;
     if (value is int) return value;

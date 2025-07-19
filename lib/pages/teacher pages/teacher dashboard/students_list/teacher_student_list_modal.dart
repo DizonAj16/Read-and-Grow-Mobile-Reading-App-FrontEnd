@@ -2,6 +2,7 @@ import 'package:deped_reading_app_laravel/api/api_service.dart';
 import 'package:deped_reading_app_laravel/models/student.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TeacherStudentListModal extends StatefulWidget {
   final List<Student> allStudents;
@@ -111,9 +112,33 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
     }
   }
 
+  Future<String> _getBaseUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedBaseUrl =
+        prefs.getString('base_url') ?? 'http://10.0.2.2:8000/api';
+    final uri = Uri.parse(savedBaseUrl);
+    return '${uri.scheme}://${uri.authority}';
+  }
+
   /// Shows a dialog with student info
-  void _showStudentInfoDialog(Student student) {
+  void _showStudentInfoDialog(Student student) async {
     final colorScheme = Theme.of(context).colorScheme;
+
+    // ✅ Get base URL from SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    final savedBaseUrl =
+        prefs.getString('base_url') ?? 'http://10.0.2.2:8000/api';
+    final uri = Uri.parse(savedBaseUrl);
+    final baseUrl = '${uri.scheme}://${uri.authority}';
+
+    // ✅ Build full image URL if profilePicture exists
+    final String? profileUrl =
+        (student.profilePicture != null && student.profilePicture!.isNotEmpty)
+            ? "$baseUrl/storage/profile_images/${student.profilePicture}"
+            : null;
+
+    // ✅ Debugging the URL
+    debugPrint("🖼️ Student Image URL: $profileUrl");
 
     showDialog(
       context: context,
@@ -134,10 +159,8 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
                 const SizedBox(width: 10),
                 Text(
                   'Student Profile',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 22,
-                    color: colorScheme.primary,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -145,43 +168,45 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Avatar + Name
-                Column(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: colorScheme.primary,
-                      radius: 40,
-                      child: Text(
-                        student.avatarLetter,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 34,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      student.studentName,
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: colorScheme.primary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Username: ${student.username ?? "-"}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: colorScheme.onSurface.withOpacity(0.7),
-                      ),
-                    ),
-                  ],
+                // ✅ Profile Picture (with fallback avatar)
+                CircleAvatar(
+                  radius: 60,
+                  backgroundColor: colorScheme.primary,
+                  backgroundImage:
+                      profileUrl != null
+                          ? NetworkImage(profileUrl)
+                          : null, // ✅ Only load if URL is valid
+                  child:
+                      profileUrl == null
+                          ? Text(
+                            student.avatarLetter,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 54,
+                            ),
+                          )
+                          : null,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  student.studentName,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  student.username ?? "-",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: colorScheme.onSurface.withOpacity(0.7),
+                  ),
                 ),
                 const SizedBox(height: 20),
-                // Info Box
+                // ✅ Info Box
                 Container(
                   decoration: BoxDecoration(
                     color: colorScheme.primary.withOpacity(0.08),
@@ -197,21 +222,21 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
                         icon: Icons.confirmation_num_rounded,
                         label: 'LRN',
                         value: student.studentLrn ?? "-",
-                        color: colorScheme.primary,
+                        color: colorScheme.onSurface,
                       ),
                       const SizedBox(height: 10),
                       _infoRow(
                         icon: Icons.school_rounded,
                         label: 'Grade',
                         value: student.studentGrade ?? "-",
-                        color: colorScheme.primary,
+                        color: colorScheme.onSurface,
                       ),
                       const SizedBox(height: 10),
                       _infoRow(
                         icon: Icons.group_rounded,
                         label: 'Section',
                         value: student.studentSection ?? "-",
-                        color: colorScheme.primary,
+                        color: colorScheme.onSurface,
                       ),
                     ],
                   ),
@@ -257,7 +282,9 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
               children: [
                 TextSpan(
                   text: "$label: ",
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
                 ),
                 TextSpan(text: value),
               ],
@@ -345,75 +372,125 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
               itemBuilder: (context, index) {
                 final student = paginated[index];
                 return Container(
-                  margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
+                  margin: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 0,
+                  ),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface.withOpacity(0.97),
-                    borderRadius: BorderRadius.circular(18),
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
-                        blurRadius: 10,
-                        offset: Offset(0, 4),
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 6,
+                        offset: const Offset(0, 3),
                       ),
                     ],
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+                      width: 1.2,
+                    ),
                   ),
                   child: ListTile(
-                    contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 18),
-                    leading: CircleAvatar(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      child: Text(
-                        student.avatarLetter,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 24,
-                        ),
-                      ),
-                      radius: 28,
+                    contentPadding: EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 18,
                     ),
+                    leading: FutureBuilder<String>(
+                      future:
+                          _getBaseUrl(), // ✅ Get the base URL you saved in SharedPreferences
+                      builder: (context, snapshot) {
+                        String? imageUrl;
+
+                        if (snapshot.hasData &&
+                            student.profilePicture != null &&
+                            student.profilePicture!.isNotEmpty) {
+                          imageUrl =
+                              "${snapshot.data}/storage/profile_images/${student.profilePicture}";
+                          // ✅ DEBUG LOGS
+                          debugPrint("✅ Student: ${student.studentName}");
+                          debugPrint(
+                            "✅ Profile Picture File: ${student.profilePicture}",
+                          );
+                          debugPrint("✅ Full Image URL: $imageUrl");
+                        } else {
+                          debugPrint(
+                            "⚠️ No profile picture for ${student.studentName} ${student.studentGrade} ${student.profilePicture}",
+                          );
+                          debugPrint("✅ Full Image URL: $imageUrl");
+                        }
+
+                        return CircleAvatar(
+                          radius: 28,
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primary,
+                          backgroundImage:
+                              (imageUrl != null)
+                                  ? NetworkImage(imageUrl)
+                                  : null, // ✅ Load network image if available
+                          child:
+                              (imageUrl == null)
+                                  ? Text(
+                                    student
+                                        .avatarLetter, // ✅ Fallback if no image
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 24,
+                                    ),
+                                  )
+                                  : null,
+                        );
+                      },
+                    ),
+
                     title: Text(
                       student.studentName,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary,
                         fontSize: 18,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     subtitle: Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Row(
                         children: [
-                          if (student.studentSection != null && student.studentSection!.isNotEmpty)
+                          if (student.studentSection != null &&
+                              student.studentSection!.isNotEmpty)
                             Container(
-                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.primary.withOpacity(0.10),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.primary.withOpacity(0.10),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
                                 "Section: ${student.studentSection}",
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.primary,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
+                                style: TextStyle(fontSize: 13),
                               ),
                             ),
-                          if (student.studentGrade != null && student.studentGrade!.isNotEmpty)
+                          if (student.studentGrade != null &&
+                              student.studentGrade!.isNotEmpty)
                             Container(
                               margin: EdgeInsets.only(left: 8),
-                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.secondary.withOpacity(0.10),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.secondary.withOpacity(0.10),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
                                 "Grade: ${student.studentGrade}",
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.secondary,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
+                                style: TextStyle(fontSize: 13),
                               ),
                             ),
                         ],

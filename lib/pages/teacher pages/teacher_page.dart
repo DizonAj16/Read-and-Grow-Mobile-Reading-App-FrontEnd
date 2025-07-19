@@ -41,6 +41,7 @@ class _TeacherPageState extends State<TeacherPage> {
       // ✅ Remove stored classes and students data
       await prefs.remove('teacher_classes');
       await prefs.remove('students_data');
+      
 
       // ✅ Show logout progress dialog
       showDialog(
