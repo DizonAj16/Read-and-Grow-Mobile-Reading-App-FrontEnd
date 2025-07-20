@@ -57,28 +57,49 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
         context: context,
         builder: (dialogContext) {
           final primaryColor = Theme.of(dialogContext).colorScheme.primary;
+
           return AlertDialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
             title: Row(
               children: [
-                SizedBox(width: 8),
+                Icon(
+                  Icons.image,
+                  size: 24,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
                 Text(
                   "Confirm Upload",
                   style: TextStyle(
                     fontSize: 20,
                     color: Theme.of(dialogContext).colorScheme.onSurface,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
-            content: Text(
-              "Are you sure you want to upload this profile picture?",
-              style: TextStyle(
-                fontSize: 16,
-                color: Theme.of(dialogContext).colorScheme.onSurface,
-              ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ✅ IMAGE PREVIEW
+                SizedBox(
+                  width: MediaQuery.of(dialogContext).size.width * 0.6,
+                  height: 150,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.file(File(pickedFile.path), fit: BoxFit.cover),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  "Do you want to upload this image as your profile picture?",
+                  style: TextStyle(
+                    color: Theme.of(dialogContext).colorScheme.onSurface,
+                  ),
+                ),
+              ],
             ),
             actionsPadding: const EdgeInsets.symmetric(
               horizontal: 12,
@@ -99,12 +120,12 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
               ),
               ElevatedButton.icon(
                 icon: const Icon(Icons.upload, size: 18),
+                label: const Text("Upload"),
                 onPressed: () {
                   if (dialogContext.mounted) Navigator.pop(dialogContext, true);
                 },
-                label: const Text("Upload"),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(dialogContext).colorScheme.primary,
+                  backgroundColor: primaryColor,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -124,7 +145,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
       }
 
       setState(() {
-        _isUploading = true; 
+        _isUploading = true;
       });
 
       final response = await ApiService.uploadProfilePicture(

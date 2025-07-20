@@ -687,7 +687,7 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
                                     ],
                                   ),
                                   content: Text(
-                                    "Are you sure you want to delete this class?",
+                                    "Are you sure you want to delete this Student?",
                                     style: TextStyle(
                                       fontSize: 16,
                                       color:
