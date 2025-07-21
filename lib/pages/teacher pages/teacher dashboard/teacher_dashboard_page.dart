@@ -23,7 +23,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
   late Future<List<Student>> _studentsFuture;
   late Future<Teacher> _teacherFuture;
   late Future<int> _classCountFuture;
-  late Future<List<Classroom>> _classesFuture; // ✅ use Classroom model
+  late Future<List<Classroom>> _classesFuture;
 
   // Pagination state
   static const List<int> _pageSizes = [2, 5, 10, 20, 50];
@@ -42,7 +42,6 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
 
   void _refreshStudentCount() {
     setState(() {
-      // This will force the FutureBuilder to rebuild
       _studentsFuture = _loadStudents();
     });
   }
@@ -53,7 +52,8 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
       final apiList = await ApiService.fetchAllStudents();
       await ApiService.storeStudentsToPrefs(apiList);
     } catch (_) {
-      // Do nothing
+      // If API fails, try loading from local storage
+      print("Failed to fetch students from API, loading from local storage.");
     }
     final students = await ApiService.getStudentsFromPrefs();
     setState(() {
@@ -184,10 +184,13 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
       final details = await ApiService.getClassDetails(classId);
       if (!context.mounted) return;
 
-      Navigator.of(
+      await Navigator.of(
         context,
         rootNavigator: true,
       ).push(PageTransition(page: ClassDetailsPage(classDetails: details)));
+
+      // ✅ Refresh after returning from ClassDetailsPage
+      _refreshClasses();
     } catch (e) {
       print("Failed to load class details: $e");
       if (!context.mounted) return;
@@ -327,13 +330,6 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
                 );
 
                 try {
-                  print(
-                    "🛠️ Sending update request for class ID ${classroom.id}",
-                  );
-                  print(
-                    "➡️ Payload: class_name='$newClassName', section='$newSection', school_year='$newSchoolYear', grade_level='$parsedGrade'",
-                  );
-
                   final response = await ApiService.updateClass(
                     classId: classroom.id!,
                     body: {
@@ -343,9 +339,6 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
                       'school_year': newSchoolYear,
                     },
                   );
-
-                  print("✅ Response status: ${response.statusCode}");
-                  print("📦 Response body: ${response.body}");
                   await hideLoadingDialog(context);
 
                   if (response.statusCode == 200) {
@@ -396,7 +389,6 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
                     );
                   }
                 } catch (e) {
-                  print("❌ Edit failed: $e");
                   await hideLoadingDialog(context);
                   ScaffoldMessenger.of(
                     dialogContext,
@@ -430,10 +422,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
       keyboardType: inputType,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(
-          color: primaryColor,
-          fontWeight: FontWeight.w600,
-        ),
+        labelStyle: TextStyle(color: primaryColor, fontWeight: FontWeight.w600),
         filled: true,
         fillColor: primaryColor.withOpacity(0.07),
         border: OutlineInputBorder(
@@ -446,10 +435,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(
-            color: primaryColor,
-            width: 2,
-          ),
+          borderSide: BorderSide(color: primaryColor, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
