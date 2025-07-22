@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
+
+import '../../../widgets/student_page_widgets/task_card.dart';
 import '../../activities/activity_controller.dart';
-import '../../../widgets/student_page_widgets/task_card.dart'; // Import the new widget
 
 class TaskListPage extends StatelessWidget {
   final int studentLevel;
 
-  const TaskListPage({super.key, this.studentLevel = 1});
+  const TaskListPage({super.key, required this.studentLevel});
 
   @override
   Widget build(BuildContext context) {
-    // Get the list of tasks for the current student level
     List<Map<String, String>> tasks = _getTasksForLevel(studentLevel);
 
     return ListView.builder(
@@ -17,20 +17,21 @@ class TaskListPage extends StatelessWidget {
       itemCount: tasks.length,
       itemBuilder: (context, index) {
         final task = tasks[index];
-        // Display each task as a TaskCard with status and view action
         return TaskCard(
           title: task['title']!,
           status: task['status']!,
           statusColor:
               task['status'] == "Completed" ? Colors.green : Colors.orange,
           onViewTask: () {
-            // Navigate to ActivityController with slide transition
             Navigator.push(
               context,
               PageRouteBuilder(
                 pageBuilder:
                     (context, animation, secondaryAnimation) =>
-                        ActivityController(activityTitle: task['title']!),
+                        ActivityController(
+                          activityTitle: task['title']!,
+                          studentLevel: studentLevel,
+                        ),
                 transitionsBuilder: (
                   context,
                   animation,
@@ -60,7 +61,6 @@ class TaskListPage extends StatelessWidget {
     );
   }
 
-  // Returns a list of tasks based on the student's level
   List<Map<String, String>> _getTasksForLevel(int level) {
     switch (level) {
       case 1:
@@ -71,41 +71,27 @@ class TaskListPage extends StatelessWidget {
       case 2:
         return [
           {"title": "Task 1", "status": "Pending"},
-          {"title": "Task 2", "status": "Pending"},
-          {"title": "Task 3", "status": "Pending"},
         ];
       case 3:
         return [
           {"title": "Task 1", "status": "Pending"},
-          {"title": "Task 2", "status": "Pending"},
-          {"title": "Task 3", "status": "Pending"},
-          {"title": "Task 4", "status": "Pending"},
         ];
       case 4:
         return [
           {"title": "Task 1", "status": "Pending"},
-          {"title": "Task 2", "status": "Pending"},
-          {"title": "Task 3", "status": "Pending"},
-          {"title": "Task 4", "status": "Pending"},
-          {"title": "Task 5", "status": "Pending"},
-          {"title": "Task 6", "status": "Pending"},
+          {"title": "Task 2", "status": "Pending (Test Checkpoint)"},
+          {"title": "Task 3", "status": "Pending (Test Checkpoint)"},
+          {"title": "Task 4", "status": "Pending (Test Checkpoint)"},
+          {"title": "Task 5", "status": "Pending (Test Checkpoint)"},
         ];
-      case 5:
-        return [
-          {"title": "Task 1", "status": "Pending"},
-          {"title": "Task 2", "status": "Pending"},
-          {"title": "Task 3", "status": "Pending"},
-          {"title": "Task 4", "status": "Pending"},
-          {"title": "Task 5", "status": "Pending"},
-          {"title": "Task 6", "status": "Pending"},
-          {"title": "Task 7", "status": "Pending"},
-          {"title": "Task 8", "status": "Pending"},
-          {"title": "Task 9", "status": "Pending"},
-          {"title": "Task 10", "status": "Pending"},
-          {"title": "Task 11", "status": "Pending"},
-        ];
+      // Level 5 is inactive, so we'll leave this empty for now
       default:
-        return [];
+        return [
+          {"title": "Task 1 - Day 1", "status": "Pending"},
+          {"title": "Task 2 - Day 2", "status": "Pending"},
+          {"title": "Task 3 - Day 3", "status": "Pending"},
+          {"title": "Task 4-5 - Day 4-5", "status": "Pending"},
+        ];
     }
   }
 }
