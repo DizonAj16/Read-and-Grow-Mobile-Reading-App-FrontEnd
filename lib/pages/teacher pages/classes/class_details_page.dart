@@ -35,18 +35,36 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
 
   Future<String> _getBackgroundUrl() async {
     final prefs = await SharedPreferences.getInstance();
-    final baseUrl = prefs.getString('base_url') ?? 'http://10.0.2.2:8000/api';
-    final uri = Uri.parse(baseUrl);
+    String baseUrl = prefs.getString('base_url') ?? 'http://10.0.2.2:8000/api';
+
+    // ✅ Remove `/api` if present
+    if (baseUrl.endsWith('/api')) {
+      baseUrl = baseUrl.replaceAll('/api', '');
+    }
 
     final classId = widget.classDetails['id'].toString();
 
-    // ✅ First, check if we stored an updated background locally
     final storedBg = prefs.getString("class_background_$classId");
     final bgImage = storedBg ?? widget.classDetails['background_image'];
 
+    debugPrint("🖼 Class ID: $classId");
+    debugPrint("🖼 Stored background: $storedBg");
+    debugPrint("🖼 From classDetails: $bgImage");
+
     if (bgImage != null && bgImage.isNotEmpty) {
-      return '${uri.scheme}://${uri.authority}/storage/class_backgrounds/$bgImage';
+      // ✅ If it's already a full URL, just return it
+      if (bgImage.startsWith('http')) {
+        debugPrint("✅ Already full URL: $bgImage");
+        return bgImage;
+      }
+
+      // ✅ Otherwise, construct the full URL
+      final fullUrl = '$baseUrl/storage/class_backgrounds/$bgImage';
+      debugPrint("✅ Final constructed URL: $fullUrl");
+      return fullUrl;
     }
+
+    debugPrint("⚠ No background image found. Using default.");
     return '';
   }
 

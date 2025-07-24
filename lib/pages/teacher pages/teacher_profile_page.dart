@@ -64,11 +64,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
             ),
             title: Row(
               children: [
-                Icon(
-                  Icons.image,
-                  size: 24,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+                Icon(Icons.image, size: 24, color: primaryColor),
                 const SizedBox(width: 8),
                 Text(
                   "Confirm Upload",
@@ -83,18 +79,19 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // ✅ IMAGE PREVIEW
-                SizedBox(
-                  width: MediaQuery.of(dialogContext).size.width * 0.6,
-                  height: 150,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.file(File(pickedFile.path), fit: BoxFit.cover),
+                // ✅ Circular preview (same as profile avatar)
+                CircleAvatar(
+                  radius: 60,
+                  backgroundColor: Colors.white70,
+                  child: CircleAvatar(
+                    radius: 58,
+                    backgroundImage: FileImage(File(pickedFile.path)),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 Text(
-                  "Do you want to upload this image as your profile picture?",
+                  "Do you want to set this as your new profile picture?",
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Theme.of(dialogContext).colorScheme.onSurface,
                   ),

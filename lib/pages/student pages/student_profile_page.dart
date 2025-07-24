@@ -78,6 +78,7 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
       });
 
       // Show confirmation dialog before uploading
+      // Show confirmation dialog before uploading
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) {
@@ -88,7 +89,8 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
             ),
             title: Row(
               children: [
-                SizedBox(width: 8),
+                const Icon(Icons.image, size: 22),
+                const SizedBox(width: 8),
                 Text(
                   "Confirm Upload",
                   style: TextStyle(
@@ -98,12 +100,28 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
                 ),
               ],
             ),
-            content: Text(
-              "Are you sure you want to upload this profile picture?",
-              style: TextStyle(
-                fontSize: 16,
-                color: Theme.of(dialogContext).colorScheme.onSurface,
-              ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ✅ Circular avatar preview, same style as profile picture
+                CircleAvatar(
+                  radius: 60,
+                  backgroundColor: Colors.white70,
+                  child: CircleAvatar(
+                    radius: 58,
+                    backgroundImage: FileImage(File(pickedFile.path)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "Do you want to set this as your new profile picture?",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Theme.of(dialogContext).colorScheme.onSurface,
+                  ),
+                ),
+              ],
             ),
             actionsPadding: const EdgeInsets.symmetric(
               horizontal: 12,
