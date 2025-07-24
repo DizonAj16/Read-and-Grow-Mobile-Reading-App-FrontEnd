@@ -43,10 +43,16 @@ class _StudentPageState extends State<StudentPage> {
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? '';
+
     final response = await ApiService.logout(token);
 
     if (response.statusCode == 200) {
-      await prefs.clear();
+      await prefs.remove('token');
+      await prefs.remove('student_name');
+      await prefs.remove('student_email');
+      await prefs.remove('student_id');
+      await prefs.remove('profile_picture');
+      await prefs.remove('students_data');
 
       showDialog(
         context: context,
@@ -80,7 +86,6 @@ class _StudentPageState extends State<StudentPage> {
               ),
             ),
       );
-
       await Future.delayed(const Duration(seconds: 1));
       if (mounted) {
         Navigator.of(context).pop();
@@ -321,7 +326,7 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
                 children: [
                   Icon(Icons.logout, color: Colors.red),
                   const SizedBox(width: 12),
-                  Text('Logout', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text('Logout'),
                 ],
               ),
             ),

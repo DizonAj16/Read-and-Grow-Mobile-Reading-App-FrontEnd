@@ -55,6 +55,11 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
 
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel(); // stop timer if widget is no longer in the tree
+        return;
+      }
+
       setState(() {
         if (remainingTime > 0) {
           remainingTime--;
@@ -127,6 +132,7 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
     });
   }
 
+  @override
   @override
   void dispose() {
     _timer?.cancel();

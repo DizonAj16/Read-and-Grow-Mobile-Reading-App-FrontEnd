@@ -33,7 +33,7 @@ class TTSHelper {
 
     // If saved voice exists, use it; otherwise assign by gender
     if (_voiceName.isNotEmpty) {
-      await _setVoiceByName(_voiceName);
+      await setVoiceByName(_voiceName);
     } else {
       await setGender(_isMale);
     }
@@ -46,18 +46,21 @@ class TTSHelper {
 
   Future<List<Map<String, String>>> getAvailableVoices() async {
     final voices = await _tts.getVoices;
-    return List<Map<String, String>>.from(
-      voices,
-    ).where((v) => v['locale']?.startsWith('en') ?? false).toList();
+
+    return (voices as List)
+        .where((v) => v is Map && v['locale'] != null && v['name'] != null)
+        .map((v) => Map<String, String>.from(v as Map))
+        .toList();
   }
 
-  Future<void> _setVoiceByName(String name) async {
+  Future<void> setVoiceByName(String name) async {
     final voices = await getAvailableVoices();
     final match = voices.firstWhere((v) => v['name'] == name, orElse: () => {});
-
     if (match.isNotEmpty) {
       await _tts.setVoice({"name": match['name']!, "locale": match['locale']!});
       _voiceName = match['name']!;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('tts_voice', _voiceName);
     }
   }
 
