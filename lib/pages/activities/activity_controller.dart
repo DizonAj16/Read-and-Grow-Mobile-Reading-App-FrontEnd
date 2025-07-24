@@ -4,29 +4,26 @@ import 'package:flutter/material.dart';
 import 'level_1/activity_1.dart';
 import 'level_1/activity_2.dart';
 // Level 2
-import 'level_2/activity3.dart';
+import 'level_2/activity_3.dart';
 // Level 3
-import 'level_3/activity4.dart';
+import 'level_3/activity_4.dart';
 // Level 4
-import 'level_4/activity5.dart';
-import 'level_4/activity6.dart';
-import 'level_4/activity7.dart';
-import 'level_4/activity8.dart';
-import 'level_4/activity9.dart';
+import 'level_4/activity_5.dart';
+import 'level_4/activity_6.dart';
 // Level 5
-import 'level_5/activity10.dart';
-import 'level_5/activity11.dart';
-import 'level_5/activity12.dart';
-import 'level_5/activity13.dart';
+import 'level_5/activity_10.dart';
+import 'level_5/activity_11.dart';
 
 class ActivityController extends StatelessWidget {
   final String activityTitle;
   final int studentLevel;
+  final VoidCallback? onCompleted;
 
   const ActivityController({
     super.key,
     required this.activityTitle,
     required this.studentLevel,
+    this.onCompleted,
   });
 
   @override
@@ -45,6 +42,12 @@ class ActivityController extends StatelessWidget {
 
   Widget _getActivityPage(int level, String activityTitle) {
     debugPrint('Loading: Level $level - $activityTitle');
+
+    // Only allow Task 1 and Task 2 for all grades
+    if (!(activityTitle.contains("Task 1") ||
+        activityTitle.contains("Task 2"))) {
+      return _notFoundWidget(level, activityTitle);
+    }
 
     switch (level) {
       case 1:
@@ -65,9 +68,9 @@ class ActivityController extends StatelessWidget {
   Widget _getLevel1Activity(String activityTitle) {
     switch (activityTitle) {
       case "Task 1":
-        return const Activity1Page();
+        return Activity1Page(onCompleted: onCompleted);
       case "Task 2":
-        return const Activity2Page();
+        return Activity2Page(onCompleted: onCompleted);
       default:
         return _notFoundWidget(1, activityTitle);
     }
@@ -76,7 +79,12 @@ class ActivityController extends StatelessWidget {
   Widget _getLevel2Activity(String activityTitle) {
     switch (activityTitle) {
       case "Task 1":
-        return const Activity3Page();
+        return Activity3Page(onCompleted: onCompleted);
+      case "Task 2":
+        return _notFoundWidget(
+          2,
+          activityTitle,
+        ); // You can add another activity here if needed
       default:
         return _notFoundWidget(2, activityTitle);
     }
@@ -86,8 +94,7 @@ class ActivityController extends StatelessWidget {
     switch (activityTitle) {
       case "Task 1":
       case "Task 2":
-      case "Task 3":
-        return const Activity4Page(); // All map to Activity4Page
+        return Activity4Page(onCompleted: onCompleted);
       default:
         return _notFoundWidget(3, activityTitle);
     }
@@ -96,15 +103,9 @@ class ActivityController extends StatelessWidget {
   Widget _getLevel4Activity(String activityTitle) {
     switch (activityTitle) {
       case "Task 1":
-        return const Activity5Page();
+        return Activity5Page(onCompleted: onCompleted);
       case "Task 2":
-        return const Activity6Page();
-      case "Task 3":
-        return const Activity7Page();
-      case "Task 4":
-        return const Activity8Page();
-      case "Task 5":
-        return const Activity9Page();
+        return Activity6Page(onCompleted: onCompleted);
       default:
         return _notFoundWidget(4, activityTitle);
     }
@@ -113,14 +114,9 @@ class ActivityController extends StatelessWidget {
   Widget _getLevel5Activity(String activityTitle) {
     switch (activityTitle) {
       case "Task 1 - Day 1":
-        return const Activity10Page();
+        return Activity10Page(onCompleted: onCompleted);
       case "Task 2 - Day 2":
-        return const Activity11Page();
-      case "Task 3 - Day 3":
-        return const Activity12Page();
-      case "Task 4-5 - Day 4-5":
-        return const Activity13Page();
-
+        return Activity11Page(onCompleted: onCompleted);
       default:
         return _notFoundWidget(5, activityTitle);
     }

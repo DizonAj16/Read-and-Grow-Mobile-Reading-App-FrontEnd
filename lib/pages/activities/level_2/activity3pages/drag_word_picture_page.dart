@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DragTheWordToPicturePage extends StatefulWidget {
   final VoidCallback? onCompleted;
@@ -127,7 +128,18 @@ class DragTheWordToPicturePageState extends State<DragTheWordToPicturePage>
       showScore = true;
     });
 
+    _saveQuizResults(); // Save to shared preferences
     widget.onCompleted?.call();
+  }
+
+  Future<void> _saveQuizResults() async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+
+    await prefs.setInt('drag_quiz_score', score);
+    await prefs.setInt('drag_quiz_correct', matchedWords.length);
+    await prefs.setInt('drag_quiz_wrong', wrongAnswers);
+    await prefs.setString('drag_quiz_timestamp', now.toIso8601String());
   }
 
   Widget _buildWordCard(String word, bool matched) {
@@ -176,7 +188,6 @@ class DragTheWordToPicturePageState extends State<DragTheWordToPicturePage>
           ),
           const SizedBox(height: 16),
 
-          // Pulsing Timer
           AnimatedBuilder(
             animation: _pulseAnimation,
             builder: (context, child) {

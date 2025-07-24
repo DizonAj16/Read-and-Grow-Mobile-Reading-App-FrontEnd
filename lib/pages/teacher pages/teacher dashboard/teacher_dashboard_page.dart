@@ -673,10 +673,32 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
 
             if (classrooms.isEmpty) {
               return Center(
-                child: Text(
-                  "No classes available",
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface,
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1), // light background
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.school_outlined,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 48,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        "No Classes Available",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ),
                 ),
               );
