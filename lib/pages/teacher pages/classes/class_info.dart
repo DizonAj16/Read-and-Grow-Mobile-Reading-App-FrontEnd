@@ -23,7 +23,7 @@ class ClassInfoPage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          // ✅ Each info displayed as its own box
+          // ✅ Class Name
           _infoBox(
             context,
             icon: Icons.class_,
@@ -31,6 +31,8 @@ class ClassInfoPage extends StatelessWidget {
             value: classDetails['class_name'],
             color: colorScheme.primary,
           ),
+
+          // ✅ Grade Level
           _infoBox(
             context,
             icon: Icons.grade,
@@ -38,6 +40,8 @@ class ClassInfoPage extends StatelessWidget {
             value: classDetails['grade_level'],
             color: Colors.blueAccent,
           ),
+
+          // ✅ Section
           _infoBox(
             context,
             icon: Icons.group,
@@ -45,6 +49,8 @@ class ClassInfoPage extends StatelessWidget {
             value: classDetails['section'] ?? "N/A",
             color: Colors.teal,
           ),
+
+          // ✅ Students Count
           _infoBox(
             context,
             icon: Icons.people_alt,
@@ -52,12 +58,23 @@ class ClassInfoPage extends StatelessWidget {
             value: "${classDetails['student_count']}",
             color: Colors.deepPurple,
           ),
+
+          // ✅ Teacher Name
           _infoBox(
             context,
             icon: Icons.person,
             label: "Teacher",
             value: classDetails['teacher_name'] ?? 'N/A',
             color: Colors.orangeAccent,
+          ),
+
+          // ✅ Classroom Code (NEW)
+          _infoBox(
+            context,
+            icon: Icons.vpn_key, // Key icon to represent code
+            label: "Classroom Code",
+            value: classDetails['classroom_code'] ?? "N/A",
+            color: Colors.redAccent,
           ),
         ],
       ),
