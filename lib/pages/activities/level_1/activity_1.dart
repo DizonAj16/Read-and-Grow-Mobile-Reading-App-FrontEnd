@@ -1,5 +1,6 @@
 import 'package:deped_reading_app_laravel/widgets/helpers/tts_helper.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'activity1pages/ag_family_page.dart';
 import 'activity1pages/fill_in_the_blanks_page.dart';
@@ -8,7 +9,9 @@ import 'activity1pages/match_words_to_pictures_page.dart';
 import 'activity1pages/reading_page.dart';
 
 class Activity1Page extends StatefulWidget {
-  const Activity1Page({super.key});
+  final VoidCallback? onCompleted;
+
+  const Activity1Page({super.key, this.onCompleted});
 
   @override
   State<Activity1Page> createState() => _Activity1PageState();
@@ -19,7 +22,6 @@ class _Activity1PageState extends State<Activity1Page> {
   int _currentPage = 0;
   late List<bool> _completed;
   late List<Widget> _pages;
-
   late TTSHelper _ttsHelper;
 
   @override
@@ -27,7 +29,9 @@ class _Activity1PageState extends State<Activity1Page> {
     super.initState();
     _ttsHelper = TTSHelper();
     _ttsHelper.init();
+
     _completed = List.filled(5, false);
+
     _pages = [
       AgFamilyPage(onCompleted: () => _markComplete(0)),
       MatchPicturesPage(onCompleted: () => _markComplete(1)),
@@ -35,6 +39,43 @@ class _Activity1PageState extends State<Activity1Page> {
       FillInTheBlanksPage(onCompleted: () => _markComplete(3)),
       ReadingPage(onCompleted: () => _markComplete(4), ttsHelper: _ttsHelper),
     ];
+
+    _loadProgress(); // ✅ Restore saved progress
+  }
+
+  /// ✅ Save current progress in SharedPreferences
+  Future<void> _saveProgress() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('activity1_currentPage', _currentPage);
+    await prefs.setStringList(
+      'activity1_completed',
+      _completed.map((e) => e.toString()).toList(),
+    );
+  }
+
+  /// ✅ Load saved progress from SharedPreferences
+  Future<void> _loadProgress() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedPage = prefs.getInt('activity1_currentPage');
+    final completedList = prefs.getStringList('activity1_completed');
+
+    if (savedPage != null &&
+        completedList != null &&
+        completedList.length == _completed.length) {
+      setState(() {
+        _currentPage = savedPage;
+        _completed = completedList.map((e) => e == 'true').toList();
+        _pageController.jumpToPage(_currentPage);
+      });
+    } else {
+      _resetProgress(); // fallback if data is invalid
+    }
+  }
+
+  void _resetProgress() {
+    _currentPage = 0;
+    _completed = List.filled(5, false);
+    _pageController.jumpToPage(0);
   }
 
   void _markComplete(int index) {
@@ -42,12 +83,14 @@ class _Activity1PageState extends State<Activity1Page> {
       setState(() {
         _completed[index] = true;
       });
+      _saveProgress();
     }
   }
 
   void _goToPage(int index) {
     setState(() => _currentPage = index);
     _pageController.jumpToPage(index);
+    _saveProgress();
   }
 
   void _goToPreviousPage() {
@@ -61,26 +104,47 @@ class _Activity1PageState extends State<Activity1Page> {
     }
   }
 
-  void _goToNextPage() {
+  void _goToNextPage() async {
     if (_currentPage < _pages.length - 1 && _completed[_currentPage]) {
       setState(() => _currentPage++);
       _goToPage(_currentPage);
     } else if (_currentPage == _pages.length - 1 && _completed[_currentPage]) {
-      showDialog(
-        context: context,
-        builder:
-            (_) => AlertDialog(
-              title: const Text('Activity Complete!'),
-              content: const Text('You have completed all the pages.'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('OK'),
-                ),
-              ],
-            ),
-      );
+      await _saveTaskStatus("Task 1", "Completed");
+      await _clearProgress(); // ✅ Clear saved progress
+
+      widget.onCompleted?.call();
+
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder:
+              (_) => AlertDialog(
+                title: const Text('Activity Complete!'),
+                content: const Text('You have completed all the pages.'),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.pop(context);
+                    },
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+        );
+      }
     }
+  }
+
+  Future<void> _clearProgress() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('activity1_currentPage');
+    await prefs.remove('activity1_completed');
+  }
+
+  Future<void> _saveTaskStatus(String title, String status) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString("task_status_$title", status);
   }
 
   Widget _recreatePage(int index) {
@@ -105,6 +169,7 @@ class _Activity1PageState extends State<Activity1Page> {
 
   @override
   void dispose() {
+    _saveProgress(); // ✅ Save before closing
     _pageController.dispose();
     super.dispose();
   }

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TheBirdMultipleChoicePage extends StatefulWidget {
   final VoidCallback? onCompleted;
@@ -108,8 +109,19 @@ class _TheBirdMultipleChoicePageState extends State<TheBirdMultipleChoicePage> {
       setState(() {
         finished = true;
       });
+      _saveQuizResults(); // Save to shared preferences
       widget.onCompleted?.call();
     }
+  }
+
+  Future<void> _saveQuizResults() async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+
+    await prefs.setDouble('mcq_score', totalScore);
+    await prefs.setInt('mcq_correct', correctCount);
+    await prefs.setInt('mcq_wrong', wrongCount);
+    await prefs.setString('mcq_timestamp', now.toIso8601String());
   }
 
   void showFeedbackDialog(bool isCorrect, String message) {

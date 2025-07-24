@@ -167,8 +167,8 @@ class _DrawAnimalsPageState extends State<DrawAnimalsPage>
                     children: [
                       Image.asset(
                         isCorrect
-                            ? "assets/activity_images/happy.png"
-                            : "assets/activity_images/sad.png",
+                            ? "assets/animation/correct.json"
+                            : "assets/animation/wrong.json",
                         width: 80,
                         height: 80,
                       ),

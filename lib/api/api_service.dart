@@ -102,14 +102,29 @@ class ApiService {
       final data = jsonDecode(response.body);
 
       final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('token', data['token']); // ✅ Store token
       await prefs.setString('role', data['role']);
 
       if (data['role'] == 'teacher' && data['details'] != null) {
         await _storeTeacherDetails(data['details']);
         await _fetchAndStoreTeacherClasses();
       }
+
       if (data['role'] == 'student' && data['details'] != null) {
         await _storeStudentDetails(data['details']);
+
+        // ✅ Store the student's assigned classes (if available)
+        if (data['student_class'] != null) {
+          List<Classroom> classes =
+              (data['student_class'] as List)
+                  .map(
+                    (json) =>
+                        Classroom.fromJson(Map<String, dynamic>.from(json)),
+                  )
+                  .toList();
+
+          await storeStudentClassesToPrefs(classes);
+        }
       }
     }
 
@@ -352,6 +367,44 @@ class ApiService {
     return Classroom.decodeList(jsonString);
   }
 
+  static Future<List<Classroom>> getStudentClasses() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    if (token == null) throw Exception('No auth token found');
+
+    final url = Uri.parse('${await getBaseUrl()}/students/my-classes');
+    final response = await http.get(url, headers: _authHeaders(token));
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      if (data['success'] == true && data['data'] != null) {
+        final List<dynamic> classes = data['data'];
+        return classes
+            .map((json) => Classroom.fromJson(Map<String, dynamic>.from(json)))
+            .toList();
+      } else {
+        return [];
+      }
+    } else {
+      throw Exception('Failed to fetch student classes');
+    }
+  }
+
+  static Future<void> storeStudentClassesToPrefs(
+    List<Classroom> classes,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('student_classes', Classroom.encodeList(classes));
+  }
+
+  static Future<List<Classroom>> getStudentClassesFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonString = prefs.getString('student_classes');
+    if (jsonString == null) return [];
+    return Classroom.decodeList(jsonString);
+  }
+
   static Future<http.StreamedResponse> uploadProfilePicture({
     required String userId,
     required String role,
@@ -416,9 +469,7 @@ class ApiService {
     final token = prefs.getString('token');
     if (token == null) throw Exception('No auth token found');
 
-    final url = Uri.parse(
-      '${await getBaseUrl()}/classrooms/$classId/students',
-    );
+    final url = Uri.parse('${await getBaseUrl()}/classrooms/$classId/students');
     final response = await http.get(url, headers: _authHeaders(token));
 
     if (response.statusCode == 200) {
@@ -440,7 +491,9 @@ class ApiService {
     final token = prefs.getString('token');
     if (token == null) throw Exception('No auth token found');
 
-    final url = Uri.parse('${await getBaseUrl()}/classrooms/students/unassigned');
+    final url = Uri.parse(
+      '${await getBaseUrl()}/classrooms/students/unassigned',
+    );
     final response = await http.get(url, headers: _authHeaders(token));
 
     if (response.statusCode == 200) {
@@ -457,20 +510,23 @@ class ApiService {
   }
 
   static Future<http.StreamedResponse> uploadClassBackground({
-  required int classId,
-  required String filePath,
-}) async {
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString('token');
-  if (token == null) throw Exception('No auth token found');
+    required int classId,
+    required String filePath,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    if (token == null) throw Exception('No auth token found');
 
-  final url = Uri.parse('${await getBaseUrl()}/classrooms/$classId/upload-background');
-  final request = http.MultipartRequest('POST', url);
+    final url = Uri.parse(
+      '${await getBaseUrl()}/classrooms/$classId/upload-background',
+    );
+    final request = http.MultipartRequest('POST', url);
 
-  request.headers.addAll(_authHeaders(token));
-  request.files.add(await http.MultipartFile.fromPath('background_image', filePath));
+    request.headers.addAll(_authHeaders(token));
+    request.files.add(
+      await http.MultipartFile.fromPath('background_image', filePath),
+    );
 
-  return await request.send();
-}
-
+    return await request.send();
+  }
 }

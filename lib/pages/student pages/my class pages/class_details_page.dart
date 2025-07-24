@@ -1,17 +1,24 @@
 import 'package:flutter/material.dart';
-
 import 'student_list_page.dart';
 import 'task_list_page.dart';
 import 'teacher_info_page.dart';
 
 class ClassDetailsPage extends StatefulWidget {
   final String className;
-  final int studentLevel;
+  final String backgroundImage;
+  final String teacherName;
+  final String teacherEmail;
+  final String teacherPosition;
+  final String? teacherAvatar;
 
   const ClassDetailsPage({
     super.key,
     required this.className,
-    required this.studentLevel,
+    required this.backgroundImage,
+    required this.teacherName,
+    required this.teacherEmail,
+    required this.teacherPosition,
+    this.teacherAvatar,
   });
 
   @override
@@ -22,6 +29,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
   int _currentIndex = 0;
   final PageController _pageController = PageController();
 
+  // Handles tab selection and animates to the selected page
   void _onTabTapped(int index) {
     setState(() {
       _currentIndex = index;
@@ -37,6 +45,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: NestedScrollView(
+        // Builds the sliver app bar with class title and background
         headerSliverBuilder:
             (context, innerBoxIsScrolled) => [
               SliverAppBar(
@@ -46,6 +55,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
                 iconTheme: IconThemeData(color: Colors.white),
                 flexibleSpace: FlexibleSpaceBar(
                   centerTitle: true,
+                  // Animated class title using Hero
                   title: Hero(
                     tag: 'class-title-${widget.className}',
                     child: Material(
@@ -68,6 +78,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
                       ),
                     ),
                   ),
+                  // Background image with gradient overlay
                   background: Stack(
                     fit: StackFit.expand,
                     children: [
@@ -78,10 +89,16 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
                             Colors.black.withOpacity(0.25),
                             BlendMode.darken,
                           ),
-                          child: Image.asset(
-                            'assets/background/classroombg.jpg',
-                            fit: BoxFit.cover,
-                          ),
+                          child:
+                              widget.backgroundImage.startsWith('http')
+                                  ? Image.network(
+                                    widget.backgroundImage,
+                                    fit: BoxFit.cover,
+                                  )
+                                  : Image.asset(
+                                    widget.backgroundImage,
+                                    fit: BoxFit.cover,
+                                  ),
                         ),
                       ),
                       Container(
@@ -103,25 +120,25 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
                 ),
               ),
             ],
+        // PageView for switching between tasks, students, and teacher info
         body: PageView(
           controller: _pageController,
-          onPageChanged: (index) {
-            if (_currentIndex != index) {
-              setState(() {
-                _currentIndex = index;
-              });
-            }
-          },
           children: [
-            TaskListPage(studentLevel: widget.studentLevel),
+            TaskListPage(),
             StudentListPage(),
-            TeacherInfoPage(),
+            TeacherInfoPage(
+              teacherName: widget.teacherName,
+              teacherEmail: widget.teacherEmail,
+              teacherPosition: widget.teacherPosition,
+              teacherAvatar: widget.teacherAvatar,
+            ),
           ],
         ),
       ),
+      // Bottom navigation bar for tab switching
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: _onTabTapped,
+        onTap: _onTabTapped, // Handle tab selection
         items: [
           BottomNavigationBarItem(icon: Icon(Icons.task), label: "Tasks"),
           BottomNavigationBarItem(icon: Icon(Icons.people), label: "Students"),
