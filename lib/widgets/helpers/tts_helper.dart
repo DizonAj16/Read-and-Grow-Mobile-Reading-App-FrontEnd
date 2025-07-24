@@ -31,8 +31,9 @@ class TTSHelper {
     await _tts.setSpeechRate(_rate);
     await _tts.setPitch(_pitch);
 
+    // If saved voice exists, use it; otherwise assign by gender
     if (_voiceName.isNotEmpty) {
-      await _tts.setVoice({"name": _voiceName});
+      await _setVoiceByName(_voiceName);
     } else {
       await setGender(_isMale);
     }
@@ -47,19 +48,31 @@ class TTSHelper {
     final voices = await _tts.getVoices;
     return List<Map<String, String>>.from(
       voices,
-    ).where((v) => (v['locale']?.startsWith('en') ?? false)).toList();
+    ).where((v) => v['locale']?.startsWith('en') ?? false).toList();
+  }
+
+  Future<void> _setVoiceByName(String name) async {
+    final voices = await getAvailableVoices();
+    final match = voices.firstWhere((v) => v['name'] == name, orElse: () => {});
+
+    if (match.isNotEmpty) {
+      await _tts.setVoice({"name": match['name']!, "locale": match['locale']!});
+      _voiceName = match['name']!;
+    }
   }
 
   Future<void> setGender(bool isMale) async {
     final voices = await getAvailableVoices();
 
-    Map<String, String>? matchedVoice = voices.firstWhere(
+    // Try matching by gender key
+    Map<String, String>? match = voices.firstWhere(
       (v) => v['gender']?.toLowerCase() == (isMale ? 'male' : 'female'),
       orElse: () => {},
     );
 
-    if (matchedVoice.isEmpty) {
-      matchedVoice = voices.firstWhere(
+    // Fallback: Try matching by name containing 'male'/'female'
+    if (match.isEmpty) {
+      match = voices.firstWhere(
         (v) =>
             (v['name']?.toLowerCase().contains(isMale ? 'male' : 'female')) ??
             false,
@@ -67,16 +80,15 @@ class TTSHelper {
       );
     }
 
-    _voiceName = matchedVoice['name'] ?? '';
-    _isMale = isMale;
+    if (match.isNotEmpty) {
+      _voiceName = match['name'] ?? '';
+      _isMale = isMale;
+      await _tts.setVoice({"name": match['name']!, "locale": match['locale']!});
 
-    if (_voiceName.isNotEmpty) {
-      await _tts.setVoice({"name": _voiceName});
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('tts_voice', _voiceName);
+      await prefs.setBool('tts_is_male', _isMale);
     }
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('tts_voice', _voiceName);
-    await prefs.setBool('tts_is_male', _isMale);
   }
 
   String get voiceName => _voiceName;
@@ -99,19 +111,12 @@ class TTSHelper {
   }
 
   Future<void> speak(String text) async {
+    if (!_isInitialized) await init();
     if (text.trim().isEmpty) return;
 
-    _tts.setStartHandler(() {
-      _isSpeaking = true;
-    });
-
-    _tts.setCompletionHandler(() {
-      _isSpeaking = false;
-    });
-
-    _tts.setErrorHandler((msg) {
-      _isSpeaking = false;
-    });
+    _tts.setStartHandler(() => _isSpeaking = true);
+    _tts.setCompletionHandler(() => _isSpeaking = false);
+    _tts.setErrorHandler((msg) => _isSpeaking = false);
 
     await _tts.speak(text);
   }
@@ -130,20 +135,16 @@ class TTSHelper {
     for (int i = 0; i < texts.length; i++) {
       final text = texts[i];
 
-      if (onHighlight != null) onHighlight(i);
-      if (onStart != null) onStart();
+      onHighlight?.call(i);
+      onStart?.call();
 
       final completer = Completer<void>();
 
-      _tts.setStartHandler(() {
-        _isSpeaking = true;
-      });
-
+      _tts.setStartHandler(() => _isSpeaking = true);
       _tts.setCompletionHandler(() {
         _isSpeaking = false;
         if (!completer.isCompleted) completer.complete();
       });
-
       _tts.setErrorHandler((msg) {
         _isSpeaking = false;
         if (!completer.isCompleted) completer.complete();
@@ -155,8 +156,7 @@ class TTSHelper {
     }
 
     _clearHandlers();
-
-    if (onHighlight != null) onHighlight(-1);
+    onHighlight?.call(-1);
     onComplete?.call();
   }
 
@@ -165,9 +165,7 @@ class TTSHelper {
     await _tts.stop();
   }
 
-  Future<bool> isSpeaking() async {
-    return _isSpeaking;
-  }
+  Future<bool> isSpeaking() async => _isSpeaking;
 
   void _clearHandlers() {
     _tts.setCompletionHandler(() {});

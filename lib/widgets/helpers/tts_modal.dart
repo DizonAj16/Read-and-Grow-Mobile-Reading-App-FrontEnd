@@ -16,6 +16,10 @@ class _TTSSettingsModalState extends State<TTSSettingsModal> {
   late bool _isMale;
   late String _voiceName;
 
+  bool _isSaving = false;
+  bool _isSaved = false;
+  bool _isSpeaking = false;
+
   @override
   void initState() {
     super.initState();
@@ -26,153 +30,250 @@ class _TTSSettingsModalState extends State<TTSSettingsModal> {
   }
 
   Future<void> _saveSettings() async {
+    setState(() {
+      _isSaving = true;
+      _isSaved = false;
+    });
+
     await widget.ttsHelper.setRate(_rate);
     await widget.ttsHelper.setPitch(_pitch);
     await widget.ttsHelper.setGender(_isMale);
+
     setState(() {
       _voiceName = widget.ttsHelper.voiceName;
+      _isSaving = false;
+      _isSaved = true;
     });
+
+    await Future.delayed(const Duration(seconds: 1));
+    if (mounted) Navigator.pop(context);
+  }
+
+  Future<void> _previewVoice() async {
+    if (_isSpeaking) return;
+
+    setState(() => _isSpeaking = true);
+    await widget.ttsHelper.setRate(_rate);
+    await widget.ttsHelper.setPitch(_pitch);
+    await widget.ttsHelper.setGender(_isMale);
+    setState(() => _voiceName = widget.ttsHelper.voiceName);
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Playing voice preview...')));
+
+    await widget.ttsHelper.speak(
+      "This is how I will sound when I read to you.",
+    );
+
+    setState(() => _isSpeaking = false);
   }
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Row(
-        children: const [
-          Icon(Icons.settings, color: Colors.indigo),
-          SizedBox(width: 8),
-          Text('TTS Voice Settings'),
-        ],
-      ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildSection(
-              label: "Voice Gender",
-              child: DropdownButton<bool>(
-                value: _isMale,
-                isExpanded: true,
-                items: const [
-                  DropdownMenuItem(value: true, child: Text("Male")),
-                  DropdownMenuItem(value: false, child: Text("Female")),
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: const [
+                  Icon(Icons.settings, color: Colors.indigo, size: 28),
+                  SizedBox(width: 10),
+                  Text(
+                    'TTS Voice Settings',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                 ],
-                onChanged: (value) async {
-                  if (value != null) {
-                    setState(() => _isMale = value);
-                    await widget.ttsHelper.setGender(_isMale);
-                    setState(() => _voiceName = widget.ttsHelper.voiceName);
-                  }
-                },
               ),
-            ),
+              const SizedBox(height: 20),
 
-            _buildSliderSection(
-              title: "Speech Rate",
-              value: _rate,
-              min: 0.1,
-              max: 1.0,
-              divisions: 9,
-              iconLow: Icons.slow_motion_video,
-              iconHigh: Icons.speed,
-              onChanged: (value) => setState(() => _rate = value),
-            ),
-
-            _buildSliderSection(
-              title: "Pitch",
-              value: _pitch,
-              min: 0.5,
-              max: 2.0,
-              divisions: 15,
-              iconLow: Icons.music_note,
-              iconHigh: Icons.music_video,
-              onChanged: (value) => setState(() => _pitch = value),
-            ),
-
-            const SizedBox(height: 12),
-
-            if (_voiceName.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.record_voice_over,
-                      size: 20,
-                      color: Colors.indigo,
+              _buildSection(
+                label: "Voice Gender",
+                child: DropdownButtonFormField<bool>(
+                  value: _isMale,
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        "Voice: $_voiceName",
-                        style: const TextStyle(fontStyle: FontStyle.italic),
-                        overflow: TextOverflow.ellipsis,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: true, child: Text("Male")),
+                    DropdownMenuItem(value: false, child: Text("Female")),
+                  ],
+                  onChanged:
+                      _isSaving
+                          ? null
+                          : (value) async {
+                            if (value != null) {
+                              setState(() => _isMale = value);
+                              await widget.ttsHelper.setGender(_isMale);
+                              setState(
+                                () => _voiceName = widget.ttsHelper.voiceName,
+                              );
+                            }
+                          },
+                ),
+              ),
+
+              _buildSliderSection(
+                title: "Speech Rate",
+                value: _rate,
+                min: 0.1,
+                max: 1.0,
+                divisions: 9,
+                iconLow: Icons.slow_motion_video,
+                iconHigh: Icons.speed,
+                onChanged:
+                    _isSaving ? null : (value) => setState(() => _rate = value),
+              ),
+
+              _buildSliderSection(
+                title: "Pitch",
+                value: _pitch,
+                min: 0.5,
+                max: 2.0,
+                divisions: 15,
+                iconLow: Icons.music_note,
+                iconHigh: Icons.music_video,
+                onChanged:
+                    _isSaving
+                        ? null
+                        : (value) => setState(() => _pitch = value),
+              ),
+
+              if (_voiceName.isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.only(top: 10),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.record_voice_over,
+                        size: 20,
+                        color: Colors.indigo,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          "Voice: $_voiceName",
+                          style: const TextStyle(fontStyle: FontStyle.italic),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              const SizedBox(height: 24),
+
+              ElevatedButton.icon(
+                icon: const Icon(Icons.volume_up),
+                label: const Text("Preview Voice"),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  backgroundColor: Colors.indigo,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 2,
+                ),
+                onPressed: (_isSaving || _isSpeaking) ? null : _previewVoice,
+              ),
+
+              const SizedBox(height: 20),
+
+              if (_isSaved)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green),
+                      SizedBox(width: 8),
+                      Text(
+                        "Settings saved!",
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: Colors.green,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed:
+                          _isSaving ? null : () => Navigator.pop(context),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.grey.shade700,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text("Cancel"),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon:
+                          _isSaving
+                              ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2.2,
+                                ),
+                              )
+                              : const Icon(Icons.save),
+                      label: Text(_isSaving ? "Saving..." : "Save"),
+                      onPressed: _isSaving ? null : _saveSettings,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-
-            const SizedBox(height: 20),
-
-            ElevatedButton.icon(
-              icon: const Icon(Icons.volume_up),
-              label: const Text("Preview Voice"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.indigo,
-                foregroundColor: Colors.white,
-                minimumSize: const Size.fromHeight(45),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onPressed: () async {
-                await widget.ttsHelper.setRate(_rate);
-                await widget.ttsHelper.setPitch(_pitch);
-                await widget.ttsHelper.setGender(_isMale);
-                setState(() => _voiceName = widget.ttsHelper.voiceName);
-                await widget.ttsHelper.speak(
-                  "This is a preview of your voice settings.",
-                );
-              },
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-      actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text("Cancel"),
-        ),
-        ElevatedButton.icon(
-          icon: const Icon(Icons.save),
-          onPressed: () async {
-            await _saveSettings();
-            Navigator.pop(context);
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          label: const Text("Save"),
-        ),
-      ],
     );
   }
 
   Widget _buildSection({required String label, required Widget child}) {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      margin: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(16),
         color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -180,7 +281,7 @@ class _TTSSettingsModalState extends State<TTSSettingsModal> {
           Text(
             label,
             style: const TextStyle(
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w600,
               fontSize: 14,
               color: Colors.black87,
             ),
@@ -200,7 +301,7 @@ class _TTSSettingsModalState extends State<TTSSettingsModal> {
     required int divisions,
     required IconData iconLow,
     required IconData iconHigh,
-    required ValueChanged<double> onChanged,
+    required ValueChanged<double>? onChanged,
   }) {
     return _buildSection(
       label: title,
@@ -216,7 +317,6 @@ class _TTSSettingsModalState extends State<TTSSettingsModal> {
                 inactiveTrackColor: Colors.grey.shade300,
                 thumbColor: Colors.indigo,
                 overlayColor: Colors.indigo.withOpacity(0.2),
-                valueIndicatorColor: Colors.indigo,
               ),
               child: Slider(
                 value: value,
