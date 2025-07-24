@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class FillInTheBlanksPage extends StatefulWidget {
   final VoidCallback? onCompleted;
@@ -31,7 +32,7 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage>
   String userAnswer = "";
 
   static const int maxScore = 100;
-  static const int totalTime = 120; // 2 minutes total
+  static const int totalTime = 120;
 
   Timer? timer;
 
@@ -110,9 +111,20 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage>
         timer?.cancel();
         _pulseController.stop();
         setState(() => isFinished = true);
+        _saveQuizResults(); // Save using shared_preferences
         widget.onCompleted?.call();
       }
     });
+  }
+
+  Future<void> _saveQuizResults() async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+
+    await prefs.setInt('fill_blanks_score', totalScore.clamp(0, maxScore));
+    await prefs.setInt('fill_blanks_correct', correctAnswers);
+    await prefs.setInt('fill_blanks_wrong', wrongAnswers);
+    await prefs.setString('fill_blanks_timestamp', now.toIso8601String());
   }
 
   void resetQuiz() {
@@ -218,7 +230,6 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage>
     if (isFinished) return Scaffold(body: _buildScorePage());
 
     final current = questions[currentQuestionIndex];
-
     Color timerColor = remainingTime <= 10 ? Colors.red : Colors.green;
 
     return Scaffold(

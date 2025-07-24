@@ -32,7 +32,7 @@ class _IcfsReadingPageState extends State<IcfsReadingPage>
   ];
 
   late List<String> allWords;
-  late List<MapEntry<int, int>> wordMap; // Map word index to paragraph and word
+  late List<MapEntry<int, int>> wordMap;
 
   @override
   void initState() {
@@ -192,28 +192,28 @@ class _IcfsReadingPageState extends State<IcfsReadingPage>
                               height: 1.8,
                               color: Colors.black,
                             ),
-                            children:
-                                words.asMap().entries.map((entry) {
-                                  final wIndex = entry.key;
-                                  final word = entry.value;
-                                  final isHighlighted =
-                                      pIndex == currentParagraphIndex &&
-                                      wIndex == currentWordIndex;
-
-                                  return TextSpan(
-                                    text: '$word ',
-                                    style: TextStyle(
-                                      color:
-                                          isHighlighted
-                                              ? Colors.red
-                                              : Colors.black,
-                                      fontWeight:
-                                          isHighlighted
-                                              ? FontWeight.bold
-                                              : FontWeight.normal,
-                                    ),
-                                  );
-                                }).toList(),
+                            children: [
+                              for (
+                                int wIndex = 0;
+                                wIndex < words.length;
+                                wIndex++
+                              )
+                                TextSpan(
+                                  text: '${words[wIndex]} ',
+                                  style: TextStyle(
+                                    color:
+                                        (pIndex == currentParagraphIndex &&
+                                                wIndex == currentWordIndex)
+                                            ? Colors.red
+                                            : Colors.black,
+                                    fontWeight:
+                                        (pIndex == currentParagraphIndex &&
+                                                wIndex == currentWordIndex)
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       );

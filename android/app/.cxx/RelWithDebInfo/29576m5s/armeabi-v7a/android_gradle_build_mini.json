@@ -1,0 +1,20 @@
+{
+  "buildFiles": [
+    "C:\\src\\flutter\\packages\\flutter_tools\\gradle\\src\\main\\groovy\\CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "C:\\Users\\ASUS TUF GAMING\\AppData\\Local\\Android\\Sdk\\cmake\\3.22.1\\bin\\ninja.exe",
+      "-C",
+      "C:\\src\\Read-and-Grow-Mobile-Reading-App-FrontEnd-Algeo\\android\\app\\.cxx\\RelWithDebInfo\\29576m5s\\armeabi-v7a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "C:\\Users\\ASUS TUF GAMING\\AppData\\Local\\Android\\Sdk\\cmake\\3.22.1\\bin\\ninja.exe",
+    "-C",
+    "C:\\src\\Read-and-Grow-Mobile-Reading-App-FrontEnd-Algeo\\android\\app\\.cxx\\RelWithDebInfo\\29576m5s\\armeabi-v7a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {}
+}

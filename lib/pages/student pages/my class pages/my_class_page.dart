@@ -1,116 +1,153 @@
+import 'package:deped_reading_app_laravel/api/api_service.dart';
+import 'package:deped_reading_app_laravel/models/classroom.dart';
 import 'package:flutter/material.dart';
 
 import 'class_details_page.dart';
 
 class MyClassPage extends StatefulWidget {
-  const MyClassPage({super.key});
+  const MyClassPage({Key? key}) : super(key: key);
 
   @override
-  _MyClassPageState createState() => _MyClassPageState();
+  State<MyClassPage> createState() => _MyClassPageState();
 }
 
 class _MyClassPageState extends State<MyClassPage> {
-  List<Map<String, dynamic>> classList = [];
-  bool isLoading = true;
-  bool _isDisposed = false;
+  late Future<List<Classroom>> _futureClasses;
 
   @override
   void initState() {
     super.initState();
-    loadClasses();
+    _futureClasses = _loadClasses();
   }
 
-  @override
-  void dispose() {
-    _isDisposed = true;
-    super.dispose();
+  Future<List<Classroom>> _loadClasses() async {
+    try {
+      List<Classroom> savedClasses =
+          await ApiService.getStudentClassesFromPrefs();
+      if (savedClasses.isNotEmpty) return savedClasses;
+
+      List<Classroom> fetchedClasses = await ApiService.getStudentClasses();
+      await ApiService.storeStudentClassesToPrefs(fetchedClasses);
+      return fetchedClasses;
+    } catch (e) {
+      List<Classroom> savedClasses =
+          await ApiService.getStudentClassesFromPrefs();
+      return savedClasses.isNotEmpty ? savedClasses : [];
+    }
   }
 
-  Future<void> loadClasses() async {
-    await Future.delayed(Duration(seconds: 2));
-
-    if (!mounted || _isDisposed) return;
-
-    setState(() {
-      classList = [
-        {
-          'className': 'English 1',
-          'sectionName': 'Grade 1 - Section A',
-          'teacherName': 'Teacher A',
-          'backgroundImage': 'assets/background/classroombg.jpg',
-          'studentLevel': 1,
-        },
-        {
-          'className': 'English 2',
-          'sectionName': 'Grade 2 - Section B',
-          'teacherName': 'Teacher B',
-          'backgroundImage': 'assets/background/classroombg.jpg',
-          'studentLevel': 2,
-        },
-        {
-          'className': 'English 3',
-          'sectionName': 'Grade 3 - Section C',
-          'teacherName': 'Teacher C',
-          'backgroundImage': 'assets/background/classroombg.jpg',
-          'studentLevel': 3,
-        },
-        {
-          'className': 'English 4',
-          'sectionName': 'Grade 4 - Section D',
-          'teacherName': 'Teacher D',
-          'backgroundImage': 'assets/background/classroombg.jpg',
-          'studentLevel': 4,
-        },
-        {
-          'className': 'English 5',
-          'sectionName': 'Grade 5 - Section E',
-          'teacherName': 'Teacher E',
-          'backgroundImage': 'assets/background/classroombg.jpg',
-          'studentLevel': 5,
-        },
-      ];
-      isLoading = false;
-    });
+  Future<void> _refresh() async {
+    try {
+      setState(() {
+        _futureClasses = ApiService.getStudentClasses().then((fetchedClasses) {
+          ApiService.storeStudentClassesToPrefs(fetchedClasses);
+          return fetchedClasses;
+        });
+      });
+    } catch (e) {
+      setState(() {
+        _futureClasses = _loadClasses();
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
+      body: RefreshIndicator(
+        onRefresh: _refresh,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Text(
-                "My Class",
+                "My Classes",
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: Theme.of(context).colorScheme.primary,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Expanded(
-                child:
-                    isLoading
-                        ? Center(child: CircularProgressIndicator())
-                        : ListView.builder(
-                          itemCount: classList.length,
-                          itemBuilder: (context, index) {
-                            final classItem = classList[index];
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 16.0),
-                              child: ClassCard(
-                                className: classItem['className'],
-                                sectionName: classItem['sectionName'],
-                                teacherName: classItem['teacherName'],
-                                backgroundImage: classItem['backgroundImage'],
-                                studentLevel: classItem['studentLevel'],
-                              ),
-                            );
-                          },
+                child: FutureBuilder<List<Classroom>>(
+                  future: _futureClasses,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    } else if (snapshot.hasError) {
+                      return Center(
+                        child: Text(
+                          "Failed to load classes. Please pull to refresh.",
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                            fontSize: 16,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
+                      );
+                    } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      return Center(
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.blue.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.school_outlined,
+                                color: Theme.of(context).colorScheme.primary,
+                                size: 48,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                "You are not assigned to any classes yet.",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    final classes = snapshot.data!;
+                    return ListView.builder(
+                      itemCount: classes.length,
+                      itemBuilder: (context, index) {
+                        final classItem = classes[index];
+                        return ClassCard(
+                          className: classItem.className,
+                          sectionName:
+                              "${classItem.gradeLevel} - ${classItem.section}",
+                          teacherName: classItem.teacherName ?? "N/A",
+                          backgroundImage: 'assets/background/classroombg.jpg',
+                          realBackgroundImage:
+                              classItem.backgroundImage ??
+                              'assets/background/classroombg.jpg',
+                          teacherEmail: classItem.teacherEmail ?? "No email",
+                          teacherPosition:
+                              classItem.teacherPosition ?? "Teacher",
+                          teacherAvatar: classItem.teacherAvatar,
+                          gradeLevel:
+                              int.tryParse(classItem.gradeLevel.toString()) ??
+                              0,
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
             ],
           ),
@@ -125,21 +162,30 @@ class ClassCard extends StatelessWidget {
   final String sectionName;
   final String teacherName;
   final String backgroundImage;
-  final int studentLevel;
+  final String realBackgroundImage;
+  final String teacherEmail;
+  final String teacherPosition;
+  final String? teacherAvatar;
+  final int gradeLevel;
 
   const ClassCard({
-    super.key,
+    Key? key,
     required this.className,
     required this.sectionName,
     required this.teacherName,
     required this.backgroundImage,
-    required this.studentLevel,
-  });
+    required this.realBackgroundImage,
+    required this.teacherEmail,
+    required this.teacherPosition,
+    this.teacherAvatar,
+    required this.gradeLevel,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Card(
       elevation: 3,
+      margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         height: 150,
@@ -179,12 +225,17 @@ class ClassCard extends StatelessWidget {
                     Navigator.push(
                       context,
                       PageRouteBuilder(
-                        transitionDuration: Duration(milliseconds: 600),
+                        transitionDuration: const Duration(milliseconds: 600),
                         pageBuilder:
                             (context, animation, secondaryAnimation) =>
                                 ClassDetailsPage(
                                   className: className,
-                                  studentLevel: studentLevel,
+                                  backgroundImage: realBackgroundImage,
+                                  teacherName: teacherName,
+                                  teacherEmail: teacherEmail,
+                                  teacherPosition: teacherPosition,
+                                  teacherAvatar: teacherAvatar,
+                                  gradeLevel: gradeLevel,
                                 ),
                         transitionsBuilder: (
                           context,
@@ -211,13 +262,13 @@ class ClassCard extends StatelessWidget {
                               Icons.visibility,
                               color: Theme.of(context).colorScheme.primary,
                             ),
-                            SizedBox(width: 8),
-                            Text('View Class'),
+                            const SizedBox(width: 8),
+                            const Text('View Class'),
                           ],
                         ),
                       ),
                     ],
-                icon: Icon(Icons.more_vert, color: Colors.white),
+                icon: const Icon(Icons.more_vert, color: Colors.white),
               ),
             ),
             Padding(
@@ -233,7 +284,7 @@ class ClassCard extends StatelessWidget {
                         className,
                         style: Theme.of(
                           context,
-                        ).textTheme.headlineMedium?.copyWith(
+                        ).textTheme.headlineSmall?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                         ),
@@ -247,11 +298,11 @@ class ClassCard extends StatelessWidget {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  Spacer(),
+                  const Spacer(),
                   Row(
                     children: [
-                      Icon(Icons.person_3_rounded, color: Colors.white),
-                      SizedBox(width: 8),
+                      const Icon(Icons.person_3_rounded, color: Colors.white),
+                      const SizedBox(width: 8),
                       Text(
                         teacherName,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(

@@ -1,5 +1,8 @@
-import 'package:flutter/material.dart';
 import 'dart:math';
+
+import 'package:deped_reading_app_laravel/api/api_service.dart';
+import 'package:deped_reading_app_laravel/models/student.dart'; // Adjust if needed
+import 'package:flutter/material.dart';
 
 class StudentListPage extends StatefulWidget {
   @override
@@ -7,65 +10,50 @@ class StudentListPage extends StatefulWidget {
 }
 
 class _StudentListPageState extends State<StudentListPage> {
-  // Generate a list of random students for demo purposes
-  final List<Map<String, dynamic>> _students = List.generate(20, (index) {
-    // Generate random student data
-    final random = Random();
-    final firstNames = [
-      "Alice",
-      "Bob",
-      "Charlie",
-      "Diana",
-      "Eve",
-      "Frank",
-      "Grace",
-      "Hank",
-      "Ivy",
-      "Jack",
-    ];
-    final lastNames = [
-      "Johnson",
-      "Smith",
-      "Davis",
-      "Evans",
-      "Brown",
-      "Wilson",
-      "Taylor",
-      "Anderson",
-      "Thomas",
-      "Moore",
-    ];
-    final colors = [
-      Colors.red,
-      Colors.blue,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.teal,
-      Colors.pink,
-    ];
-    final firstName = firstNames[random.nextInt(firstNames.length)];
-    final lastName = lastNames[random.nextInt(lastNames.length)];
-    final avatarColor = colors[random.nextInt(colors.length)];
-    return {
-      "name": "$firstName $lastName",
-      "avatarLetter": firstName[0],
-      "avatarColor": avatarColor,
-    };
-  });
-
+  List<Student> _students = [];
+  Map<int, Color> _avatarColors = {}; // student.id -> avatar color
   int _currentPage = 0;
-  final int _studentsPerPage = 6; // Number of students per page
+  final int _studentsPerPage = 6;
   final PageController _pageController = PageController();
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchStudents();
+  }
+
+  Future<void> _fetchStudents() async {
+    try {
+      final fetchedStudents = await ApiService.fetchClassmates();
+      setState(() {
+        _students = fetchedStudents;
+        _avatarColors = {
+          for (var student in fetchedStudents)
+            student.id:
+                Colors.primaries[Random().nextInt(Colors.primaries.length)],
+        };
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to fetch students.';
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final int totalStudents = _students.length;
-    final int totalPages = (totalStudents / _studentsPerPage).ceil();
+    if (_isLoading) return Center(child: CircularProgressIndicator());
+    if (_error != null) return Center(child: Text(_error!));
+
+    final totalStudents = _students.length;
+    final totalPages = (totalStudents / _studentsPerPage).ceil();
 
     return Column(
       children: [
-        // Display total number of students at the top
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: Text(
@@ -75,24 +63,18 @@ class _StudentListPageState extends State<StudentListPage> {
             ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
         ),
-        // PageView for paginated student grid
         Expanded(
           child: PageView.builder(
             controller: _pageController,
-            onPageChanged: (index) {
-              setState(() {
-                _currentPage = index;
-              });
-            },
+            onPageChanged: (index) => setState(() => _currentPage = index),
             itemCount: totalPages,
             itemBuilder: (context, pageIndex) {
-              final List<Map<String, dynamic>> studentsToShow =
+              final studentsToShow =
                   _students
                       .skip(pageIndex * _studentsPerPage)
                       .take(_studentsPerPage)
                       .toList();
 
-              // Grid of student cards for the current page
               return GridView.builder(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16.0,
@@ -107,18 +89,19 @@ class _StudentListPageState extends State<StudentListPage> {
                 itemCount: studentsToShow.length,
                 itemBuilder: (context, index) {
                   final student = studentsToShow[index];
+                  final color = _avatarColors[student.id] ?? Colors.grey;
                   return _buildStudentCard(
                     context,
-                    name: student["name"]!,
-                    avatarLetter: student["avatarLetter"]!,
-                    avatarColor: student["avatarColor"]!,
+                    name: student.studentName,
+                    avatarLetter: student.avatarLetter,
+
+                    avatarColor: color,
                   );
                 },
               );
             },
           ),
         ),
-        // Pagination indicators (dots) for page navigation
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 8.0),
           child: Row(
@@ -152,7 +135,6 @@ class _StudentListPageState extends State<StudentListPage> {
     );
   }
 
-  // Builds a card widget for each student with avatar, name, and actions
   Widget _buildStudentCard(
     BuildContext context, {
     required String name,
@@ -164,7 +146,6 @@ class _StudentListPageState extends State<StudentListPage> {
       elevation: 2,
       child: Stack(
         children: [
-          // Student avatar and name
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Center(
@@ -192,7 +173,6 @@ class _StudentListPageState extends State<StudentListPage> {
               ),
             ),
           ),
-          // Popup menu for student actions (e.g., view profile)
           Positioned(
             top: 8,
             right: 8,
@@ -221,13 +201,15 @@ class _StudentListPageState extends State<StudentListPage> {
                                 ),
                                 SizedBox(height: 16),
                                 Text(
-                                  name, // Student name in dialog
-                                  style: Theme.of(context).textTheme.headlineSmall
+                                  name,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineSmall
                                       ?.copyWith(fontWeight: FontWeight.bold),
                                 ),
                                 SizedBox(height: 8),
                                 Text(
-                                  "Current Level: 1", // Placeholder for student level
+                                  "Current Level: 1", // Placeholder
                                   style: Theme.of(context).textTheme.bodyMedium,
                                   textAlign: TextAlign.center,
                                 ),
@@ -245,7 +227,7 @@ class _StudentListPageState extends State<StudentListPage> {
                 }
               },
               itemBuilder:
-                  (BuildContext context) => [
+                  (context) => [
                     PopupMenuItem(
                       value: 'view_profile',
                       child: Row(
