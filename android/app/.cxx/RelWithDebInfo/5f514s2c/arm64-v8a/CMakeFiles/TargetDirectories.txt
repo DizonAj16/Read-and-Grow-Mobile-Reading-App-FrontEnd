@@ -1,0 +1,2 @@
+C:/Read-and-Grow-Mobile-Reading-App-FrontEnd-Algeo/android/app/.cxx/RelWithDebInfo/5f514s2c/arm64-v8a/CMakeFiles/edit_cache.dir
+C:/Read-and-Grow-Mobile-Reading-App-FrontEnd-Algeo/android/app/.cxx/RelWithDebInfo/5f514s2c/arm64-v8a/CMakeFiles/rebuild_cache.dir

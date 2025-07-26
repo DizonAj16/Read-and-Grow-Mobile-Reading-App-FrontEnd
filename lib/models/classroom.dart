@@ -8,8 +8,12 @@ class Classroom {
   final String schoolYear;
   final int studentCount;
   final int teacherId;
+
   final String? teacherName;
-  final String? backgroundImage; // ✅ NEW field
+  final String? teacherEmail;      // ✅ NEW
+  final String? teacherPosition;   // ✅ NEW
+  final String? teacherAvatar;     // ✅ NEW
+  final String? backgroundImage;
 
   Classroom({
     this.id,
@@ -20,7 +24,10 @@ class Classroom {
     required this.studentCount,
     required this.teacherId,
     this.teacherName,
-    this.backgroundImage, // ✅ Constructor updated
+    this.teacherEmail,
+    this.teacherPosition,
+    this.teacherAvatar,
+    this.backgroundImage,
   });
 
   factory Classroom.fromJson(Map<String, dynamic> json) {
@@ -33,7 +40,10 @@ class Classroom {
       studentCount: json['student_count'] ?? 0,
       teacherId: json['teacher_id'] ?? 0,
       teacherName: json['teacher_name'] ?? 'Unknown',
-      backgroundImage: json['background_image'], // ✅ Map from API
+      teacherEmail: json['teacher_email'],          // ✅
+      teacherPosition: json['teacher_position'],    // ✅
+      teacherAvatar: json['teacher_avatar'],        // ✅
+      backgroundImage: json['background_image'],
     );
   }
 
@@ -47,7 +57,10 @@ class Classroom {
       'student_count': studentCount,
       'teacher_id': teacherId,
       'teacher_name': teacherName,
-      'background_image': backgroundImage, // ✅ Include in JSON
+      'teacher_email': teacherEmail,
+      'teacher_position': teacherPosition,
+      'teacher_avatar': teacherAvatar,
+      'background_image': backgroundImage,
     };
   }
 
