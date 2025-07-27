@@ -387,7 +387,9 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
                       ),
                     ],
                     border: Border.all(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withOpacity(0.5),
                       width: 1.2,
                     ),
                   ),
@@ -824,16 +826,6 @@ class TeacherStudentListModalState extends State<TeacherStudentListModal> {
                       },
                       itemBuilder:
                           (context) => [
-                            PopupMenuItem(
-                              value: 'add_to_class',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.add_circle, color: Colors.blue),
-                                  SizedBox(width: 8),
-                                  Text('Add to Class'),
-                                ],
-                              ),
-                            ),
                             PopupMenuItem(
                               value: 'view',
                               child: Row(

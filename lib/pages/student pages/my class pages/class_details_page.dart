@@ -1,13 +1,28 @@
 import 'package:flutter/material.dart';
+
 import 'student_list_page.dart';
 import 'task_list_page.dart';
 import 'teacher_info_page.dart';
 
 class ClassDetailsPage extends StatefulWidget {
   final String className;
+  final String backgroundImage;
+  final String teacherName;
+  final String teacherEmail;
+  final String teacherPosition;
+  final String? teacherAvatar;
+  final int gradeLevel; // 👈 Add this line
 
-  const ClassDetailsPage({super.key, required this.className});
-
+  const ClassDetailsPage({
+    super.key,
+    required this.className,
+    required this.backgroundImage,
+    required this.teacherName,
+    required this.teacherEmail,
+    required this.teacherPosition,
+    this.teacherAvatar,
+    required this.gradeLevel, // 👈 Include here too
+  });
   @override
   _ClassDetailsPageState createState() => _ClassDetailsPageState();
 }
@@ -33,85 +48,92 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
     return Scaffold(
       body: NestedScrollView(
         // Builds the sliver app bar with class title and background
-        headerSliverBuilder: (context, innerBoxIsScrolled) => [
-          SliverAppBar(
-            expandedHeight: 180,
-            pinned: true,
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            iconTheme: IconThemeData(color: Colors.white),
-            flexibleSpace: FlexibleSpaceBar(
-              centerTitle: true,
-              // Animated class title using Hero
-              title: Hero(
-                tag: 'class-title-${widget.className}',
-                child: Material(
-                  color: Colors.transparent,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    child: Text(
-                      widget.className,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 26,
-                        letterSpacing: 1.2,
+        headerSliverBuilder:
+            (context, innerBoxIsScrolled) => [
+              SliverAppBar(
+                expandedHeight: 180,
+                pinned: true,
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                iconTheme: IconThemeData(color: Colors.white),
+                flexibleSpace: FlexibleSpaceBar(
+                  centerTitle: true,
+                  // Animated class title using Hero
+                  title: Hero(
+                    tag: 'class-title-${widget.className}',
+                    child: Material(
+                      color: Colors.transparent,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        child: Text(
+                          widget.className,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 26,
+                            letterSpacing: 1.2,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
-                      textAlign: TextAlign.center,
                     ),
+                  ),
+                  // Background image with gradient overlay
+                  background: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Hero(
+                        tag: 'class-bg-${widget.className}',
+                        child: ColorFiltered(
+                          colorFilter: ColorFilter.mode(
+                            Colors.black.withOpacity(0.25),
+                            BlendMode.darken,
+                          ),
+                          child:
+                              widget.backgroundImage.startsWith('http')
+                                  ? Image.network(
+                                    widget.backgroundImage,
+                                    fit: BoxFit.cover,
+                                  )
+                                  : Image.asset(
+                                    widget.backgroundImage,
+                                    fit: BoxFit.cover,
+                                  ),
+                        ),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.black.withOpacity(0.7),
+                              Colors.transparent,
+                              Colors.black.withOpacity(0.5),
+                            ],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            stops: [0.0, 0.6, 1.0],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              // Background image with gradient overlay
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Hero(
-                    tag: 'class-bg-${widget.className}',
-                    child: ColorFiltered(
-                      colorFilter: ColorFilter.mode(
-                        Colors.black.withOpacity(0.25),
-                        BlendMode.darken,
-                      ),
-                      child: Image.asset(
-                        'assets/background/classroombg.jpg',
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.black.withOpacity(0.7),
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.5),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        stops: [0.0, 0.6, 1.0],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+            ],
         // PageView for switching between tasks, students, and teacher info
         body: PageView(
           controller: _pageController,
-          onPageChanged: (index) {
-            // Only update state if index changes to avoid unnecessary builds
-            if (_currentIndex != index) {
-              setState(() {
-                _currentIndex = index;
-              });
-            }
-          },
           children: [
-            TaskListPage(),      // Tasks tab
-            StudentListPage(),   // Students tab
-            TeacherInfoPage(),   // Teacher info tab
+            TaskListPage(studentLevel: widget.gradeLevel),
+            StudentListPage(),
+            TeacherInfoPage(
+              teacherName: widget.teacherName,
+              teacherEmail: widget.teacherEmail,
+              teacherPosition: widget.teacherPosition,
+              teacherAvatar: widget.teacherAvatar,
+            ),
           ],
         ),
       ),

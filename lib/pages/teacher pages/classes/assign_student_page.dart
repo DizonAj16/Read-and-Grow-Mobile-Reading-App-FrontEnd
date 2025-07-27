@@ -231,7 +231,21 @@ class _AssignStudentPageState extends State<AssignStudentPage> {
                         "Unassign",
                         style: TextStyle(fontSize: 13),
                       ),
-                      onPressed: () => _unassignStudent(student),
+                      onPressed: () async {
+                        // ✅ Unassign
+                        final confirmed = await _showConfirmationDialog(
+                          title: "Unassign Student",
+                          content:
+                              "Are you sure you want to unassign ${student.studentName} from this class? All the student's data will be lost.",
+                          highlightText:
+                              student.studentName, // ✅ Highlights in red
+                          confirmText: "Unassign",
+                          isDestructive: true,
+                        );
+                        if (confirmed) {
+                          _unassignStudent(student);
+                        }
+                      },
                     )
                     : ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
@@ -250,7 +264,19 @@ class _AssignStudentPageState extends State<AssignStudentPage> {
                         "Assign",
                         style: TextStyle(fontSize: 13),
                       ),
-                      onPressed: () => _assignStudent(student),
+                      onPressed: () async {
+                        final confirmed = await _showConfirmationDialog(
+                          title: "Assign Student",
+                          content:
+                              "Are you sure you want to assign ${student.studentName} to this class?",
+                          highlightText:
+                              student.studentName, // ✅ Highlights in blue
+                          confirmText: "Assign",
+                        );
+                        if (confirmed) {
+                          _assignStudent(student);
+                        }
+                      },
                     ),
               ],
             ),
@@ -273,6 +299,100 @@ class _AssignStudentPageState extends State<AssignStudentPage> {
         ),
       ),
     );
+  }
+
+  Future<bool> _showConfirmationDialog({
+    required String title,
+    required String content,
+    String? highlightText, // ✅ Dynamic text to highlight
+    String confirmText = "Yes",
+    String cancelText = "Cancel",
+    bool isDestructive = false,
+  }) async {
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              title: Row(
+                children: [
+                  Icon(
+                    isDestructive
+                        ? Icons.warning_amber_rounded
+                        : Icons.help_outline,
+                    color: isDestructive ? Colors.redAccent : Colors.blue,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              content:
+                  highlightText != null
+                      ? RichText(
+                        text: TextSpan(
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                          children: _buildHighlightedText(
+                            content,
+                            highlightText,
+                            isDestructive ? Colors.redAccent : Colors.blue,
+                          ),
+                        ),
+                      )
+                      : Text(content),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text(cancelText),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        isDestructive ? Colors.redAccent : Colors.blue,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () => Navigator.pop(context, true),
+                  child: Text(confirmText),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+  }
+
+  /// ✅ Helper: Splits the text and highlights the first occurrence only
+  List<TextSpan> _buildHighlightedText(
+    String content,
+    String highlight,
+    Color highlightColor,
+  ) {
+    final startIndex = content.indexOf(highlight);
+
+    if (startIndex == -1) {
+      return [TextSpan(text: content)];
+    }
+
+    return [
+      TextSpan(text: content.substring(0, startIndex)),
+      TextSpan(
+        text: highlight,
+        style: TextStyle(fontWeight: FontWeight.bold, color: highlightColor),
+      ),
+      TextSpan(text: content.substring(startIndex + highlight.length)),
+    ];
   }
 
   @override

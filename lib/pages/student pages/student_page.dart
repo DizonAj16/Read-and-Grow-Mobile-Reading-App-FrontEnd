@@ -1,10 +1,13 @@
 import 'package:deped_reading_app_laravel/pages/auth%20pages/landing_page.dart';
+import 'package:deped_reading_app_laravel/widgets/helpers/tts_helper.dart';
+import 'package:deped_reading_app_laravel/widgets/helpers/tts_modal.dart';
 import 'package:flutter/material.dart';
-import 'student_dashboard_page.dart';
-import 'my class pages/my_class_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../api/api_service.dart';
 import '../../widgets/navigation/page_transition.dart';
+import 'my class pages/my_class_page.dart';
+import 'student_dashboard_page.dart';
 import 'student_profile_page.dart';
 
 class StudentPage extends StatefulWidget {
@@ -17,8 +20,14 @@ class StudentPage extends StatefulWidget {
 class _StudentPageState extends State<StudentPage> {
   int _currentIndex = 0;
   final PageController _pageController = PageController();
-
   final List<Widget> _pages = [StudentDashboardPage(), MyClassPage()];
+  final TTSHelper _ttsHelper = TTSHelper();
+
+  @override
+  void initState() {
+    super.initState();
+    _ttsHelper.init(); // Initialize TTS on page load
+  }
 
   void _onTabTapped(int index) {
     setState(() {
@@ -44,6 +53,7 @@ class _StudentPageState extends State<StudentPage> {
       await prefs.remove('student_id');
       await prefs.remove('profile_picture');
       await prefs.remove('students_data');
+      await prefs.remove('student_classes');
 
       showDialog(
         context: context,
@@ -123,8 +133,7 @@ class _StudentPageState extends State<StudentPage> {
       backgroundColor: Theme.of(context).colorScheme.primary,
       iconTheme: const IconThemeData(color: Colors.white),
       actions: [
-        _ProfilePopupMenu(onLogout: _showLogoutDialog),
-        IconButton(onPressed: () {}, icon: const Icon(Icons.more_vert)),
+        _ProfilePopupMenu(onLogout: _showLogoutDialog, ttsHelper: _ttsHelper),
       ],
     );
   }
@@ -155,7 +164,8 @@ class _StudentPageState extends State<StudentPage> {
 
 class _ProfilePopupMenu extends StatefulWidget {
   final VoidCallback onLogout;
-  const _ProfilePopupMenu({required this.onLogout});
+  final TTSHelper ttsHelper;
+  const _ProfilePopupMenu({required this.onLogout, required this.ttsHelper});
 
   @override
   State<_ProfilePopupMenu> createState() => _ProfilePopupMenuState();
@@ -179,7 +189,6 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
     final baseUrl = '${uri.scheme}://${uri.authority}';
 
     String? storedProfilePicture = prefs.getString('profile_picture');
-
     if (storedProfilePicture != null &&
         storedProfilePicture.isNotEmpty &&
         !storedProfilePicture.startsWith('http')) {
@@ -191,8 +200,6 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
       _studentName = prefs.getString('student_name') ?? "Student";
       _profilePictureUrl = storedProfilePicture;
     });
-
-    print('[DEBUG] Loaded profile picture URL: $_profilePictureUrl');
   }
 
   Widget _buildProfileAvatar({required double radius}) {
@@ -245,6 +252,28 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
                 ),
           );
           await _loadStudentData();
+        } else if (value == 'settings') {
+          await showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder:
+                (context) => ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
+                  child: FractionallySizedBox(
+                    heightFactor: 0.6,
+                    child: Material(
+                      color: Theme.of(context).colorScheme.surface,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: TTSSettingsModal(ttsHelper: widget.ttsHelper),
+                      ),
+                    ),
+                  ),
+                ),
+          );
         }
       },
       itemBuilder:
@@ -282,22 +311,23 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
                 ),
               ),
             ),
+            const PopupMenuItem(
+              value: 'settings',
+              child: Row(
+                children: [
+                  Icon(Icons.settings, color: Colors.blue),
+                  SizedBox(width: 12),
+                  Text('Settings'),
+                ],
+              ),
+            ),
             PopupMenuItem(
               value: 'logout',
               child: Row(
                 children: [
-                  Icon(
-                    Icons.logout,
-                    color: Theme.of(context).colorScheme.error,
-                    size: 24,
-                  ),
+                  Icon(Icons.logout, color: Colors.red),
                   const SizedBox(width: 12),
-                  Text(
-                    'Logout',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  Text('Logout'),
                 ],
               ),
             ),
@@ -309,6 +339,7 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
 class _LogoutDialog extends StatelessWidget {
   final VoidCallback onStay;
   final VoidCallback onLogout;
+
   const _LogoutDialog({required this.onStay, required this.onLogout});
 
   @override

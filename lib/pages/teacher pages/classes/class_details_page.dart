@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:deped_reading_app_laravel/api/api_service.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/classes/assign_student_page.dart';
+import 'package:deped_reading_app_laravel/pages/teacher%20pages/classes/students_progress_page.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lottie/lottie.dart';
@@ -417,18 +418,17 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
             ],
         body: PageView(
           controller: _pageController,
-          onPageChanged: (index) {
-            if (_currentIndex != index) {
-              setState(() => _currentIndex = index);
-            }
-          },
+          onPageChanged: (index) => setState(() => _currentIndex = index),
           children: [
             SingleChildScrollView(
               child: ClassInfoPage(classDetails: widget.classDetails),
             ),
             AssignStudentPage(
-              classId: int.tryParse(widget.classDetails['id'].toString()) ?? 0,
+              classId: int.parse(widget.classDetails['id'].toString()),
             ),
+            StudentsProgressPage(
+              classId: int.parse(widget.classDetails['id'].toString()),
+            ), // ✅ New Page
           ],
         ),
       ),
@@ -438,10 +438,11 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.info), label: "Class Info"),
           BottomNavigationBarItem(icon: Icon(Icons.people), label: "Students"),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart),
+            label: "Progress",
+          ), // ✅ New Tab
         ],
-        selectedItemColor: primary,
-        unselectedItemColor: Colors.grey,
-        showUnselectedLabels: true,
       ),
     );
   }
