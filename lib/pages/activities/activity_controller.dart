@@ -1,37 +1,31 @@
 import 'package:flutter/material.dart';
-
-// Level 1
 import 'level_1/activity_1.dart';
 import 'level_1/activity_2.dart';
-// Level 2
-import 'level_2/activity3.dart';
-// Level 3
-import 'level_3/activity4.dart';
-// Level 4
-import 'level_4/activity5.dart';
-import 'level_4/activity6.dart';
-import 'level_4/activity7.dart';
-import 'level_4/activity8.dart';
-import 'level_4/activity9.dart';
-// Level 5
-import 'level_5/activity10.dart';
-import 'level_5/activity11.dart';
-import 'level_5/activity12.dart';
-import 'level_5/activity13.dart';
+import 'level_1/activity_3.dart';
+import 'level_1/activity_4.dart';
+import 'level_1/activity_5.dart';
+import 'level_1/activity_6.dart';
+import 'level_1/activity_7.dart';
+import 'level_1/activity_8.dart';
+import 'level_1/activity_9.dart';
+import 'level_1/activity_10.dart';
+import 'level_1/activity_11.dart';
+import 'level_1/activity_12.dart';
+import 'level_1/activity_13.dart';
 
 class ActivityController extends StatelessWidget {
   final String activityTitle;
-  final int studentLevel;
+  final VoidCallback? onCompleted; // ✅ New: Callback to update task status
 
   const ActivityController({
     super.key,
     required this.activityTitle,
-    required this.studentLevel,
+    this.onCompleted,
   });
 
   @override
   Widget build(BuildContext context) {
-    final Widget activityPage = _getActivityPage(studentLevel, activityTitle);
+    Widget activityPage = _getActivityPage(activityTitle);
 
     return Scaffold(
       appBar: AppBar(
@@ -43,96 +37,37 @@ class ActivityController extends StatelessWidget {
     );
   }
 
-  Widget _getActivityPage(int level, String activityTitle) {
-    debugPrint('Loading: Level $level - $activityTitle');
-
-    switch (level) {
-      case 1:
-        return _getLevel1Activity(activityTitle);
-      case 2:
-        return _getLevel2Activity(activityTitle);
-      case 3:
-        return _getLevel3Activity(activityTitle);
-      case 4:
-        return _getLevel4Activity(activityTitle);
-      case 5:
-        return _getLevel5Activity(activityTitle);
-      default:
-        return _notFoundWidget(level, activityTitle);
-    }
-  }
-
-  Widget _getLevel1Activity(String activityTitle) {
+  /// ✅ Passes `onCompleted` to each Activity Page
+  Widget _getActivityPage(String activityTitle) {
     switch (activityTitle) {
       case "Task 1":
-        return const Activity1Page();
+        return Activity1Page(onCompleted: onCompleted);
       case "Task 2":
-        return const Activity2Page();
-      default:
-        return _notFoundWidget(1, activityTitle);
-    }
-  }
-
-  Widget _getLevel2Activity(String activityTitle) {
-    switch (activityTitle) {
-      case "Task 1":
-        return const Activity3Page();
-      default:
-        return _notFoundWidget(2, activityTitle);
-    }
-  }
-
-  Widget _getLevel3Activity(String activityTitle) {
-    switch (activityTitle) {
-      case "Task 1":
-      case "Task 2":
+        return Activity2Page(onCompleted: onCompleted);
       case "Task 3":
-        return const Activity4Page(); // All map to Activity4Page
-      default:
-        return _notFoundWidget(3, activityTitle);
-    }
-  }
-
-  Widget _getLevel4Activity(String activityTitle) {
-    switch (activityTitle) {
-      case "Task 1":
-        return const Activity5Page();
-      case "Task 2":
-        return const Activity6Page();
-      case "Task 3":
-        return const Activity7Page();
+        return Activity3Page(onCompleted: onCompleted);
       case "Task 4":
-        return const Activity8Page();
+        return Activity4Page(onCompleted: onCompleted);
       case "Task 5":
-        return const Activity9Page();
+        return Activity5Page(onCompleted: onCompleted);
+      case "Task 6":
+        return Activity6Page(onCompleted: onCompleted);
+      case "Task 7":
+        return Activity7Page(onCompleted: onCompleted);
+      case "Task 8":
+        return Activity8Page(onCompleted: onCompleted);
+      case "Task 9":
+        return Activity9Page(onCompleted: onCompleted);
+      case "Task 10":
+        return Activity10Page(onCompleted: onCompleted);
+      case "Task 11":
+        return Activity11Page(onCompleted: onCompleted);
+      case "Task 12":
+        return Activity12Page(onCompleted: onCompleted);
+      case "Task 13":
+        return Activity13Page(onCompleted: onCompleted);
       default:
-        return _notFoundWidget(4, activityTitle);
+        return Center(child: Text("No activity found for $activityTitle."));
     }
-  }
-
-  Widget _getLevel5Activity(String activityTitle) {
-    switch (activityTitle) {
-      case "Task 1 - Day 1":
-        return const Activity10Page();
-      case "Task 2 - Day 2":
-        return const Activity11Page();
-      case "Task 3 - Day 3":
-        return const Activity12Page();
-      case "Task 4-5 - Day 4-5":
-        return const Activity13Page();
-
-      default:
-        return _notFoundWidget(5, activityTitle);
-    }
-  }
-
-  Widget _notFoundWidget(int level, String title) {
-    return Center(
-      child: Text(
-        "No activity found for '$title' in Level $level.",
-        style: const TextStyle(fontSize: 18, color: Colors.red),
-        textAlign: TextAlign.center,
-      ),
-    );
   }
 }

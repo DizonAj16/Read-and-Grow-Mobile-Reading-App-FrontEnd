@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MatchWordsToPicturesPage extends StatefulWidget {
   final VoidCallback? onCompleted;
@@ -46,21 +48,10 @@ class _MatchWordsToPicturesPageState extends State<MatchWordsToPicturesPage>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     )..repeat(reverse: true);
+
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
-  }
-
-  void _initializeGame() {
-    matchedWords = {for (var item in allItems) item["word"]!: null};
-    borderColors = {for (var item in allItems) item["word"]!: Colors.grey};
-    wrongWords.clear();
-    _completed = false;
-    _showingScore = false;
-    _timeLeft = 60;
-
-    shuffledWords = allItems.map((e) => e["word"]!).toList();
-    shuffledWords.shuffle();
   }
 
   void _startTimer() {
@@ -71,6 +62,7 @@ class _MatchWordsToPicturesPageState extends State<MatchWordsToPicturesPage>
         _showScorePage();
       } else {
         setState(() => _timeLeft--);
+        _saveGameState();
       }
     });
   }
@@ -94,28 +86,50 @@ class _MatchWordsToPicturesPageState extends State<MatchWordsToPicturesPage>
       barrierDismissible: false,
       builder:
           (_) => Dialog(
-            backgroundColor: Colors.transparent,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Lottie.asset(
-                  isCorrect
-                      ? 'assets/animation/correct.json'
-                      : 'assets/animation/wrong.json',
-                  width: 200,
-                  height: 200,
-                  repeat: false,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  isCorrect ? "✅ Correct!" : "❌ Try again!",
-                  style: TextStyle(
-                    fontSize: 20,
-                    color: isCorrect ? Colors.green : Colors.red,
-                    fontWeight: FontWeight.bold,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            backgroundColor: Colors.white,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Center(
+                    child: Lottie.asset(
+                      isCorrect
+                          ? 'assets/animation/correct.json'
+                          : 'assets/animation/wrong.json',
+                      width: 150,
+                      height: 150,
+                      repeat: false,
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  Center(
+                    child: Text(
+                      isCorrect ? "✅ Correct!" : "❌ Try again!",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: isCorrect ? Colors.green : Colors.red,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text(
+                      "Okay",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
     );
@@ -125,8 +139,53 @@ class _MatchWordsToPicturesPageState extends State<MatchWordsToPicturesPage>
     });
   }
 
-  void _showScorePage() {
+  void _showScorePage() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('match_words_state');
     setState(() => _showingScore = true);
+  }
+
+  Future<void> _saveGameState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = {
+      'matchedWords': matchedWords,
+      'borderColors': borderColors.map(
+        (key, value) => MapEntry(key, value.value.toString()),
+      ),
+      'wrongWords': wrongWords.toList(),
+      'timeLeft': _timeLeft,
+      'shuffledWords': shuffledWords,
+    };
+    await prefs.setString('match_words_state', jsonEncode(data));
+  }
+
+  void _initializeGame() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedData = prefs.getString('match_words_state');
+
+    if (savedData != null) {
+      final Map<String, dynamic> data = jsonDecode(savedData);
+      setState(() {
+        matchedWords = Map<String, String?>.from(data['matchedWords']);
+        borderColors = Map<String, String>.from(
+          data['borderColors'],
+        ).map((key, value) => MapEntry(key, Color(int.parse(value))));
+        wrongWords = Set<String>.from(data['wrongWords']);
+        _timeLeft = data['timeLeft'];
+        shuffledWords = List<String>.from(data['shuffledWords']);
+        _completed = false;
+        _showingScore = false;
+      });
+    } else {
+      matchedWords = {for (var item in allItems) item["word"]!: null};
+      borderColors = {for (var item in allItems) item["word"]!: Colors.grey};
+      wrongWords.clear();
+      _completed = false;
+      _showingScore = false;
+      _timeLeft = 60;
+      shuffledWords = allItems.map((e) => e["word"]!).toList();
+      shuffledWords.shuffle();
+    }
   }
 
   @override
@@ -142,6 +201,8 @@ class _MatchWordsToPicturesPageState extends State<MatchWordsToPicturesPage>
   }
 
   Widget _buildGamePage() {
+    final timeColor = _timeLeft <= 10 ? Colors.red : Colors.green;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Match Words to Pictures"),
@@ -165,19 +226,19 @@ class _MatchWordsToPicturesPageState extends State<MatchWordsToPicturesPage>
                   scale: _pulseAnimation,
                   child: Text(
                     "⏱ Time left: $_timeLeft seconds",
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.green,
+                      color: timeColor,
                     ),
                   ),
                 )
                 : Text(
                   "⏱ Time left: $_timeLeft seconds",
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.normal,
-                    color: Colors.green,
+                    color: timeColor,
                   ),
                 ),
             const SizedBox(height: 10),
@@ -196,7 +257,7 @@ class _MatchWordsToPicturesPageState extends State<MatchWordsToPicturesPage>
 
                   return Padding(
                     padding: const EdgeInsets.symmetric(
-                      vertical: 8.0,
+                      vertical: 8,
                       horizontal: 12,
                     ),
                     child: Row(
@@ -216,6 +277,7 @@ class _MatchWordsToPicturesPageState extends State<MatchWordsToPicturesPage>
                                 if (!isCorrect) wrongWords.add(imageWord);
                               });
 
+                              _saveGameState();
                               _showFeedbackDialog(isCorrect);
 
                               if (!isCorrect) {
@@ -224,6 +286,7 @@ class _MatchWordsToPicturesPageState extends State<MatchWordsToPicturesPage>
                                     matchedWords[imageWord] = null;
                                     borderColors[imageWord] = Colors.grey;
                                   });
+                                  _saveGameState();
                                 });
                               }
 
@@ -369,10 +432,12 @@ class _MatchWordsToPicturesPageState extends State<MatchWordsToPicturesPage>
   }
 
   Widget _buildScorePage() {
+    int correctAnswers =
+        matchedWords.entries.where((e) => e.key == e.value).length;
     int finalScore =
-        ((_timeLeft / 60) * _maxScore - wrongWords.length * 10)
-            .clamp(0, 100)
-            .round();
+        (_timeLeft == 0 && correctAnswers == 0)
+            ? 0
+            : (_maxScore - wrongWords.length * 10).clamp(0, 100).round();
 
     return Scaffold(
       backgroundColor: Colors.deepPurple.shade50,
@@ -431,7 +496,9 @@ class _MatchWordsToPicturesPageState extends State<MatchWordsToPicturesPage>
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.remove('match_words_state');
                         setState(() {
                           _initializeGame();
                           _startTimer();

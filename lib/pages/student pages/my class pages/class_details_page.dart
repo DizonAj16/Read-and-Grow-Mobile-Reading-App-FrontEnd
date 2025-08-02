@@ -1,17 +1,26 @@
 import 'package:flutter/material.dart';
-
 import 'student_list_page.dart';
 import 'task_list_page.dart';
 import 'teacher_info_page.dart';
 
 class ClassDetailsPage extends StatefulWidget {
+  final int classId;
   final String className;
-  final int studentLevel;
+  final String backgroundImage;
+  final String teacherName;
+  final String teacherEmail;
+  final String teacherPosition;
+  final String? teacherAvatar;
 
   const ClassDetailsPage({
     super.key,
+    required this.classId, // ✅ add this
     required this.className,
-    required this.studentLevel,
+    required this.backgroundImage,
+    required this.teacherName,
+    required this.teacherEmail,
+    required this.teacherPosition,
+    this.teacherAvatar,
   });
 
   @override
@@ -43,28 +52,22 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
                 expandedHeight: 180,
                 pinned: true,
                 backgroundColor: Theme.of(context).colorScheme.primary,
-                iconTheme: IconThemeData(color: Colors.white),
+                iconTheme: const IconThemeData(color: Colors.white),
                 flexibleSpace: FlexibleSpaceBar(
                   centerTitle: true,
                   title: Hero(
                     tag: 'class-title-${widget.className}',
                     child: Material(
                       color: Colors.transparent,
-                      child: Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
+                      child: Text(
+                        widget.className,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 26,
+                          letterSpacing: 1.2,
                         ),
-                        child: Text(
-                          widget.className,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 26,
-                            letterSpacing: 1.2,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
+                        textAlign: TextAlign.center,
                       ),
                     ),
                   ),
@@ -78,10 +81,16 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
                             Colors.black.withOpacity(0.25),
                             BlendMode.darken,
                           ),
-                          child: Image.asset(
-                            'assets/background/classroombg.jpg',
-                            fit: BoxFit.cover,
-                          ),
+                          child:
+                              widget.backgroundImage.startsWith('http')
+                                  ? Image.network(
+                                    widget.backgroundImage,
+                                    fit: BoxFit.cover,
+                                  )
+                                  : Image.asset(
+                                    widget.backgroundImage,
+                                    fit: BoxFit.cover,
+                                  ),
                         ),
                       ),
                       Container(
@@ -94,7 +103,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
                             ],
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
-                            stops: [0.0, 0.6, 1.0],
+                            stops: const [0.0, 0.6, 1.0],
                           ),
                         ),
                       ),
@@ -106,25 +115,28 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
         body: PageView(
           controller: _pageController,
           onPageChanged: (index) {
-            if (_currentIndex != index) {
-              setState(() {
-                _currentIndex = index;
-              });
-            }
+            setState(() {
+              _currentIndex = index;
+            });
           },
           children: [
-            TaskListPage(studentLevel: widget.studentLevel),
-            StudentListPage(),
-            TeacherInfoPage(),
+            const TaskListPage(),
+            StudentListPage(classId: widget.classId),
+            TeacherInfoPage(
+              teacherName: widget.teacherName,
+              teacherEmail: widget.teacherEmail,
+              teacherPosition: widget.teacherPosition,
+              teacherAvatar: widget.teacherAvatar,
+            ),
           ],
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onTabTapped,
-        items: [
+        items: const [
           BottomNavigationBarItem(icon: Icon(Icons.task), label: "Tasks"),
-          BottomNavigationBarItem(icon: Icon(Icons.people), label: "Students"),
+          BottomNavigationBarItem(icon: Icon(Icons.people), label: "Classmates"),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Teacher"),
         ],
         selectedItemColor: Theme.of(context).colorScheme.primary,

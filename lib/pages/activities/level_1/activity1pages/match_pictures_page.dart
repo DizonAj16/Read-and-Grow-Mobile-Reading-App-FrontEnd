@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MatchPicturesPage extends StatefulWidget {
   final VoidCallback? onCompleted;
@@ -53,7 +55,12 @@ class _MatchPicturesPageState extends State<MatchPicturesPage>
       begin: 1.0,
       end: 1.3,
     ).animate(_pulseController);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _resetGame());
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      bool loaded = await _loadQuizState();
+      if (!loaded) _resetGame();
+      startTimer();
+    });
   }
 
   void startTimer() {
@@ -66,6 +73,7 @@ class _MatchPicturesPageState extends State<MatchPicturesPage>
             _pulseController.forward();
           }
         });
+        _saveQuizState();
       } else {
         t.cancel();
         _pulseController.stop();
@@ -80,7 +88,15 @@ class _MatchPicturesPageState extends State<MatchPicturesPage>
   }
 
   void _handleTimeout() {
-    wrongAnswers++;
+    stopTimer();
+    setState(() {
+      if (correctAnswers == 0 && wrongAnswers == 0) {
+        correctAnswers = 0;
+        wrongAnswers = 0;
+      }
+      remainingTime = 0;
+    });
+    _clearSavedQuizState();
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -94,12 +110,12 @@ class _MatchPicturesPageState extends State<MatchPicturesPage>
 
     if (isCorrect) {
       correctAnswers++;
-      setState(() {
-        remainingWords.remove(selectedWord);
-      });
+      setState(() => remainingWords.remove(selectedWord));
     } else {
       wrongAnswers++;
     }
+
+    _saveQuizState();
 
     showDialog(
       context: context,
@@ -112,7 +128,9 @@ class _MatchPicturesPageState extends State<MatchPicturesPage>
     if (currentIndex < shuffledItems.length - 1) {
       setState(() {
         currentIndex++;
+        remainingWords.shuffle();
       });
+      _saveQuizState();
     } else {
       _showFinalScorePage();
     }
@@ -159,22 +177,22 @@ class _MatchPicturesPageState extends State<MatchPicturesPage>
   void _showFinalScorePage() {
     if (_completedQuiz) return;
     stopTimer();
+    _clearSavedQuizState();
     setState(() {
       _completedQuiz = true;
       _showScorePage = true;
     });
-
     Future.delayed(const Duration(seconds: 2), () {
       widget.onCompleted?.call();
     });
   }
 
   void _resetGame() {
-    timer?.cancel();
+    stopTimer();
     _pulseController.reset();
     setState(() {
       shuffledItems = List<Map<String, String>>.from(originalItems)..shuffle();
-      remainingWords = originalItems.map((e) => e['word']!).toList();
+      remainingWords = shuffledItems.map((e) => e['word']!).toList()..shuffle();
       currentIndex = 0;
       correctAnswers = 0;
       wrongAnswers = 0;
@@ -182,12 +200,71 @@ class _MatchPicturesPageState extends State<MatchPicturesPage>
       _completedQuiz = false;
       _showScorePage = false;
     });
+    _clearSavedQuizState();
+    _saveQuizState();
     startTimer();
+  }
+
+  Future<void> _saveQuizState() async {
+    if (_completedQuiz) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('match_quiz_shuffled', jsonEncode(shuffledItems));
+    await prefs.setStringList('match_quiz_remaining', remainingWords);
+    await prefs.setInt('match_quiz_index', currentIndex);
+    await prefs.setInt('match_quiz_correct', correctAnswers);
+    await prefs.setInt('match_quiz_wrong', wrongAnswers);
+    await prefs.setInt('match_quiz_timer', remainingTime);
+    await prefs.setBool('match_quiz_completed', false);
+  }
+
+  Future<void> _clearSavedQuizState() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('match_quiz_shuffled');
+    await prefs.remove('match_quiz_remaining');
+    await prefs.remove('match_quiz_index');
+    await prefs.remove('match_quiz_correct');
+    await prefs.remove('match_quiz_wrong');
+    await prefs.remove('match_quiz_timer');
+    await prefs.remove('match_quiz_completed');
+  }
+
+  Future<bool> _loadQuizState() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!prefs.containsKey('match_quiz_shuffled')) return false;
+    if (prefs.getBool('match_quiz_completed') == true) return false;
+
+    try {
+      final shuffled = jsonDecode(
+        prefs.getString('match_quiz_shuffled') ?? '[]',
+      );
+      final index = prefs.getInt('match_quiz_index') ?? 0;
+
+      if (index >= shuffled.length) return false;
+
+      setState(() {
+        shuffledItems = List<Map<String, String>>.from(
+          (shuffled as List).map((e) => Map<String, String>.from(e)),
+        );
+        remainingWords =
+            (prefs.getStringList('match_quiz_remaining') ?? [])..shuffle();
+        currentIndex = index;
+        correctAnswers = prefs.getInt('match_quiz_correct') ?? 0;
+        wrongAnswers = prefs.getInt('match_quiz_wrong') ?? 0;
+        remainingTime = prefs.getInt('match_quiz_timer') ?? 60;
+        _completedQuiz = false;
+        _showScorePage = false;
+      });
+      return true;
+    } catch (e) {
+      debugPrint("Failed to load quiz state: $e");
+      return false;
+    }
   }
 
   @override
   void dispose() {
-    timer?.cancel();
+    stopTimer();
+    if (!_completedQuiz) _saveQuizState();
     _pulseController.dispose();
     super.dispose();
   }
@@ -195,10 +272,10 @@ class _MatchPicturesPageState extends State<MatchPicturesPage>
   @override
   Widget build(BuildContext context) {
     if (_showScorePage) {
-      int score =
-          ((remainingTime / 60) * 100 - wrongAnswers * 10)
-              .clamp(0, 100)
-              .round();
+      int score = ((correctAnswers / shuffledItems.length) * 100).round().clamp(
+        0,
+        100,
+      );
 
       return Scaffold(
         backgroundColor: Colors.deepPurple.shade50,
@@ -255,9 +332,9 @@ class _MatchPicturesPageState extends State<MatchPicturesPage>
                         children: [
                           _buildScoreRow("Final Score", "$score / 100"),
                           const SizedBox(height: 12),
-                          _buildScoreRow("Wrong Answers", "$wrongAnswers"),
+                          _buildScoreRow("Correct Answers", "$correctAnswers"),
                           const SizedBox(height: 12),
-                          _buildScoreRow("Time Left", "$remainingTime s"),
+                          _buildScoreRow("Wrong Answers", "$wrongAnswers"),
                         ],
                       ),
                     ),

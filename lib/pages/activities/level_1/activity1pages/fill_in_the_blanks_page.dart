@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class FillInTheBlanksPage extends StatefulWidget {
   final VoidCallback? onCompleted;
@@ -20,15 +22,20 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
   ];
 
   final List<String> options = ["r", "w", "t", "b"];
-  late List<String?> droppedLetters;
-  late List<Color> boxColors;
-  late Set<String> usedLetters;
+  List<String?> droppedLetters = [];
+  List<Color> boxColors = [];
+  Set<String> usedLetters = {};
 
   bool _completed = false;
   bool showScorePage = false;
+  bool _isLoading = true;
 
   int remainingTime = 60;
   int score = 0;
+  int wrongAttempts = 0;
+  int correctAnswers = 0;
+  int wrongAnswers = 0;
+
   Timer? _timer;
   bool _retrying = false;
   bool _timeoutHandled = false;
@@ -36,11 +43,61 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
   @override
   void initState() {
     super.initState();
-    _resetGame();
-    _startTimer();
+    _loadGameState();
   }
 
-  void _resetGame() {
+  Future<void> _loadGameState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString('fill_game_state');
+
+    if (data != null) {
+      final json = jsonDecode(data);
+      final loadedDropped = List<String?>.from(json['droppedLetters']);
+      final loadedColors =
+          List<String>.from(
+            json['boxColors'],
+          ).map((val) => Color(int.parse(val))).toList();
+
+      if (loadedDropped.length == fillItems.length &&
+          loadedColors.length == fillItems.length) {
+        setState(() {
+          droppedLetters = loadedDropped;
+          boxColors = loadedColors;
+          usedLetters = Set<String>.from(json['usedLetters']);
+          remainingTime = json['remainingTime'];
+          _completed = false;
+          showScorePage = false;
+          _timeoutHandled = false;
+        });
+      } else {
+        _resetGame(force: true);
+      }
+    } else {
+      _resetGame(force: true);
+    }
+
+    _startTimer();
+    setState(() => _isLoading = false);
+  }
+
+  Future<void> _saveGameState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = {
+      'droppedLetters': droppedLetters,
+      'boxColors': boxColors.map((c) => c.value.toString()).toList(),
+      'usedLetters': usedLetters.toList(),
+      'remainingTime': remainingTime,
+    };
+    await prefs.setString('fill_game_state', jsonEncode(data));
+  }
+
+  Future<void> _clearGameState() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('fill_game_state');
+  }
+
+  void _resetGame({bool force = false}) {
+    if (!force && droppedLetters.isNotEmpty) return;
     droppedLetters = List<String?>.filled(fillItems.length, null);
     boxColors = List<Color>.filled(fillItems.length, Colors.grey);
     usedLetters = {};
@@ -48,21 +105,24 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
     showScorePage = false;
     score = 0;
     remainingTime = 60;
+    wrongAttempts = 0;
+    correctAnswers = 0;
+    wrongAnswers = 0;
     _timeoutHandled = false;
     _timer?.cancel();
-    _startTimer();
   }
 
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) {
-        timer.cancel(); // stop timer if widget is no longer in the tree
+        timer.cancel();
         return;
       }
 
       setState(() {
         if (remainingTime > 0) {
           remainingTime--;
+          _saveGameState();
         } else if (!_timeoutHandled) {
           _timeoutHandled = true;
           _timer?.cancel();
@@ -112,11 +172,22 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
   }
 
   void _finishAndShowScore() {
+    correctAnswers = 0;
+    wrongAnswers = 0;
+
+    for (int i = 0; i < fillItems.length; i++) {
+      if (droppedLetters[i] == fillItems[i]['answer']) {
+        correctAnswers++;
+      } else {
+        wrongAnswers++;
+      }
+    }
+
     setState(() {
-      score = ((remainingTime / 60) * 100).round();
+      score = (100 - (wrongAttempts * 10)).clamp(0, 100);
       showScorePage = true;
     });
-
+    _clearGameState();
     Future.delayed(const Duration(seconds: 2), () {
       if (!_retrying) widget.onCompleted?.call();
     });
@@ -126,13 +197,14 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
     setState(() => _retrying = true);
     Future.delayed(const Duration(milliseconds: 300), () {
       setState(() {
-        _resetGame();
+        _resetGame(force: true);
+        _startTimer();
         _retrying = false;
+        _clearGameState();
       });
     });
   }
 
-  @override
   @override
   void dispose() {
     _timer?.cancel();
@@ -207,6 +279,7 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
                                 boxColors[index] = Colors.green;
                                 _checkIfAllCorrect();
                               } else {
+                                wrongAttempts++;
                                 boxColors[index] = Colors.red;
                                 Future.delayed(const Duration(seconds: 1), () {
                                   setState(() {
@@ -383,6 +456,23 @@ class _FillInTheBlanksPageState extends State<FillInTheBlanksPage> {
                     fontSize: 48,
                     fontWeight: FontWeight.bold,
                     color: Colors.deepPurple,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "✅ Correct: $correctAnswers",
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.green.shade700,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  "❌ Wrong: $wrongAnswers",
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.red.shade700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 32),

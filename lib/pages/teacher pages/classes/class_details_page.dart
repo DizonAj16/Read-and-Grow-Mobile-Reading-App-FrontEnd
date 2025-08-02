@@ -1,7 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui';
 import 'package:deped_reading_app_laravel/api/api_service.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/classes/assign_student_page.dart';
+import 'package:deped_reading_app_laravel/pages/teacher%20pages/classes/students_progress_page.dart';
+import 'package:deped_reading_app_laravel/pages/teacher%20pages/classes/tasks_tab.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lottie/lottie.dart';
@@ -322,32 +325,38 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
                     future: _getBackgroundUrl(),
                     builder: (context, snapshot) {
                       final bgUrl = snapshot.data ?? '';
+
+                      ImageProvider backgroundProvider;
+
+                      if (_previewBackground != null) {
+                        backgroundProvider = FileImage(
+                          File(_previewBackground!),
+                        );
+                      } else if (bgUrl.isNotEmpty) {
+                        backgroundProvider = NetworkImage(bgUrl);
+                      } else {
+                        backgroundProvider = const AssetImage(
+                          'assets/background/classroombg.jpg',
+                        );
+                      }
+
                       return Stack(
                         fit: StackFit.expand,
                         children: [
                           Hero(
                             tag: 'class-bg-${widget.classDetails['id']}',
-                            child:
-                                _previewBackground != null
-                                    ? Image.file(
-                                      File(_previewBackground!),
-                                      fit: BoxFit.cover,
-                                    )
-                                    : (bgUrl.isNotEmpty
-                                        ? Image.network(
-                                          bgUrl,
-                                          fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (_, __, ___) => Image.asset(
-                                                'assets/background/classroombg.jpg',
-                                                fit: BoxFit.cover,
-                                              ),
-                                        )
-                                        : Image.asset(
-                                          'assets/background/classroombg.jpg',
-                                          fit: BoxFit.cover,
-                                        )),
+                            child: Image(
+                              image: backgroundProvider,
+                              fit: BoxFit.cover,
+                              errorBuilder:
+                                  (_, __, ___) => Image.asset(
+                                    'assets/background/classroombg.jpg',
+                                    fit: BoxFit.cover,
+                                  ),
+                            ),
                           ),
+
+                          // Dark gradient overlay
                           Container(
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
@@ -361,18 +370,15 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
                               ),
                             ),
                           ),
-                          AnimatedOpacity(
-                            opacity: _isUploading ? 1.0 : 0.0,
-                            duration: const Duration(milliseconds: 300),
-                            child: IgnorePointer(
-                              ignoring:
-                                  !_isUploading, // Prevent clicks while uploading
+
+                          // Optional: Add blur + loader while uploading
+                          if (_isUploading)
+                            Positioned.fill(
                               child: Container(
-                                color: Colors.black.withOpacity(0.4), // overlay
+                                color: Colors.white, // 👈 Set white background
                                 child: Center(
                                   child: SizedBox(
-                                    width:
-                                        120, // smaller to fit inside appbar background
+                                    width: 120,
                                     height: 120,
                                     child: Lottie.asset(
                                       'assets/animation/loading3.json',
@@ -382,8 +388,8 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
                                 ),
                               ),
                             ),
-                          ),
 
+                          // Back button
                           Positioned(
                             top: MediaQuery.of(context).padding.top + 8,
                             left: 8,
@@ -396,6 +402,8 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
                               onPressed: () => Navigator.of(context).pop(),
                             ),
                           ),
+
+                          // Upload icon
                           Positioned(
                             top: MediaQuery.of(context).padding.top + 8,
                             right: 8,
@@ -417,17 +425,22 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
             ],
         body: PageView(
           controller: _pageController,
-          onPageChanged: (index) {
-            if (_currentIndex != index) {
-              setState(() => _currentIndex = index);
-            }
-          },
+          onPageChanged: (index) => setState(() => _currentIndex = index),
           children: [
             SingleChildScrollView(
               child: ClassInfoPage(classDetails: widget.classDetails),
             ),
             AssignStudentPage(
-              classId: int.tryParse(widget.classDetails['id'].toString()) ?? 0,
+              classId: int.parse(widget.classDetails['id'].toString()),
+            ),
+            StudentsProgressPage(
+              classId: int.parse(widget.classDetails['id'].toString()),
+            ),
+            // ✅ NEW TASK TAB (Blank for now)
+            TasksTab(
+              gradeLevel:
+                  int.tryParse(widget.classDetails['grade_level'].toString()) ??
+                  1,
             ),
           ],
         ),
@@ -435,13 +448,19 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onTabTapped,
+        type: BottomNavigationBarType.fixed, // ✅ Important for 4+ items
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.info), label: "Class Info"),
           BottomNavigationBarItem(icon: Icon(Icons.people), label: "Students"),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart),
+            label: "Progress",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.task),
+            label: "Tasks",
+          ), // ✅ NEW TAB
         ],
-        selectedItemColor: primary,
-        unselectedItemColor: Colors.grey,
-        showUnselectedLabels: true,
       ),
     );
   }

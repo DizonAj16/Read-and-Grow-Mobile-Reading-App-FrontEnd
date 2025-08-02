@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 
 import 'activity1pages/ag_family_page.dart';
 import 'activity1pages/fill_in_the_blanks_page.dart';
+import 'activity1pages/instruction_page.dart';
 import 'activity1pages/match_pictures_page.dart';
 import 'activity1pages/match_words_to_pictures_page.dart';
 import 'activity1pages/reading_page.dart';
 
 class Activity1Page extends StatefulWidget {
-  const Activity1Page({super.key});
+  final VoidCallback? onCompleted;
+
+  const Activity1Page({super.key, this.onCompleted});
 
   @override
   State<Activity1Page> createState() => _Activity1PageState();
@@ -19,7 +22,6 @@ class _Activity1PageState extends State<Activity1Page> {
   int _currentPage = 0;
   late List<bool> _completed;
   late List<Widget> _pages;
-
   late TTSHelper _ttsHelper;
 
   @override
@@ -27,13 +29,19 @@ class _Activity1PageState extends State<Activity1Page> {
     super.initState();
     _ttsHelper = TTSHelper();
     _ttsHelper.init();
-    _completed = List.filled(5, false);
+
+    _completed = List.filled(6, false);
+
     _pages = [
-      AgFamilyPage(onCompleted: () => _markComplete(0)),
-      MatchPicturesPage(onCompleted: () => _markComplete(1)),
-      MatchWordsToPicturesPage(onCompleted: () => _markComplete(2)),
-      FillInTheBlanksPage(onCompleted: () => _markComplete(3)),
-      ReadingPage(onCompleted: () => _markComplete(4), ttsHelper: _ttsHelper),
+      AgInstructionPage(
+        onCompleted: () => _markComplete(0),
+        ttsHelper: _ttsHelper,
+      ),
+      AgFamilyPage(onCompleted: () => _markComplete(1)),
+      MatchPicturesPage(onCompleted: () => _markComplete(2)),
+      MatchWordsToPicturesPage(onCompleted: () => _markComplete(3)),
+      FillInTheBlanksPage(onCompleted: () => _markComplete(4)),
+      ReadingPage(onCompleted: () => _markComplete(5), ttsHelper: _ttsHelper),
     ];
   }
 
@@ -46,7 +54,9 @@ class _Activity1PageState extends State<Activity1Page> {
   }
 
   void _goToPage(int index) {
-    setState(() => _currentPage = index);
+    setState(() {
+      _currentPage = index;
+    });
     _pageController.jumpToPage(index);
   }
 
@@ -66,36 +76,48 @@ class _Activity1PageState extends State<Activity1Page> {
       setState(() => _currentPage++);
       _goToPage(_currentPage);
     } else if (_currentPage == _pages.length - 1 && _completed[_currentPage]) {
-      showDialog(
-        context: context,
-        builder:
-            (_) => AlertDialog(
-              title: const Text('Activity Complete!'),
-              content: const Text('You have completed all the pages.'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('OK'),
-                ),
-              ],
-            ),
-      );
+      widget.onCompleted?.call();
+
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder:
+              (_) => AlertDialog(
+                title: const Text('Activity Complete!'),
+                content: const Text('You have completed all the pages.'),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.pop(context);
+                    },
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+        );
+      }
     }
   }
 
   Widget _recreatePage(int index) {
     switch (index) {
       case 0:
-        return AgFamilyPage(onCompleted: () => _markComplete(0));
+        return AgInstructionPage(
+          onCompleted: () => _markComplete(0),
+          ttsHelper: _ttsHelper,
+        );
       case 1:
-        return MatchPicturesPage(onCompleted: () => _markComplete(1));
+        return AgFamilyPage(onCompleted: () => _markComplete(1));
       case 2:
-        return MatchWordsToPicturesPage(onCompleted: () => _markComplete(2));
+        return MatchPicturesPage(onCompleted: () => _markComplete(2));
       case 3:
-        return FillInTheBlanksPage(onCompleted: () => _markComplete(3));
+        return MatchWordsToPicturesPage(onCompleted: () => _markComplete(3));
       case 4:
+        return FillInTheBlanksPage(onCompleted: () => _markComplete(4));
+      case 5:
         return ReadingPage(
-          onCompleted: () => _markComplete(4),
+          onCompleted: () => _markComplete(5),
           ttsHelper: _ttsHelper,
         );
       default:
@@ -106,6 +128,7 @@ class _Activity1PageState extends State<Activity1Page> {
   @override
   void dispose() {
     _pageController.dispose();
+    _ttsHelper.stop();
     super.dispose();
   }
 

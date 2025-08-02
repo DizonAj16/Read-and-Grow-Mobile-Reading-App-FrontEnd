@@ -59,19 +59,33 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
           final primaryColor = Theme.of(dialogContext).colorScheme.primary;
 
           return AlertDialog(
+            backgroundColor: Theme.of(dialogContext).colorScheme.surface,
+            elevation: 12,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(20),
             ),
+            titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+            actionsPadding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             title: Row(
               children: [
-                Icon(Icons.image, size: 24, color: primaryColor),
-                const SizedBox(width: 8),
-                Text(
-                  "Confirm Upload",
-                  style: TextStyle(
-                    fontSize: 20,
-                    color: Theme.of(dialogContext).colorScheme.onSurface,
-                    fontWeight: FontWeight.bold,
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.image, size: 24, color: primaryColor),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    "Confirm Upload",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(dialogContext).colorScheme.onSurface,
+                    ),
                   ),
                 ),
               ],
@@ -79,28 +93,29 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // ✅ Circular preview (same as profile avatar)
+                const SizedBox(height: 8),
                 CircleAvatar(
                   radius: 60,
-                  backgroundColor: Colors.white70,
+                  backgroundColor: Theme.of(
+                    dialogContext,
+                  ).colorScheme.onSurface.withOpacity(0.1),
                   child: CircleAvatar(
-                    radius: 58,
+                    radius: 56,
                     backgroundImage: FileImage(File(pickedFile.path)),
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 20),
                 Text(
                   "Do you want to set this as your new profile picture?",
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: Theme.of(dialogContext).colorScheme.onSurface,
+                    fontSize: 15,
+                    color: Theme.of(
+                      dialogContext,
+                    ).colorScheme.onSurface.withOpacity(0.8),
                   ),
                 ),
               ],
-            ),
-            actionsPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 8,
             ),
             actions: [
               TextButton.icon(
@@ -112,7 +127,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
                 },
                 style: TextButton.styleFrom(
                   foregroundColor: primaryColor,
-                  textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
               ElevatedButton.icon(
@@ -122,11 +137,17 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
                   if (dialogContext.mounted) Navigator.pop(dialogContext, true);
                 },
                 style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   backgroundColor: primaryColor,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
                   ),
+                  elevation: 4,
+                  textStyle: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -520,8 +541,8 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
         child: Stack(
           children: [
             CircleAvatar(
-              radius: 60,
-              backgroundColor: Colors.white70,
+              backgroundColor: Colors.transparent,
+              radius: 70,
               child:
                   _isUploading
                       ? Lottie.asset(
@@ -531,7 +552,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
                         fit: BoxFit.contain,
                       ) // ✅ Lottie animation
                       : CircleAvatar(
-                        radius: 58,
+                        radius: 70,
                         backgroundImage: _getProfileImage(),
                       ),
             ),

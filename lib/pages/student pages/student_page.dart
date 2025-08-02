@@ -53,6 +53,7 @@ class _StudentPageState extends State<StudentPage> {
       await prefs.remove('student_id');
       await prefs.remove('profile_picture');
       await prefs.remove('students_data');
+      await prefs.remove('student_classes');
 
       showDialog(
         context: context,

@@ -30,6 +30,8 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   bool _autoValidate = false;
 
+  final List<String> _grades = ['1', '2', '3', '4', '5'];
+
   @override
   void dispose() {
     // Disposes all controllers to free resources when the widget is removed from the widget tree.
@@ -160,34 +162,33 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        contentPadding: const EdgeInsets.all(20),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 120,
-              height: 120,
-              child: Lottie.asset(
-                'assets/animation/success.json',
-              ),
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
-            const SizedBox(height: 16),
-            Text(
-              message,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
+            contentPadding: const EdgeInsets.all(20),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 120,
+                  height: 120,
+                  child: Lottie.asset('assets/animation/success.json'),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  message,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
     );
     await Future.delayed(const Duration(milliseconds: 2100));
     Navigator.of(context).pop(); // Close success dialog
@@ -347,17 +348,81 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
                 },
               ),
               const SizedBox(height: 20),
-              _buildTextField(
-                controller: gradeController,
-                label: "Grade",
-                icon: Icons.grade,
-                hintText: "e.g. 1",
+              DropdownButtonFormField<String>(
+                value:
+                    gradeController.text.isNotEmpty
+                        ? gradeController.text
+                        : null,
+                items:
+                    _grades.map((grade) {
+                      return DropdownMenuItem(
+                        value: grade,
+                        child: Text("Grade $grade"),
+                      );
+                    }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    gradeController.text = value ?? '';
+                  });
+                },
                 validator:
                     (value) =>
-                        value == null || value.trim().isEmpty
+                        value == null || value.isEmpty
                             ? 'Grade is required'
                             : null,
+                decoration: InputDecoration(
+                  labelText: "Grade",
+                  hintText: "Select your grade",
+                  hintStyle: TextStyle(
+                    fontStyle: FontStyle.italic,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                  labelStyle: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                  filled: true,
+                  fillColor: const Color.fromARGB(52, 158, 158, 158),
+                  prefixIcon: Icon(
+                    Icons.grade,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12)),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12)),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12)),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.primary,
+                      width: 2,
+                    ),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12)),
+                    borderSide: BorderSide(color: Colors.red, width: 2),
+                  ),
+                  focusedErrorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12)),
+                    borderSide: BorderSide(color: Colors.red, width: 2),
+                  ),
+                  errorStyle: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                  contentPadding: EdgeInsets.symmetric(
+                    vertical: 16,
+                    horizontal: 20,
+                  ),
+                ),
               ),
+
               const SizedBox(height: 20),
               _buildTextField(
                 controller: sectionController,

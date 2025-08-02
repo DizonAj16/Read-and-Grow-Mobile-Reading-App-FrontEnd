@@ -82,20 +82,28 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) {
-          final primaryColor = Theme.of(dialogContext).colorScheme.primary;
           return AlertDialog(
+            backgroundColor: Theme.of(dialogContext).colorScheme.surface,
+            elevation: 10,
+            shadowColor: Colors.black26,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(20),
             ),
+            titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20),
             title: Row(
               children: [
-                const Icon(Icons.image, size: 22),
-                const SizedBox(width: 8),
+                Icon(
+                  Icons.image_outlined,
+                  size: 26,
+                  color: Theme.of(dialogContext).colorScheme.primary,
+                ),
+                const SizedBox(width: 10),
                 Text(
                   "Confirm Upload",
-                  style: TextStyle(
-                    fontSize: 20,
-                    color: Theme.of(dialogContext).colorScheme.onSurface,
+                  style: Theme.of(dialogContext).textTheme.titleLarge?.copyWith(
+                    color: Theme.of(dialogContext).colorScheme.primary,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -103,20 +111,33 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // ✅ Circular avatar preview, same style as profile picture
-                CircleAvatar(
-                  radius: 60,
-                  backgroundColor: Colors.white70,
+                const SizedBox(height: 10),
+                // Modern circular avatar with border and shadow
+                Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 8,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
                   child: CircleAvatar(
-                    radius: 58,
-                    backgroundImage: FileImage(File(pickedFile.path)),
+                    radius: 60,
+                    backgroundColor: Colors.grey[200],
+                    child: CircleAvatar(
+                      radius: 58,
+                      backgroundImage: FileImage(File(pickedFile.path)),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 Text(
                   "Do you want to set this as your new profile picture?",
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: Theme.of(dialogContext).textTheme.bodyMedium?.copyWith(
                     fontSize: 15,
                     color: Theme.of(dialogContext).colorScheme.onSurface,
                   ),
@@ -124,8 +145,8 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
               ],
             ),
             actionsPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 8,
+              horizontal: 20,
+              vertical: 12,
             ),
             actions: [
               TextButton.icon(
@@ -136,21 +157,26 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
                     Navigator.pop(dialogContext, false);
                 },
                 style: TextButton.styleFrom(
-                  foregroundColor: primaryColor,
+                  foregroundColor: Theme.of(dialogContext).colorScheme.primary,
                   textStyle: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
               ElevatedButton.icon(
-                icon: const Icon(Icons.upload, size: 18),
+                icon: const Icon(Icons.upload_rounded, size: 18),
+                label: const Text("Upload"),
                 onPressed: () {
                   if (dialogContext.mounted) Navigator.pop(dialogContext, true);
                 },
-                label: const Text("Upload"),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(dialogContext).colorScheme.primary,
                   foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  textStyle: const TextStyle(fontWeight: FontWeight.bold),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                 ),
               ),

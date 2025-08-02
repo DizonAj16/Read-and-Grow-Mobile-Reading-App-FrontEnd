@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:deped_reading_app_laravel/models/student.dart';
 import 'package:flutter/material.dart';
 import 'package:deped_reading_app_laravel/api/api_service.dart';
@@ -16,6 +18,10 @@ class _AssignStudentPageState extends State<AssignStudentPage> {
   List<Student> allStudents = [];
   List<Student> assignedStudents = [];
   bool loading = true;
+  int currentAssignedPage = 0;
+  int currentUnassignedPage = 0;
+  final int studentsPerPage = 5;
+  final double avatarSize = 55; // Consistent size for all avatars
 
   @override
   void initState() {
@@ -36,7 +42,7 @@ class _AssignStudentPageState extends State<AssignStudentPage> {
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: isError ? Colors.redAccent : Colors.green,
+        backgroundColor: isError ? Colors.red : Colors.green,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -45,9 +51,8 @@ class _AssignStudentPageState extends State<AssignStudentPage> {
     );
   }
 
-  /// ✅ Load students
   Future<void> _loadStudents() async {
-    if (!mounted) return; // ✅ avoid unnecessary setState if disposed
+    if (!mounted) return;
 
     setState(() {
       loading = true;
@@ -59,7 +64,7 @@ class _AssignStudentPageState extends State<AssignStudentPage> {
       final assigned = await ApiService.getAssignedStudents(widget.classId);
       final unassigned = await ApiService.getUnassignedStudents();
 
-      if (!mounted) return; // ✅ Check again after async
+      if (!mounted) return;
       setState(() {
         assignedStudents = assigned;
         allStudents = unassigned;
@@ -82,14 +87,30 @@ class _AssignStudentPageState extends State<AssignStudentPage> {
     );
 
     if (res.statusCode == 200) {
+      // 🔁 Reset pagination to page 1
+      currentUnassignedPage = 0;
+      currentAssignedPage = 0;
+
       setState(() {
         final updatedStudent = student.copyWith(classRoomId: widget.classId);
         allStudents.removeWhere((s) => s.id == student.id);
         assignedStudents.add(updatedStudent);
       });
+
       _showSnackBar("Student assigned successfully");
     } else {
-      _showSnackBar("Failed to assign student: ${res.body}", isError: true);
+      String errorMessage = "Failed to assign student";
+
+      try {
+        final Map<String, dynamic> body = jsonDecode(res.body);
+        if (body.containsKey('message')) {
+          errorMessage = body['message'];
+        }
+      } catch (_) {
+        // Ignore parsing error; keep default message
+      }
+
+      _showSnackBar(errorMessage, isError: true);
     }
   }
 
@@ -149,25 +170,32 @@ class _AssignStudentPageState extends State<AssignStudentPage> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                /// ✅ Profile Picture (or Fallback Avatar)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(60),
-                  child:
-                      profileUrl != null
-                          ? Image.network(
-                            profileUrl,
-                            width: 55,
-                            height: 55,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return _buildAvatarFallback(student, isAssigned);
-                            },
-                          )
-                          : _buildAvatarFallback(student, isAssigned),
+                // Avatar with consistent sizing
+                SizedBox(
+                  width: avatarSize,
+                  height: avatarSize,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(avatarSize / 2),
+                    child:
+                        profileUrl != null
+                            ? Image.network(
+                              profileUrl,
+                              width: avatarSize,
+                              height: avatarSize,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return _buildAvatarFallback(
+                                  student,
+                                  isAssigned,
+                                );
+                              },
+                            )
+                            : _buildAvatarFallback(student, isAssigned),
+                  ),
                 ),
                 const SizedBox(width: 14),
 
-                /// ✅ Student Name & Chips
+                // Student info
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,11 +240,11 @@ class _AssignStudentPageState extends State<AssignStudentPage> {
                   ),
                 ),
 
-                /// ✅ Assign / Unassign Button
+                // Action button
                 isAssigned
                     ? ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent,
+                        backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -228,14 +256,26 @@ class _AssignStudentPageState extends State<AssignStudentPage> {
                       ),
                       icon: const Icon(Icons.remove_circle_outline, size: 18),
                       label: const Text(
-                        "Unassign",
+                        "Remove",
                         style: TextStyle(fontSize: 13),
                       ),
-                      onPressed: () => _unassignStudent(student),
+                      onPressed: () async {
+                        final confirmed = await _showConfirmationDialog(
+                          title: "Unassign Student",
+                          content:
+                              "Are you sure you want to unassign ${student.studentName} from this class? All the student's data will be lost.",
+                          highlightText: student.studentName,
+                          confirmText: "Unassign",
+                          isDestructive: true,
+                        );
+                        if (confirmed) {
+                          _unassignStudent(student);
+                        }
+                      },
                     )
                     : ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
+                        backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -246,11 +286,19 @@ class _AssignStudentPageState extends State<AssignStudentPage> {
                         ),
                       ),
                       icon: const Icon(Icons.add, size: 18),
-                      label: const Text(
-                        "Assign",
-                        style: TextStyle(fontSize: 13),
-                      ),
-                      onPressed: () => _assignStudent(student),
+                      label: const Text("Add", style: TextStyle(fontSize: 13)),
+                      onPressed: () async {
+                        final confirmed = await _showConfirmationDialog(
+                          title: "Assign Student",
+                          content:
+                              "Are you sure you want to assign ${student.studentName} to this class?",
+                          highlightText: student.studentName,
+                          confirmText: "Assign",
+                        );
+                        if (confirmed) {
+                          _assignStudent(student);
+                        }
+                      },
                     ),
               ],
             ),
@@ -261,74 +309,286 @@ class _AssignStudentPageState extends State<AssignStudentPage> {
   }
 
   Widget _buildAvatarFallback(Student student, bool isAssigned) {
-    return CircleAvatar(
-      radius: 22,
-      backgroundColor:
-          isAssigned ? Colors.green.shade100 : Colors.blue.shade100,
-      child: Text(
-        student.avatarLetter,
-        style: TextStyle(
-          color: isAssigned ? Colors.green.shade700 : Colors.blue.shade700,
-          fontWeight: FontWeight.bold,
+    return Container(
+      width: avatarSize,
+      height: avatarSize,
+      decoration: BoxDecoration(
+        color: isAssigned ? Colors.green.shade100 : Colors.blue.shade100,
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: Text(
+          student.avatarLetter,
+          style: TextStyle(
+            color: isAssigned ? Colors.green.shade700 : Colors.blue.shade700,
+            fontWeight: FontWeight.bold,
+            fontSize: avatarSize * 0.5, // Proportional font size
+          ),
         ),
       ),
     );
   }
 
+  Future<bool> _showConfirmationDialog({
+    required String title,
+    required String content,
+    String? highlightText,
+    String confirmText = "Yes",
+    String cancelText = "Cancel",
+    bool isDestructive = false,
+  }) async {
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              title: Row(
+                children: [
+                  Icon(
+                    isDestructive
+                        ? Icons.warning_amber_rounded
+                        : Icons.help_outline,
+                    color: isDestructive ? Colors.redAccent : Colors.blue,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              content:
+                  highlightText != null
+                      ? RichText(
+                        text: TextSpan(
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                          children: _buildHighlightedText(
+                            content,
+                            highlightText,
+                            isDestructive ? Colors.redAccent : Colors.blue,
+                          ),
+                        ),
+                      )
+                      : Text(content),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text(cancelText),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        isDestructive ? Colors.redAccent : Colors.blue,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () => Navigator.pop(context, true),
+                  child: Text(confirmText),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+  }
+
+  List<TextSpan> _buildHighlightedText(
+    String content,
+    String highlight,
+    Color highlightColor,
+  ) {
+    final startIndex = content.indexOf(highlight);
+
+    if (startIndex == -1) {
+      return [TextSpan(text: content)];
+    }
+
+    return [
+      TextSpan(text: content.substring(0, startIndex)),
+      TextSpan(
+        text: highlight,
+        style: TextStyle(fontWeight: FontWeight.bold, color: highlightColor),
+      ),
+      TextSpan(text: content.substring(startIndex + highlight.length)),
+    ];
+  }
+
+  List<Student> get paginatedUnassigned {
+    final start = currentUnassignedPage * studentsPerPage;
+    final end = (start + studentsPerPage).clamp(0, allStudents.length);
+    return allStudents.sublist(start, end);
+  }
+
+  List<Student> get paginatedAssigned {
+    final start = currentAssignedPage * studentsPerPage;
+    final end = (start + studentsPerPage).clamp(0, assignedStudents.length);
+    return assignedStudents.sublist(start, end);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body:
-          loading
-              ? const Center(child: CircularProgressIndicator())
-              : RefreshIndicator(
-                onRefresh: _loadStudents,
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+    return DefaultTabController(
+      length: 2,
+      child: MediaQuery.removePadding(
+        context: context,
+        removeTop: true, // 👈 Removes top padding (status bar space)
+        child: Scaffold(
+          appBar: AppBar(
+            automaticallyImplyLeading: false,
+            toolbarHeight: 0,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(60),
+              child: Column(
+                children: const [
+                  SizedBox(height: 10), // 👈 Custom space
+                  TabBar(
+                    dividerHeight: 0,
+                    tabs: [Tab(text: "Available"), Tab(text: "Class List")],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          body:
+              loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : TabBarView(
                     children: [
-                      Text(
-                        "Available Students",
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
+                      _buildStudentList(
+                        students: paginatedUnassigned,
+                        isAssigned: false,
+                        currentPage: currentUnassignedPage,
+                        totalItems: allStudents.length,
+                        totalCount: allStudents.length, // 👈 pass here
+                        onNextPage:
+                            () => setState(() => currentUnassignedPage++),
+                        onPrevPage:
+                            () => setState(() => currentUnassignedPage--),
                       ),
-                      const SizedBox(height: 8),
-                      if (allStudents.isEmpty)
-                        const Text(
-                          "No unassigned students found.",
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ...allStudents.map(
-                        (student) =>
-                            _buildStudentCard(student, isAssigned: false),
-                      ),
-
-                      const SizedBox(height: 20),
-                      const Divider(thickness: 1),
-
-                      Text(
-                        "Assigned Students",
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      if (assignedStudents.isEmpty)
-                        const Text(
-                          "No students assigned to this class.",
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ...assignedStudents.map(
-                        (student) =>
-                            _buildStudentCard(student, isAssigned: true),
+                      _buildStudentList(
+                        students: paginatedAssigned,
+                        isAssigned: true,
+                        currentPage: currentAssignedPage,
+                        totalItems: assignedStudents.length,
+                        totalCount: assignedStudents.length, // 👈 pass here
+                        onNextPage: () => setState(() => currentAssignedPage++),
+                        onPrevPage: () => setState(() => currentAssignedPage--),
                       ),
                     ],
                   ),
-                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStudentList({
+    required List<Student> students,
+    required bool isAssigned,
+    required int currentPage,
+    required int totalItems,
+    required int totalCount,
+    required VoidCallback onNextPage,
+    required VoidCallback onPrevPage,
+  }) {
+    return RefreshIndicator(
+      onRefresh: _loadStudents,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isAssigned
+                  ? "Class List (${totalCount} Assigned)"
+                  : "Available Students (${totalCount} Unassigned)",
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
               ),
+            ),
+            const SizedBox(height: 12),
+
+            if (students.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Text(
+                  isAssigned
+                      ? "There are no students assigned to this class yet."
+                      : "There are currently no available students to assign.",
+                  style: const TextStyle(color: Colors.grey),
+                ),
+              )
+            else ...[
+              ...students.map(
+                (student) => _buildStudentCard(student, isAssigned: isAssigned),
+              ),
+              _buildPaginationControls(
+                currentPage: currentPage,
+                totalItems: totalItems,
+                onNext: onNextPage,
+                onPrevious: onPrevPage,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaginationControls({
+    required int currentPage,
+    required int totalItems,
+    required VoidCallback onNext,
+    required VoidCallback onPrevious,
+  }) {
+    final totalPages = (totalItems / studentsPerPage).ceil();
+    final colorScheme = Theme.of(context).colorScheme;
+
+    if (totalPages <= 1) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back_ios),
+            onPressed: currentPage > 0 ? onPrevious : null,
+            color:
+                currentPage > 0
+                    ? colorScheme.primary
+                    : colorScheme.onSurface.withOpacity(0.3),
+          ),
+          Text(
+            "Page ${currentPage + 1} of $totalPages",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: colorScheme.primary,
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.arrow_forward_ios),
+            onPressed: currentPage < totalPages - 1 ? onNext : null,
+            color:
+                currentPage < totalPages - 1
+                    ? colorScheme.primary
+                    : colorScheme.onSurface.withOpacity(0.3),
+          ),
+        ],
+      ),
     );
   }
 }

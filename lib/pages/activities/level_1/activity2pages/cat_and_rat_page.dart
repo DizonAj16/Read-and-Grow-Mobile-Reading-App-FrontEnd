@@ -15,7 +15,6 @@ class _CatAndRatPageState extends State<CatAndRatPage> {
 
   final String _storyText =
       "A cat sat. He sat on a hat. It was red. The hat was on the mat. That cat sat and sat. He saw a rat. That cat ran!";
-  final String _wordList = "cat, mat, hat, sat, rat, ran";
 
   late final List<String> _words;
   int _currentWordIndex = -1;
@@ -32,10 +31,6 @@ class _CatAndRatPageState extends State<CatAndRatPage> {
             .toList();
 
     _ttsHelper.init();
-  }
-
-  Future<void> _speakWordList() async {
-    await _ttsHelper.speak(_wordList);
   }
 
   Future<void> _startReading() async {
@@ -121,48 +116,6 @@ class _CatAndRatPageState extends State<CatAndRatPage> {
                         color: Colors.black,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: Theme.of(context).colorScheme.primary,
-                            width: 2,
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "cat   mat   hat",
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              "sat   rat   ran",
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      FloatingActionButton(
-                        heroTag: "wordListButton",
-                        onPressed: _speakWordList,
-                        mini: true,
-                        child: const Icon(Icons.volume_up, size: 30),
-                      ),
-                    ],
                   ),
                   const SizedBox(height: 30),
                   Expanded(
