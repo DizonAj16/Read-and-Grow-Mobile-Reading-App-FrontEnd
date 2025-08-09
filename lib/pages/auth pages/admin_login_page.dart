@@ -1,11 +1,11 @@
+import 'package:deped_reading_app_laravel/api/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../../widgets/appbar/theme_toggle_button.dart';
-import '../../widgets/buttons/login_button.dart';
-import '../../widgets/form/password_text_field.dart';
-import '../../widgets/form/email_text_field.dart';
+import 'auth buttons widgets/login_button.dart';
+import 'form fields widgets/password_text_field.dart';
+import 'form fields widgets/email_text_field.dart';
 import '../admin pages/admin_page.dart';
-import '../../api/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../widgets/navigation/page_transition.dart';
 
@@ -182,7 +182,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
     _showLoadingDialog("Logging in...");
 
     try {
-      final response = await ApiService.adminLogin({
+      final response = await AuthService.adminLogin({
         'login': _emailController.text.trim(),
         'password': _passwordController.text,
         'admin_security_code': '', // Step 1: no code yet
@@ -282,7 +282,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                             ? null
                             : () async {
                               setState(() => dialogLoading = true);
-                              final response = await ApiService.adminLogin({
+                              final response = await AuthService.adminLogin({
                                 'login': email,
                                 'password': password,
                                 'admin_security_code': _codeController.text,

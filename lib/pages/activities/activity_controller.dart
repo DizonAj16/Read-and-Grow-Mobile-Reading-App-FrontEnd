@@ -15,11 +15,13 @@ import 'level_1/activity_13.dart';
 
 class ActivityController extends StatelessWidget {
   final String activityTitle;
+
   final VoidCallback? onCompleted; // ✅ New: Callback to update task status
 
   const ActivityController({
     super.key,
     required this.activityTitle,
+
     this.onCompleted,
   });
 

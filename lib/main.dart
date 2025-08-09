@@ -2,7 +2,6 @@ import 'package:deped_reading_app_laravel/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'routes/app_routes.dart';
 import 'pages/auth pages/set_base_url_page.dart';
 import 'pages/auth pages/landing_page.dart';
 
@@ -133,7 +132,6 @@ class MyApp extends StatelessWidget {
           theme: buildLightTheme(context),
           darkTheme: buildDarkTheme(context),
           themeMode: currentTheme,
-          routes: AppRoutes.routes,
           home: FutureBuilder<bool>(
             future: _hasBaseUrl(),
             builder: (context, snapshot) {

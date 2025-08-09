@@ -1,4 +1,5 @@
-import 'package:deped_reading_app_laravel/api/api_service.dart';
+import 'package:deped_reading_app_laravel/api/prefs_service.dart';
+import 'package:deped_reading_app_laravel/api/user_service.dart';
 import 'package:deped_reading_app_laravel/models/student.dart';
 import 'package:flutter/material.dart';
 
@@ -26,10 +27,10 @@ class _AdminViewStudentsPageState extends State<AdminViewStudentsPage> {
 
   Future<List<Student>> _loadStudents() async {
     try {
-      final apiList = await ApiService.fetchAllStudents();
-      await ApiService.storeStudentsToPrefs(apiList);
+      final apiList = await UserService.fetchAllStudents();
+      await PrefsService.storeStudentsToPrefs(apiList);
     } catch (_) {}
-    final students = await ApiService.getStudentsFromPrefs();
+    final students = await PrefsService.getStudentsFromPrefs();
     setState(() {
       _allStudents = students;
       _currentPage = 0;
@@ -407,7 +408,7 @@ class _AdminViewStudentsPageState extends State<AdminViewStudentsPage> {
                                       if (updated == true) {
                                         try {
                                           final response =
-                                              await ApiService.updateUser(
+                                              await UserService.updateUser(
                                                 userId: student.userId!,
                                                 body: {
                                                   "username":
@@ -540,7 +541,7 @@ class _AdminViewStudentsPageState extends State<AdminViewStudentsPage> {
                                         try {
                                           if (student.userId != null) {
                                             final response =
-                                                await ApiService.deleteUser(
+                                                await UserService.deleteUser(
                                                   student.userId,
                                                 );
                                             print(

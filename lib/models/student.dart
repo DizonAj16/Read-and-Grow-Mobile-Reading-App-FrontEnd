@@ -28,7 +28,8 @@ class Student {
     this.classRoomId,
     this.completedTasks = 0, // ✅ Default if not provided
   }) : avatarLetter =
-            avatarLetter ?? (studentName.isNotEmpty ? studentName[0].toUpperCase() : 'S');
+           avatarLetter ??
+           (studentName.isNotEmpty ? studentName[0].toUpperCase() : 'S');
 
   /// ✅ NEW: copyWith method (now includes completedTasks)
   Student copyWith({
@@ -62,16 +63,18 @@ class Student {
   factory Student.fromJson(Map<String, dynamic> json) {
     final name = json['student_name'] ?? '';
     return Student(
-      id: json['student_id'] != null
-          ? (json['student_id'] is int
-              ? json['student_id']
-              : int.tryParse(json['student_id'].toString()) ?? 0)
-          : (json['id'] is int
-              ? json['id']
-              : int.tryParse(json['id'].toString()) ?? 0),
-      userId: json['user_id'] is int
-          ? json['user_id']
-          : int.tryParse(json['user_id']?.toString() ?? ''),
+      id:
+          json['student_id'] != null
+              ? (json['student_id'] is int
+                  ? json['student_id']
+                  : int.tryParse(json['student_id'].toString()) ?? 0)
+              : (json['id'] is int
+                  ? json['id']
+                  : int.tryParse(json['id'].toString()) ?? 0),
+      userId:
+          json['user_id'] is int
+              ? json['user_id']
+              : int.tryParse(json['user_id']?.toString() ?? ''),
       studentName: name,
       studentLrn: json['student_lrn'],
       studentGrade: json['student_grade']?.toString(),
@@ -79,30 +82,32 @@ class Student {
       username: json['username'],
       avatarLetter: name.isNotEmpty ? name[0].toUpperCase() : 'S',
       profilePicture: json['profile_picture'],
-      classRoomId: json['class_room_id'] is int
-          ? json['class_room_id']
-          : int.tryParse(json['class_room_id']?.toString() ?? ''),
-      completedTasks: json['completed_tasks'] != null
-          ? (json['completed_tasks'] is int
-              ? json['completed_tasks']
-              : int.tryParse(json['completed_tasks'].toString()) ?? 0)
-          : 0, // ✅ Default if missing
+      classRoomId:
+          json['class_room_id'] is int
+              ? json['class_room_id']
+              : int.tryParse(json['class_room_id']?.toString() ?? ''),
+      completedTasks:
+          json['completed_tasks'] != null
+              ? (json['completed_tasks'] is int
+                  ? json['completed_tasks']
+                  : int.tryParse(json['completed_tasks'].toString()) ?? 0)
+              : 0, // ✅ Default if missing
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'user_id': userId,
-        'student_name': studentName,
-        'student_lrn': studentLrn,
-        'student_grade': studentGrade,
-        'student_section': studentSection,
-        'username': username,
-        'avatarLetter': avatarLetter,
-        'class_room_id': classRoomId,
-        'profile_picture': profilePicture,
-        'completed_tasks': completedTasks,
-      };
+    'id': id,
+    'user_id': userId,
+    'student_name': studentName,
+    'student_lrn': studentLrn,
+    'student_grade': studentGrade,
+    'student_section': studentSection,
+    'username': username,
+    'avatarLetter': avatarLetter,
+    'class_room_id': classRoomId,
+    'profile_picture': profilePicture,
+    'completed_tasks': completedTasks,
+  };
 
   static Future<Student> fromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
@@ -127,13 +132,18 @@ class Student {
     final prefs = await SharedPreferences.getInstance();
     if (id != 0) await prefs.setString('student_id', id.toString());
     if (userId != null) await prefs.setString('user_id', userId.toString());
-    if (studentName.isNotEmpty) await prefs.setString('student_name', studentName);
+    if (studentName.isNotEmpty)
+      await prefs.setString('student_name', studentName);
     if (studentLrn != null) await prefs.setString('student_lrn', studentLrn!);
-    if (studentGrade != null) await prefs.setString('student_grade', studentGrade!);
-    if (studentSection != null) await prefs.setString('student_section', studentSection!);
+    if (studentGrade != null)
+      await prefs.setString('student_grade', studentGrade!);
+    if (studentSection != null)
+      await prefs.setString('student_section', studentSection!);
     if (username != null) await prefs.setString('username', username!);
-    if (profilePicture != null) await prefs.setString('profile_picture', profilePicture!);
-    if (classRoomId != null) await prefs.setString('class_room_id', classRoomId.toString());
+    if (profilePicture != null)
+      await prefs.setString('profile_picture', profilePicture!);
+    if (classRoomId != null)
+      await prefs.setString('class_room_id', classRoomId.toString());
     await prefs.setString('completed_tasks', completedTasks.toString());
   }
 }

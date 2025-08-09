@@ -1,4 +1,4 @@
-import 'package:deped_reading_app_laravel/api/api_service.dart';
+import 'package:deped_reading_app_laravel/api/user_service.dart';
 import 'package:deped_reading_app_laravel/models/teacher.dart';
 import 'package:flutter/material.dart';
 
@@ -24,7 +24,7 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
   }
 
   Future<List<Teacher>> _loadTeachers() async {
-    final teachers = await ApiService.fetchAllTeachers();
+    final teachers = await UserService.fetchAllTeachers();
     setState(() {
       _allTeachers = teachers;
       _currentPage = 0;
@@ -393,7 +393,7 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
                                       if (updated == true) {
                                         try {
                                           final response =
-                                              await ApiService.updateUser(
+                                              await UserService.updateUser(
                                                 userId: teacher.userId!,
                                                 body: {
                                                   "username":
@@ -524,7 +524,7 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
                                         try {
                                           if (teacher.userId != null) {
                                             final response =
-                                                await ApiService.deleteUser(
+                                                await UserService.deleteUser(
                                                   teacher.userId,
                                                 );
                                             if (response.statusCode == 200) {

@@ -37,37 +37,68 @@ class StudentListItem extends StatelessWidget {
         ),
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 18),
-        leading: CircleAvatar(
-          radius: 28,
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          backgroundImage: imageUrl != null ? NetworkImage(imageUrl!) : null,
-          child: imageUrl == null
-              ? Text(
-                  student.avatarLetter,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 24,
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 12,
+          horizontal: 18,
+        ),
+        leading:
+            imageUrl != null
+                ? ClipOval(
+                  child: FadeInImage.assetNetwork(
+                    placeholder: 'assets/placeholder/avatar_placeholder.jpg',
+                    image: imageUrl!,
+                    imageErrorBuilder:
+                        (_, __, ___) => CircleAvatar(
+                          radius: 28,
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          child: Text(
+                            student.avatarLetter,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 24,
+                            ),
+                          ),
+                        ),
+                    fadeInDuration: const Duration(milliseconds: 300),
+                    fadeInCurve: Curves.easeInOut,
+                    placeholderFit: BoxFit.cover,
+                    fit: BoxFit.cover,
+                    width: 56, // 2 * radius (28)
+                    height: 56,
+                    placeholderScale: 1.0,
+                    imageScale: 1.0,
                   ),
                 )
-              : null,
-        ),
+                : CircleAvatar(
+                  radius: 28,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  child: Text(
+                    student.avatarLetter,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 24,
+                    ),
+                  ),
+                ),
         title: Text(
           student.studentName,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
           child: Row(
             children: [
-              if (student.studentSection != null && student.studentSection!.isNotEmpty)
+              if (student.studentSection != null &&
+                  student.studentSection!.isNotEmpty)
                 _buildSectionTag(context),
-              if (student.studentGrade != null && student.studentGrade!.isNotEmpty)
+              if (student.studentGrade != null &&
+                  student.studentGrade!.isNotEmpty)
                 _buildGradeTag(context),
             ],
           ),
@@ -114,38 +145,39 @@ class StudentListItem extends StatelessWidget {
         if (value == 'edit') onEditPressed();
         if (value == 'delete') onDeletePressed();
       },
-      itemBuilder: (context) => [
-        const PopupMenuItem(
-          value: 'view',
-          child: Row(
-            children: [
-              Icon(Icons.visibility, color: Colors.blue),
-              SizedBox(width: 8),
-              Text('View'),
-            ],
-          ),
-        ),
-        const PopupMenuItem(
-          value: 'edit',
-          child: Row(
-            children: [
-              Icon(Icons.edit, color: Colors.orange),
-              SizedBox(width: 8),
-              Text('Edit'),
-            ],
-          ),
-        ),
-        const PopupMenuItem(
-          value: 'delete',
-          child: Row(
-            children: [
-              Icon(Icons.delete, color: Colors.red),
-              SizedBox(width: 8),
-              Text('Delete'),
-            ],
-          ),
-        ),
-      ],
+      itemBuilder:
+          (context) => [
+            const PopupMenuItem(
+              value: 'view',
+              child: Row(
+                children: [
+                  Icon(Icons.visibility, color: Colors.blue),
+                  SizedBox(width: 8),
+                  Text('View'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'edit',
+              child: Row(
+                children: [
+                  Icon(Icons.edit, color: Colors.orange),
+                  SizedBox(width: 8),
+                  Text('Edit'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'delete',
+              child: Row(
+                children: [
+                  Icon(Icons.delete, color: Colors.red),
+                  SizedBox(width: 8),
+                  Text('Delete'),
+                ],
+              ),
+            ),
+          ],
     );
   }
 }

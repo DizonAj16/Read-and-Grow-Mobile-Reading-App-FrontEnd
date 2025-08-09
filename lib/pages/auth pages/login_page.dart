@@ -1,3 +1,5 @@
+import 'package:deped_reading_app_laravel/api/auth_service.dart';
+import 'package:deped_reading_app_laravel/api/user_service.dart';
 import 'package:deped_reading_app_laravel/pages/admin%20pages/admin_page.dart';
 import 'package:deped_reading_app_laravel/pages/student%20pages/student_page.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher_page.dart';
@@ -6,9 +8,8 @@ import 'package:lottie/lottie.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../widgets/appbar/theme_toggle_button.dart';
-import '../../widgets/buttons/login_button.dart';
-import '../../widgets/form/password_text_field.dart';
-import '../../api/api_service.dart';
+import 'auth buttons widgets/login_button.dart';
+import 'form fields widgets/password_text_field.dart';
 import '../../widgets/navigation/page_transition.dart';
 import '../auth pages/student_signup_page.dart';
 import '../auth pages/teacher_signup_page.dart';
@@ -43,7 +44,7 @@ class _LoginPageState extends State<LoginPage> {
     _showLoadingDialog("Logging in...");
 
     try {
-      final response = await ApiService.login({
+      final response = await AuthService.login({
         'login': usernameController.text,
         'password': passwordController.text,
       });
@@ -52,51 +53,75 @@ class _LoginPageState extends State<LoginPage> {
       await Future.delayed(const Duration(seconds: 2));
       Navigator.of(context).pop();
 
-      // Defensive: Check if SharedPreferences is available before using
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('token', data['token']?.toString() ?? '');
-        await prefs.setString('role', data['role']?.toString() ?? '');
-      } catch (e) {
-        _showErrorDialog(
-          title: 'Error',
-          message: 'Unable to access local storage. Please restart the app.',
-        );
-        return;
-      }
-
       if (response.statusCode == 200) {
-        await _showSuccessAndProceedDialogs(data['role']);
-      } else if (response.statusCode == 422) {
-        // Validation error
-        String errorMsg = '';
-        if (data['errors'] != null) {
-          data['errors'].forEach((key, value) {
-            errorMsg += '${value[0]}\n';
-          });
+        // First store the basic auth info
+        final prefs = await SharedPreferences.getInstance();
+
+        // Check where the token is located in your response
+        final token = data['token'] ?? data['access_token'] ?? '';
+        await prefs.setString('token', token);
+
+        // Get role from user object
+        final role = data['role']?.toString() ?? '';
+        await prefs.setString('role', role);
+
+        // Store user ID if available
+        if (data['user']?['id'] != null) {
+          await prefs.setString('user_id', data['user']['id'].toString());
         }
-        _showErrorDialog(
-          title: 'Validation Error',
-          message:
-              errorMsg.trim().isEmpty
-                  ? (data['message'] ?? 'Validation error')
-                  : errorMsg.trim(),
-        );
-      } else if (response.statusCode == 401) {
-        _showErrorDialog(
-          title: 'Login Failed',
-          message: data['message'] ?? 'Incorrect password.',
-        );
-      } else if (response.statusCode == 404) {
-        _showErrorDialog(
-          title: 'User Not Found',
-          message: data['message'] ?? 'User not found.',
-        );
+
+        // Now fetch the complete profile
+        _showLoadingDialog("Loading profile...");
+        try {
+          final profile = await AuthService.getAuthProfile();
+          Navigator.of(context).pop();
+
+          // Since getAuthProfile() already returns a Map, we don't need to decode it again
+          final profileData = profile; // profile is already the decoded Map
+
+          // Store the complete profile data based on role
+          if (role == 'teacher') {
+            await UserService.storeTeacherDetails(
+              profileData['teacher'] ?? profileData,
+            );
+            // await ApiService.fetchAndStoreTeacherClasses();
+          } else if (role == 'student') {
+            await UserService.storeStudentDetails(
+              profileData['student'] ?? profileData,
+            );
+
+            // // Handle student classes if available
+            // //to be refactored
+            // if (profileData['student_class'] != null) {
+            //   List<Classroom> classes =
+            //       (profileData['student_class'] as List)
+            //           .map(
+            //             (json) =>
+            //                 Classroom.fromJson(Map<String, dynamic>.from(json)),
+            //           )
+            //           .toList();
+            //   await ApiService.storeStudentClassesToPrefs(classes);
+            // }
+          }
+
+          await _showSuccessAndProceedDialogs(role);
+        } catch (e) {
+          Navigator.of(context).pop();
+          _showErrorDialog(
+            title: 'Profile Error',
+            message: 'Logged in but failed to load profile. Please try again.',
+          );
+          debugPrint('Profile error: $e');
+        }
       } else {
-        _showErrorDialog(
-          title: 'Login Failed',
-          message: data['message'] ?? 'Login failed',
-        );
+        // Handle error responses
+        String errorMessage = 'Login failed';
+        if (data['message'] != null) {
+          errorMessage = data['message'];
+        } else if (data['error'] != null) {
+          errorMessage = data['error'];
+        }
+        _showErrorDialog(title: 'Login Failed', message: errorMessage);
       }
     } catch (e) {
       Navigator.of(context).pop(); // Close loading dialog if open
@@ -104,6 +129,7 @@ class _LoginPageState extends State<LoginPage> {
         title: 'Error',
         message: 'An error occurred. Please try again.',
       );
+      debugPrint('Login error: $e');
     }
   }
 
@@ -117,7 +143,7 @@ class _LoginPageState extends State<LoginPage> {
       builder:
           (context) => Center(
             child: Container(
-              padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.8),
                 borderRadius: BorderRadius.circular(16),
@@ -125,16 +151,16 @@ class _LoginPageState extends State<LoginPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(
-                    width: 75,
-                    height: 75,
-                    child: Lottie.asset('assets/animation/loading2.json'),
+                  Lottie.asset(
+                    'assets/animation/loading_rainbow.json',
+                    height: 90,
+                    width: 90,
                   ),
-                  const SizedBox(height: 12),
                   Text(
-                    message,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.onPrimary,
+                    'Logging in...',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.surface,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
@@ -172,9 +198,7 @@ class _LoginPageState extends State<LoginPage> {
                 SizedBox(
                   width: 120,
                   height: 120,
-                  child: Lottie.asset(
-                    'assets/animation/success.json',
-                  ), 
+                  child: Lottie.asset('assets/animation/success.json'),
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -194,9 +218,10 @@ class _LoginPageState extends State<LoginPage> {
     Navigator.of(context).pop(); // Close success dialog
   }
 
-
   /// Navigates to the appropriate dashboard page based on user role.
   void _navigateToDashboard(String? role) {
+    debugPrint("Navigating to dashboard for role: $role");
+
     if (role == 'student') {
       Navigator.of(context).pushAndRemoveUntil(
         PageTransition(page: StudentPage()),
@@ -211,6 +236,8 @@ class _LoginPageState extends State<LoginPage> {
       Navigator.of(
         context,
       ).pushAndRemoveUntil(PageTransition(page: AdminPage()), (route) => false);
+    } else {
+      debugPrint("No valid role detected.");
     }
   }
 

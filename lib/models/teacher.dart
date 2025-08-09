@@ -33,7 +33,20 @@ class Teacher {
     this.updatedAt,
   });
 
-  /// ✅ Create a Teacher object from SharedPreferences
+  /// Factory constructor for empty/default Teacher
+  factory Teacher.empty() => Teacher(
+        id: 0,
+        userId: 0,
+        name: 'Teacher',
+        position: '',
+        email: '',
+        username: '',
+        profilePicture: null,
+        createdAt: null,
+        updatedAt: null,
+      );
+
+  /// Create a Teacher object from SharedPreferences
   static Future<Teacher> fromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     return Teacher(
@@ -49,7 +62,7 @@ class Teacher {
     );
   }
 
-  /// ✅ Create a Teacher object from JSON or Map (single method)
+  /// Create a Teacher object from JSON or Map
   factory Teacher.fromJson(Map<String, dynamic> json) {
     return Teacher(
       id: _parseInt(json['teacher_id']),
@@ -68,7 +81,7 @@ class Teacher {
     );
   }
 
-  /// ✅ Convert to JSON
+  /// Convert to JSON
   Map<String, dynamic> toJson() => {
         'teacher_id': id,
         'user_id': userId,
@@ -81,7 +94,7 @@ class Teacher {
         'updated_at': updatedAt?.toIso8601String(),
       };
 
-  /// ✅ Save Teacher object to SharedPreferences
+  /// Save Teacher object to SharedPreferences
   Future<void> saveToPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kNameKey, name);
@@ -97,7 +110,7 @@ class Teacher {
     if (id != null) await prefs.setInt(_kTeacherIdKey, id!);
   }
 
-  /// ✅ Clear Teacher data from SharedPreferences
+  /// Clear Teacher data from SharedPreferences
   static Future<void> clearPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_kTeacherIdKey);
@@ -111,7 +124,7 @@ class Teacher {
     await prefs.remove(_kUpdatedAtKey);
   }
 
-  /// ✅ Helper to safely parse integers
+  /// Helper to safely parse integers
   static int? _parseInt(dynamic value) {
     if (value == null) return null;
     if (value is int) return value;

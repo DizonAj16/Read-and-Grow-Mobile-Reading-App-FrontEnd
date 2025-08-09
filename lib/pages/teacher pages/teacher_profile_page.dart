@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
+import 'package:deped_reading_app_laravel/api/user_service.dart';
 import 'package:intl/intl.dart';
-import 'package:deped_reading_app_laravel/api/api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lottie/lottie.dart';
@@ -166,7 +166,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
         _isUploading = true;
       });
 
-      final response = await ApiService.uploadProfilePicture(
+      final response = await UserService.uploadProfilePicture(
         userId: userId,
         role: role,
         filePath: pickedFile.path,
@@ -315,18 +315,51 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
   }
 
   // Add this method in your _TeacherProfilePageState:
-  ImageProvider<Object> _getProfileImage() {
+  Widget _getProfileImageWidget() {
     if (_pickedImageFile != null) {
-      print('[DEBUG] Using picked image file: ${_pickedImageFile!.path}');
-      return FileImage(File(_pickedImageFile!.path));
+      return FadeInImage(
+        placeholder: const AssetImage(
+          'assets/placeholder/teacher_placeholder.png',
+        ),
+        image: FileImage(File(_pickedImageFile!.path)),
+        fit: BoxFit.cover,
+        fadeInDuration: const Duration(milliseconds: 300),
+        fadeInCurve: Curves.easeInOut,
+      );
     } else if (_teacher?.profilePicture != null &&
         _teacher!.profilePicture!.isNotEmpty) {
-      print('[DEBUG] Using network image URL: ${_teacher!.profilePicture}');
-      return NetworkImage(_teacher!.profilePicture!);
+      return FadeInImage.assetNetwork(
+        placeholder: 'assets/placeholder/teacher_placeholder.png',
+        image: _teacher!.profilePicture!,
+        fit: BoxFit.cover,
+        fadeInDuration: const Duration(milliseconds: 300),
+        fadeInCurve: Curves.easeInOut,
+        imageErrorBuilder: (context, error, stackTrace) {
+          return _buildInitialsAvatar();
+        },
+      );
     } else {
-      print('[DEBUG] Using placeholder image');
-      return const AssetImage('assets/placeholder/teacher_placeholder.png');
+      return Image.asset(
+        'assets/placeholder/teacher_placeholder.png',
+        fit: BoxFit.cover,
+      );
     }
+  }
+
+  Widget _buildInitialsAvatar() {
+    return CircleAvatar(
+      backgroundColor: Theme.of(context).colorScheme.primary,
+      child: Text(
+        _teacher?.name.isNotEmpty == true
+            ? _teacher!.name.substring(0, 1).toUpperCase()
+            : 'T',
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 24,
+        ),
+      ),
+    );
   }
 
   @override
@@ -375,8 +408,8 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
       children: [
         // Blended background image with color overlay for effect (copied from landing_page.dart)
         Image.asset(
-          'assets/background/480681008_1020230633459316_6070422237958140538_n.jpg',
-          fit: BoxFit.fill,
+          'assets/background/stamaria_mobile_bg.jpg',
+          fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
         ),
@@ -546,14 +579,17 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
               child:
                   _isUploading
                       ? Lottie.asset(
-                        'assets/animation/loading3.json',
+                        'assets/animation/loading_rainbow.json',
                         width: 90,
                         height: 90,
                         fit: BoxFit.contain,
-                      ) // ✅ Lottie animation
-                      : CircleAvatar(
-                        radius: 70,
-                        backgroundImage: _getProfileImage(),
+                      )
+                      : ClipOval(
+                        child: SizedBox(
+                          width: 140,
+                          height: 140,
+                          child: _getProfileImageWidget(),
+                        ),
                       ),
             ),
             Positioned(

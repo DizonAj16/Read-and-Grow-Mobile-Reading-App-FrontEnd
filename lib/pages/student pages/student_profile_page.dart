@@ -1,14 +1,15 @@
 import 'dart:convert';
 import 'dart:ui';
+import 'package:deped_reading_app_laravel/api/auth_service.dart';
+import 'package:deped_reading_app_laravel/api/user_service.dart';
+import 'package:deped_reading_app_laravel/models/student.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'package:deped_reading_app_laravel/api/api_service.dart'; // adjust your import path
 
-/// StudentProfilePage displays the student's profile information,
-/// allows updating the profile picture, and shows student details.
 class StudentProfilePage extends StatefulWidget {
   const StudentProfilePage({super.key});
 
@@ -17,518 +18,407 @@ class StudentProfilePage extends StatefulWidget {
 }
 
 class _StudentProfilePageState extends State<StudentProfilePage> {
-  // Student info fields
-  String _studentName = '';
-  String _studentLrn = '';
-  String _studentGrade = '';
-  String _studentSection = '';
-  String _studentUserId = ''; // Used for profile picture upload
-  XFile? _pickedImageFile; // Holds the picked image file for preview/upload
-  String baseUrl = 'http://10.0.2.2:8000'; // Default base URL for images
-  String _profilePictureUrl = ''; // URL for the student's profile picture
-  bool _isUploading = false; // Controls loading animation during upload
+  late Future<Student> _studentFuture;
+  XFile? _pickedImageFile;
+  String _baseUrl = 'http://10.0.2.2:8000';
+  bool _isUploading = false;
 
   @override
   void initState() {
     super.initState();
-    _initializeData();
+    _studentFuture = _initializeStudentData();
   }
 
-  /// Loads student data and profile picture from SharedPreferences.
-  /// Sets up the base URL and ensures the profile picture URL is complete.
-  Future<void> _initializeData() async {
+  Future<Student> _initializeStudentData() async {
     final prefs = await SharedPreferences.getInstance();
     final savedBaseUrl =
         prefs.getString('base_url') ?? 'http://10.0.2.2:8000/api';
     final uri = Uri.parse(savedBaseUrl);
-    baseUrl = '${uri.scheme}://${uri.authority}';
+    _baseUrl = '${uri.scheme}://${uri.authority}';
 
-    String storedProfilePicture = prefs.getString('profile_picture') ?? '';
+    Student student;
 
-    // If the profile picture is not a complete URL, add the baseUrl
-    if (storedProfilePicture.isNotEmpty &&
-        !storedProfilePicture.contains(baseUrl)) {
-      storedProfilePicture =
-          '$baseUrl/storage/profile_images/$storedProfilePicture';
+    try {
+      // Try fetching from API
+      final profileData =
+          await AuthService.getAuthProfile(); // your existing function
+      debugPrint('📡 API profileData: $profileData');
+
+      student = Student.fromJson(profileData['student']);
+      debugPrint('✅ Student from API: ${student.toJson()}');
+
+      await student.saveToPrefs(); // save to SharedPreferences
+    } catch (e) {
+      debugPrint('⚠️ Error fetching from API: $e');
+      // Fallback to saved data
+      student = await Student.fromPrefs();
+      debugPrint('📦 Student from SharedPreferences: ${student.toJson()}');
     }
 
-    setState(() {
-      _studentUserId = prefs.getString('user_id') ?? '';
-      _studentName = prefs.getString('student_name') ?? '';
-      _studentLrn = prefs.getString('student_lrn') ?? '';
-      _studentGrade = prefs.getString('student_grade') ?? '';
-      _studentSection = prefs.getString('student_section') ?? '';
-      _profilePictureUrl = storedProfilePicture;
-    });
+    // Normalize profile picture path if needed
+    if (student.profilePicture != null &&
+        !student.profilePicture!.startsWith('http')) {
+      student = student.copyWith(
+        profilePicture:
+            '$_baseUrl/storage/profile_images/${student.profilePicture}',
+      );
+      debugPrint(
+        '🖼️ Normalized profile picture URL: ${student.profilePicture}',
+      );
+    }
 
-    print("Loaded profile picture URL: $_profilePictureUrl");
+    return student;
   }
 
-  /// Handles picking an image from the gallery and uploading it as the profile picture.
-  /// Shows a confirmation dialog before uploading.
-  /// Updates the profile picture both locally and in SharedPreferences.
-  Future<void> _pickAndUploadImage({required String userId}) async {
+  Future<void> _pickAndUploadImage(Student student) async {
     try {
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(source: ImageSource.gallery);
       if (pickedFile == null) return;
 
-      setState(() {
-        _pickedImageFile = pickedFile;
-      });
+      setState(() => _pickedImageFile = pickedFile);
 
-      // Show confirmation dialog before uploading
-      // Show confirmation dialog before uploading
       final confirmed = await showDialog<bool>(
         context: context,
-        builder: (dialogContext) {
-          return AlertDialog(
-            backgroundColor: Theme.of(dialogContext).colorScheme.surface,
-            elevation: 10,
-            shadowColor: Colors.black26,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+        builder:
+            (context) => ConfirmationDialog(
+              imagePath: pickedFile.path,
+              title: "Confirm Upload",
             ),
-            titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-            title: Row(
-              children: [
-                Icon(
-                  Icons.image_outlined,
-                  size: 26,
-                  color: Theme.of(dialogContext).colorScheme.primary,
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  "Confirm Upload",
-                  style: Theme.of(dialogContext).textTheme.titleLarge?.copyWith(
-                    color: Theme.of(dialogContext).colorScheme.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 10),
-                // Modern circular avatar with border and shadow
-                Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 8,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: CircleAvatar(
-                    radius: 60,
-                    backgroundColor: Colors.grey[200],
-                    child: CircleAvatar(
-                      radius: 58,
-                      backgroundImage: FileImage(File(pickedFile.path)),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  "Do you want to set this as your new profile picture?",
-                  textAlign: TextAlign.center,
-                  style: Theme.of(dialogContext).textTheme.bodyMedium?.copyWith(
-                    fontSize: 15,
-                    color: Theme.of(dialogContext).colorScheme.onSurface,
-                  ),
-                ),
-              ],
-            ),
-            actionsPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 12,
-            ),
-            actions: [
-              TextButton.icon(
-                icon: const Icon(Icons.cancel, size: 18),
-                label: const Text("Cancel"),
-                onPressed: () {
-                  if (dialogContext.mounted)
-                    Navigator.pop(dialogContext, false);
-                },
-                style: TextButton.styleFrom(
-                  foregroundColor: Theme.of(dialogContext).colorScheme.primary,
-                  textStyle: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.upload_rounded, size: 18),
-                label: const Text("Upload"),
-                onPressed: () {
-                  if (dialogContext.mounted) Navigator.pop(dialogContext, true);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(dialogContext).colorScheme.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                  textStyle: const TextStyle(fontWeight: FontWeight.bold),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
       );
 
-      // If cancelled, reset picked image and return
       if (confirmed != true) {
-        setState(() {
-          _pickedImageFile = null;
-        });
+        setState(() => _pickedImageFile = null);
         return;
       }
 
-      setState(() {
-        _isUploading = true;
-      });
+      setState(() => _isUploading = true);
+      final uploadStartTime = DateTime.now();
 
-      // Upload the image using the API service
-      final response = await ApiService.uploadProfilePicture(
-        userId: userId,
+      final response = await UserService.uploadProfilePicture(
+        userId: student.userId.toString(),
         role: 'student',
         filePath: pickedFile.path,
       );
 
+      final elapsed = DateTime.now().difference(uploadStartTime);
+      final remainingDelay = const Duration(seconds: 2) - elapsed;
+      if (remainingDelay > Duration.zero) {
+        await Future.delayed(remainingDelay);
+      }
+
       if (response.statusCode == 200) {
-        await Future.delayed(const Duration(seconds: 2));
-        final responseBody = await response.stream.bytesToString();
-        final data = jsonDecode(responseBody);
-        String newProfileUrl = data['profile_picture'];
-        if (!newProfileUrl.startsWith('http')) {
-          newProfileUrl = '$baseUrl/storage/profile_images/$newProfileUrl';
-        }
+        final data = jsonDecode(await response.stream.bytesToString());
+        final newProfileUrl =
+            data['profile_picture']?.startsWith('http')
+                ? data['profile_picture']
+                : '$_baseUrl/storage/profile_images/${data['profile_picture']}';
+
+        final updatedStudent = student.copyWith(profilePicture: newProfileUrl);
+        await updatedStudent.saveToPrefs();
 
         setState(() {
-          _profilePictureUrl = newProfileUrl;
+          _studentFuture = Future.value(updatedStudent);
           _pickedImageFile = null;
         });
 
-        // Save new profile picture URL to SharedPreferences
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('profile_picture', newProfileUrl);
-
-        print('[DEBUG] New profile picture URL: $_profilePictureUrl');
-
-        // Show success snackbar
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: const [
-                Icon(Icons.check_circle, color: Colors.white, size: 22),
-                SizedBox(width: 10),
-                Expanded(child: Text("Profile picture updated!")),
-              ],
-            ),
-            backgroundColor: Colors.green[700],
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            elevation: 8,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(UploadSuccessSnackBar());
       } else {
-        // Show error snackbar if upload fails
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              "Failed to upload image. Code: ${response.statusCode}",
-            ),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(UploadErrorSnackBar(response.statusCode));
       }
     } catch (e) {
-      // Show error snackbar if an exception occurs
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      ).showSnackBar(SnackBar(content: Text("Error: ${e.toString()}")));
     } finally {
-      setState(() {
-        _isUploading = false; // Hide loading animation
-      });
+      setState(() => _isUploading = false);
     }
   }
 
-  /// Returns the correct ImageProvider for the profile avatar.
-  /// If a new image is picked, shows the preview.
-  /// Otherwise, shows the network image or a placeholder.
-  ImageProvider<Object> _getProfileImage() {
-    if (_pickedImageFile != null) {
-      print('Picked file path: ${_pickedImageFile!.path}');
-      return FileImage(File(_pickedImageFile!.path));
-    } else if (_profilePictureUrl.isNotEmpty) {
-      print('Profile picture URL: $_profilePictureUrl');
-      return NetworkImage(_profilePictureUrl);
-    } else {
-      return const AssetImage('assets/placeholder/student_placeholder.png');
-    }
-  }
-
-  /// Creates a glassmorphism card for visual effect.
-  /// Used for profile and info sections.
-  Widget _glassCard({
-    required Widget child,
-    double blur = 0.5,
-    double opacity = 0.18,
-    EdgeInsets? padding,
-  }) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(opacity),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.25),
-              width: 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.07),
-                blurRadius: 16,
-                offset: Offset(0, 8),
-              ),
-            ],
-          ),
-          padding: padding ?? const EdgeInsets.all(0),
-          child: child,
-        ),
-      ),
-    );
-  }
-
-  /// Main build method for the student profile page.
-  /// Assembles the app bar, background, profile card, info card, and edit button.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text('Student Profile', style: TextStyle(color: Colors.white)),
-        backgroundColor: Theme.of(
-          context,
-        ).colorScheme.primary.withOpacity(0.85),
-        iconTheme: IconThemeData(color: Colors.white),
+        title: Text(
+          'My Profile',
+          style: GoogleFonts.poppins(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.8),
+        iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+        ),
+        centerTitle: true,
       ),
-      body: Stack(
-        children: [
-          // Blended background image with color overlay for readability
-          Image.asset(
-            'assets/background/480681008_1020230633459316_6070422237958140538_n.jpg',
-            fit: BoxFit.fill,
-            width: double.infinity,
-            height: double.infinity,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Theme.of(context).colorScheme.primary,
+              Theme.of(context).colorScheme.secondary,
+            ],
           ),
-          Container(
-            color: Colors.black.withOpacity(0.35),
-            width: double.infinity,
-            height: double.infinity,
-          ),
-          Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight:
-                      MediaQuery.of(context).size.height -
-                      (MediaQuery.of(context).padding.top + kToolbarHeight),
+        ),
+        child: FutureBuilder<Student>(
+          future: _studentFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Center(
+                child: Lottie.asset(
+                  'assets/animation/loading_rainbow.json',
+                  width: 90,
+                  height: 90,
                 ),
+              );
+            }
+
+            if (!snapshot.hasData || snapshot.hasError) {
+              return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    SizedBox(height: 20),
-                    // Glassmorphism profile card with avatar and name
-                    _glassCard(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 24,
-                        horizontal: 16,
-                      ),
-                      child: Column(
-                        children: [
-                          // Profile avatar with upload button
-                          Hero(
-                            tag: 'student-profile-image',
-                            child: Stack(
-                              children: [
-                                CircleAvatar(
-                                  radius: 60,
-                                  backgroundColor: Colors.white70,
-                                  child:
-                                      _isUploading
-                                          ? Lottie.asset(
-                                            'assets/animation/loading3.json',
-                                            width: 90,
-                                            height: 90,
-                                            fit: BoxFit.contain,
-                                          ) // Lottie loading animation during upload
-                                          : CircleAvatar(
-                                            radius: 58,
-                                            backgroundImage: _getProfileImage(),
-                                          ),
-                                ),
-                                // Camera icon for picking new profile image
-                                Positioned(
-                                  bottom: 0,
-                                  right: 4,
-                                  child: GestureDetector(
-                                    onTap: () async {
-                                      if (_studentUserId.isNotEmpty) {
-                                        await _pickAndUploadImage(
-                                          userId: _studentUserId,
-                                        );
-                                      }
-                                    },
-                                    child: ClipOval(
-                                      child: Container(
-                                        color:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.primary,
-                                        padding: const EdgeInsets.all(6),
-                                        child: Icon(
-                                          Icons.camera_alt_outlined,
-                                          size: 20,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          SizedBox(height: 18),
-                          // Student name
-                          Text(
-                            _studentName.isNotEmpty ? _studentName : "Student",
-                            style: Theme.of(
-                              context,
-                            ).textTheme.headlineMedium?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.black.withOpacity(0.4),
-                                  blurRadius: 4,
-                                  offset: Offset(1, 2),
-                                ),
-                              ],
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          // Student role label
-                          Text(
-                            "Student",
-                            style: Theme.of(
-                              context,
-                            ).textTheme.bodyLarge?.copyWith(
-                              color: Colors.white.withOpacity(0.85),
-                              fontWeight: FontWeight.w500,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.black.withOpacity(0.3),
-                                  blurRadius: 3,
-                                  offset: Offset(1, 1),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 30),
-                    // Glassmorphism info card with student details
-                    _glassCard(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Column(
-                        children: [
-                          ListTile(
-                            leading: Icon(Icons.badge, color: Colors.white70),
-                            title: Text(
-                              "LRN: ${_studentLrn.isNotEmpty ? _studentLrn : 'Not set'}",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          Divider(
-                            height: 0,
-                            indent: 16,
-                            endIndent: 16,
-                            color: Colors.white70,
-                          ),
-                          ListTile(
-                            leading: Icon(Icons.grade, color: Colors.white70),
-                            title: Text(
-                              "Grade: ${_studentGrade.isNotEmpty ? _studentGrade : 'Not set'}",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          Divider(
-                            height: 0,
-                            indent: 16,
-                            endIndent: 16,
-                            color: Colors.white70,
-                          ),
-                          ListTile(
-                            leading: Icon(Icons.class_, color: Colors.white70),
-                            title: Text(
-                              "Section: ${_studentSection.isNotEmpty ? _studentSection : 'Not set'}",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 20),
-                    // Edit profile button (future implementation)
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        // TODO: Implement edit profile
-                      },
-                      icon: Icon(Icons.edit),
-                      label: Text("Edit Profile"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 32,
-                          vertical: 12,
-                        ),
-                      ),
+                    Image.asset('assets/images/confused_owl.png', width: 120),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Oops! Couldn\'t load profile',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyLarge?.copyWith(color: Colors.white),
                     ),
                   ],
+                ),
+              );
+            }
+
+            final student = snapshot.data!;
+            return _buildProfileContent(student);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileContent(Student student) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          const SizedBox(height: 80),
+          // Profile Card
+          _GlassCard(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                _ProfileAvatar(
+                  student: student,
+                  pickedImage: _pickedImageFile,
+                  isUploading: _isUploading,
+                  onTap: () => _pickAndUploadImage(student),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  student.studentName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'ComicNeue',
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.amber[700],
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    "Super Reader",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontFamily: 'ComicNeue',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 30),
+          // Info Card
+          _GlassCard(
+            child: Column(
+              children: [
+                _InfoTile(
+                  icon: Icons.school_rounded,
+                  text: "LRN: ${student.studentLrn ?? 'Not set'}",
+                  iconColor: Colors.pink,
+                ),
+                const Divider(
+                  height: 0,
+                  indent: 16,
+                  endIndent: 16,
+                  color: Colors.white70,
+                ),
+                _InfoTile(
+                  icon: Icons.star_rounded,
+                  text: "Grade: ${student.studentGrade ?? 'Not set'}",
+                  iconColor: Colors.yellow,
+                ),
+                const Divider(
+                  height: 0,
+                  indent: 16,
+                  endIndent: 16,
+                  color: Colors.white70,
+                ),
+                _InfoTile(
+                  icon: Icons.group_rounded,
+                  text: "Section: ${student.studentSection ?? 'Not set'}",
+                  iconColor: Colors.lightBlue,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 30),
+          // Progress indicator
+          _TaskProgressIndicator(completedTasks: student.completedTasks),
+          const SizedBox(height: 20),
+          // Fun decoration
+          Image.asset('assets/activity_images/reading_owl.jpg', width: 100),
+        ],
+      ),
+    );
+  }
+}
+
+class _GlassCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsets? padding;
+
+  const _GlassCard({required this.child, this.padding});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 10,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+          child: Padding(
+            padding: padding ?? const EdgeInsets.all(0),
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileAvatar extends StatelessWidget {
+  final Student student;
+  final XFile? pickedImage;
+  final bool isUploading;
+  final VoidCallback onTap;
+
+  const _ProfileAvatar({
+    required this.student,
+    this.pickedImage,
+    required this.isUploading,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Hero(
+      tag: 'student-profile-image',
+      child: Stack(
+        children: [
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Theme.of(context).colorScheme.onPrimary,
+                width: 3,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+                  blurRadius: 10,
+                  spreadRadius: 3,
+                ),
+              ],
+            ),
+            child:
+                isUploading
+                    ? Lottie.asset('assets/animation/loading_rainbow.json')
+                    : CircleAvatar(
+                      radius: 60,
+                      backgroundColor:
+                          Theme.of(context).colorScheme.primaryContainer,
+                      backgroundImage: _getProfileImage(student),
+                      child:
+                          pickedImage == null && student.profilePicture == null
+                              ? Icon(
+                                Icons.person,
+                                size: 50,
+                                color:
+                                    Theme.of(
+                                      context,
+                                    ).colorScheme.onPrimaryContainer,
+                              )
+                              : null,
+                    ),
+          ),
+          Positioned(
+            bottom: 0,
+            right: 4,
+            child: GestureDetector(
+              onTap: onTap,
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Theme.of(context).colorScheme.secondary,
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.onSecondary,
+                    width: 2,
+                  ),
+                ),
+                padding: const EdgeInsets.all(8),
+                child: Icon(
+                  Icons.camera_alt_rounded,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.onSecondary,
                 ),
               ),
             ),
@@ -537,4 +427,247 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
       ),
     );
   }
+
+  ImageProvider<Object> _getProfileImage(Student student) {
+    if (pickedImage != null) return FileImage(File(pickedImage!.path));
+    if (student.profilePicture != null)
+      return NetworkImage(student.profilePicture!);
+    return const AssetImage('assets/placeholder/student_placeholder.png');
+  }
+}
+
+class _InfoTile extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final Color? iconColor;
+
+  const _InfoTile({
+    required this.icon,
+    required this.text,
+    this.iconColor = Colors.white,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: iconColor?.withOpacity(0.2),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: iconColor ?? Colors.white, size: 24),
+      ),
+      title: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 18,
+          fontFamily: 'ComicNeue',
+        ),
+      ),
+    );
+  }
+}
+
+class _TaskProgressIndicator extends StatelessWidget {
+  final int completedTasks;
+
+  const _TaskProgressIndicator({required this.completedTasks});
+
+  @override
+  Widget build(BuildContext context) {
+    return _GlassCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.emoji_events_rounded, color: Colors.amber),
+              const SizedBox(width: 8),
+              Text(
+                'Reading Progress',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'ComicNeue',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Completed $completedTasks of 13 stories',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontFamily: 'ComicNeue',
+            ),
+          ),
+          const SizedBox(height: 12),
+          LinearProgressIndicator(
+            value: completedTasks / 13,
+            backgroundColor: Colors.grey[300],
+            color: Colors.amber,
+            minHeight: 16,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '0',
+                style: TextStyle(color: Colors.white, fontFamily: 'ComicNeue'),
+              ),
+              Text(
+                '13',
+                style: TextStyle(color: Colors.white, fontFamily: 'ComicNeue'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ConfirmationDialog extends StatelessWidget {
+  final String imagePath;
+  final String title;
+
+  const ConfirmationDialog({required this.imagePath, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.primary,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white, width: 2),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'ComicNeue',
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.white, width: 3),
+                borderRadius: BorderRadius.circular(100),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(100),
+                child: Image.file(
+                  File(imagePath),
+                  width: 120,
+                  height: 120,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              "Use this as your new profile picture?",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontFamily: 'ComicNeue',
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red[400],
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                  ),
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontFamily: 'ComicNeue',
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green[400],
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                  ),
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text(
+                    'Yes!',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontFamily: 'ComicNeue',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class UploadSuccessSnackBar extends SnackBar {
+  UploadSuccessSnackBar()
+    : super(
+        content: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.white),
+            SizedBox(width: 10),
+            Text(
+              "Yay! New profile picture saved!",
+              style: TextStyle(fontFamily: 'ComicNeue'),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      );
+}
+
+class UploadErrorSnackBar extends SnackBar {
+  UploadErrorSnackBar(int? statusCode)
+    : super(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white),
+            const SizedBox(width: 10),
+            Text(
+              "Oops! Upload failed${statusCode != null ? ' (Code: $statusCode)' : ''}",
+              style: const TextStyle(fontFamily: 'ComicNeue'),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      );
 }

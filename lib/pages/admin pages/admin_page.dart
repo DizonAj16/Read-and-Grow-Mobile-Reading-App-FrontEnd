@@ -1,4 +1,4 @@
-import 'package:deped_reading_app_laravel/api/api_service.dart';
+import 'package:deped_reading_app_laravel/api/auth_service.dart';
 import 'package:deped_reading_app_laravel/pages/admin%20pages/admin%20dashboard/admin_dashboard_page.dart';
 import 'package:deped_reading_app_laravel/pages/admin%20pages/admin_profile_page.dart';
 import 'package:deped_reading_app_laravel/pages/auth%20pages/landing_page.dart';
@@ -22,7 +22,7 @@ class _AdminPageState extends State<AdminPage> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? '';
 
-    final response = await ApiService.logout(token);
+    final response = await AuthService.logout(token);
 
     if (response.statusCode == 200) {
       // Only remove token and user-related data, not all preferences

@@ -1,7 +1,7 @@
 import 'dart:convert';
-
+import 'package:deped_reading_app_laravel/api/classroom_service.dart';
+import 'package:deped_reading_app_laravel/api/user_service.dart';
 import 'package:flutter/material.dart';
-import 'package:deped_reading_app_laravel/api/api_service.dart';
 import 'create_dialog_utils.dart';
 import 'class_form.dart';
 import 'student_form.dart';
@@ -72,7 +72,7 @@ class _CreateClassOrStudentDialogState
     DialogUtils.showLoadingDialog(context, "Creating student account...");
 
     try {
-      final response = await ApiService.registerStudent({
+      final response = await UserService.registerStudent({
         'student_username': studentUsernameController.text,
         'student_password': studentPasswordController.text,
         'student_password_confirmation': confirmStudentPasswordController.text,
@@ -124,7 +124,7 @@ Future<void> _addClass() async {
   final startTime = DateTime.now();
 
   try {
-    final response = await ApiService.createClass({
+    final response = await ClassroomService.createClass({
       'class_name': classNameController.text.trim(),
       'section': classSectionController.text.trim(),
       'grade_level': gradeLevelController.text.trim(),

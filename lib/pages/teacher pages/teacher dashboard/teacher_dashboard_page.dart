@@ -1,87 +1,146 @@
-import 'package:deped_reading_app_laravel/pages/teacher%20pages/classes/class_details_page.dart';
+import 'package:deped_reading_app_laravel/api/classroom_service.dart';
+import 'package:deped_reading_app_laravel/api/prefs_service.dart';
+import 'package:deped_reading_app_laravel/api/user_service.dart';
+import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/class_details_page.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20dashboard/create%20student%20and%20classes/create_class_or_student_dialog.dart';
+import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20dashboard/manage%20classes/delete_class_dialog.dart';
+import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20dashboard/manage%20classes/edit_class_dialog.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20dashboard/students_list/teacher_student_list_modal.dart';
 import 'package:deped_reading_app_laravel/widgets/navigation/page_transition.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'cards/horizontal_card.dart';
 import 'cards/class_card.dart';
-import '../../../api/api_service.dart';
 import '../../../models/student.dart';
 import '../../../models/teacher.dart';
 import '../../../models/classroom.dart';
 
-/// Teacher Dashboard Page - Main entry point
 class TeacherDashboardPage extends StatefulWidget {
-  /// Constructor for TeacherDashboardPage
   const TeacherDashboardPage({super.key});
 
   @override
   State<TeacherDashboardPage> createState() => _TeacherDashboardPageState();
 }
 
-/// State class for TeacherDashboardPage
 class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
-  late Future<List<Student>> _studentsFuture;
-  late Future<Teacher> _teacherFuture;
-  late Future<int> _classCountFuture;
-  late Future<List<Classroom>> _classesFuture;
-  String? _profilePicture;
+  // Initialize futures with default values
+  Future<List<Student>> _studentsFuture = Future.value([]);
+  Future<Teacher> _teacherFuture = Future.value(
+    Teacher(id: 0, userId: 0, name: 'Loading...', profilePicture: null),
+  );
+  Future<int> _classCountFuture = Future.value(0);
+  Future<List<Classroom>> _classesFuture = Future.value([]);
 
-  // Pagination state
   static const List<int> _pageSizes = [2, 5, 10, 20, 50];
   final int _pageSize = 10;
   List<Student> _allStudents = [];
 
-  /// Called when this object is inserted into the tree.
+  bool _isLoading = true;
+  bool _isRefreshing = false;
+  DateTime? _loadingStartTime;
+
   @override
   void initState() {
     super.initState();
+    _loadInitialData();
+  }
 
+  Future<void> _loadInitialData() async {
+    _loadingStartTime = DateTime.now();
+    setState(() => _isLoading = true);
+
+    try {
+      await Future.wait([
+        _loadTeacherData(),
+        _loadStudentData(),
+        _loadClassData(),
+      ]);
+    } catch (e) {
+      debugPrint("Initial data loading error: $e");
+    } finally {
+      await _ensureMinimumLoadingTime();
+    }
+  }
+
+  Future<void> _loadTeacherData() async {
     _teacherFuture = Teacher.fromPrefs();
+    await _teacherFuture;
+  }
 
+  Future<void> _loadStudentData() async {
     _studentsFuture = _loadStudents().then((students) {
       _allStudents = students;
       return students;
     });
-
-    final classFuture = _loadClassesAndCount();
-    _classesFuture = classFuture;
-    _classCountFuture = classFuture.then((list) => list.length);
+    await _studentsFuture;
   }
 
-  /// Refreshes the student count by reloading students.
-  void _refreshStudentCount() {
-    setState(() {
-      _studentsFuture = _loadStudents();
+  Future<void> _loadClassData() async {
+    _classesFuture = _loadClassesAndCount().then((classes) {
+      _classCountFuture = Future.value(classes.length);
+      return classes;
     });
+    await _classesFuture;
   }
 
-  /// Loads students from API and local storage.
+  Future<void> _ensureMinimumLoadingTime() async {
+    if (_loadingStartTime != null) {
+      final elapsed = DateTime.now().difference(_loadingStartTime!);
+      final remaining = const Duration(seconds: 2) - elapsed;
+      if (remaining > Duration.zero) await Future.delayed(remaining);
+    }
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        _isRefreshing = false;
+      });
+    }
+  }
+
+  Future<void> _handleRefresh() async {
+    _loadingStartTime = DateTime.now();
+    setState(() => _isRefreshing = true);
+
+    try {
+      await Future.wait([
+        _loadTeacherData(),
+        _loadStudentData(),
+        _loadClassData(),
+      ]);
+    } catch (e) {
+      debugPrint("Refresh error: $e");
+    } finally {
+      await _ensureMinimumLoadingTime();
+    }
+  }
+
   Future<List<Student>> _loadStudents() async {
     try {
-      final apiList = await ApiService.fetchAllStudents();
-      await ApiService.storeStudentsToPrefs(apiList);
+      final apiList = await UserService.fetchAllStudents();
+      await PrefsService.storeStudentsToPrefs(apiList);
     } catch (_) {
-      print("Failed to fetch students from API, loading from local storage.");
+      debugPrint(
+        "Failed to fetch students from API, loading from local storage.",
+      );
     }
-    return await ApiService.getStudentsFromPrefs();
+    return await PrefsService.getStudentsFromPrefs();
   }
 
-  /// Refreshes the list of classes.
+  Future<List<Classroom>> _loadClassesAndCount() async {
+    final classes = await ClassroomService.fetchTeacherClasses();
+    await PrefsService.storeTeacherClassesToPrefs(classes);
+    return classes;
+  }
+
+  void _refreshStudentCount() {
+    setState(() => _studentsFuture = _loadStudents());
+  }
+
   void _refreshClasses() {
     setState(() {
-      final classesFuture = _loadClassesAndCount();
-      _classesFuture = classesFuture;
-      _classCountFuture = classesFuture.then((list) => list.length);
+      _classesFuture = _loadClassesAndCount();
+      _classCountFuture = _classesFuture.then((list) => list.length);
     });
-  }
-
-  /// Loads classes and returns their count.
-  Future<List<Classroom>> _loadClassesAndCount() async {
-    final classes = await ApiService.fetchTeacherClasses();
-    await ApiService.storeClassesToPrefs(classes);
-    return classes;
   }
 
   /// Shows the create class/student dialog.
@@ -191,7 +250,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
   /// Navigates to the class details page for a given class ID.
   void _viewClassDetails(BuildContext context, int classId) async {
     try {
-      final details = await ApiService.getClassDetails(classId);
+      final details = await ClassroomService.getClassDetails(classId);
       if (!context.mounted) return;
 
       await Navigator.of(
@@ -212,413 +271,26 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
 
   /// Opens a dialog to edit a class's details.
   void _editClass(BuildContext context, Classroom classroom) {
-    final classNameController = TextEditingController(
-      text: classroom.className,
-    );
-    final sectionController = TextEditingController(text: classroom.section);
-    final schoolYearController = TextEditingController(
-      text: classroom.schoolYear,
-    );
-
-    const gradeLevels = [1, 2, 3, 4, 5];
-    int? selectedGrade = int.tryParse(classroom.gradeLevel ?? '');
-
     showDialog(
       context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+      builder:
+          (context) => EditClassDialog(
+            classroom: classroom,
+            onClassUpdated: _refreshClasses,
           ),
-          title: Row(
-            children: [
-              Icon(
-                Icons.edit,
-                color: Theme.of(context).colorScheme.primary,
-                size: 30,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                "Edit Class",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _stylizedTextField(
-                  context: context,
-                  controller: classNameController,
-                  label: "Class Name",
-                ),
-                const SizedBox(height: 12),
-                _stylizedTextField(
-                  context: context,
-                  controller: sectionController,
-                  label: "Section",
-                ),
-                const SizedBox(height: 12),
-                _stylizedTextField(
-                  context: context,
-                  controller: schoolYearController,
-                  label: "School Year (e.g., 2024-2025)",
-                ),
-                const SizedBox(height: 12),
-
-                DropdownButtonFormField<int>(
-                  value: selectedGrade,
-                  decoration: InputDecoration(
-                    labelText: "Grade Level",
-                    labelStyle: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    filled: true,
-                    fillColor: Theme.of(
-                      context,
-                    ).colorScheme.primary.withOpacity(0.07),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(
-                        color: Theme.of(context).colorScheme.primary,
-                        width: 2,
-                      ),
-                    ),
-                    errorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(color: Colors.red, width: 2),
-                    ),
-                    focusedErrorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(color: Colors.red, width: 2),
-                    ),
-                    contentPadding: EdgeInsets.symmetric(
-                      vertical: 18,
-                      horizontal: 18,
-                    ),
-                  ),
-                  items:
-                      gradeLevels
-                          .map(
-                            (grade) => DropdownMenuItem(
-                              value: grade,
-                              child: Text("Grade $grade"),
-                            ),
-                          )
-                          .toList(),
-                  onChanged: (value) {
-                    selectedGrade = value;
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton.icon(
-              icon: const Icon(Icons.cancel),
-              onPressed: () {
-                if (dialogContext.mounted) Navigator.pop(dialogContext);
-              },
-              label: const Text("Cancel"),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-            ),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.save),
-              onPressed: () async {
-                final newClassName = classNameController.text.trim();
-                final newSection = sectionController.text.trim();
-                final newSchoolYear = schoolYearController.text.trim();
-
-                // Validate required fields
-                if (newClassName.isEmpty ||
-                    newSection.isEmpty ||
-                    newSchoolYear.isEmpty ||
-                    selectedGrade == null) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    const SnackBar(content: Text("All fields are required.")),
-                  );
-                  return;
-                }
-
-                // Validate school year format (e.g., 2024-2025)
-                final yearRegex = RegExp(r'^\d{4}-\d{4}$');
-                if (!yearRegex.hasMatch(newSchoolYear)) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        "Invalid school year format (e.g., 2024-2025).",
-                      ),
-                    ),
-                  );
-                  return;
-                }
-
-                // Validate grade level range
-                final parsedGrade = selectedGrade;
-                if (parsedGrade == null ||
-                    parsedGrade < 1 ||
-                    parsedGrade > 12) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        "Grade level must be a number between 1 and 12.",
-                      ),
-                    ),
-                  );
-                  return;
-                }
-                showLoadingDialog(
-                  'assets/animation/edit.json',
-                  'Updating Class...',
-                );
-
-                try {
-                  final response = await ApiService.updateClass(
-                    classId: classroom.id!,
-                    body: {
-                      'class_name': newClassName,
-                      'grade_level': parsedGrade.toString(),
-                      'section': newSection,
-                      'school_year': newSchoolYear,
-                    },
-                  );
-                  await hideLoadingDialog(context);
-
-                  if (response.statusCode == 200) {
-                    if (dialogContext.mounted) {
-                      Navigator.pop(dialogContext); // Close dialog
-                      _refreshClasses(); // Refresh UI (you defined this earlier)
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Row(
-                            children: [
-                              Icon(
-                                Icons.check_circle,
-                                color: Colors.white,
-                                size: 22,
-                              ),
-                              SizedBox(width: 10),
-                              Text(
-                                "Class updated successfully!",
-                                style: TextStyle(
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary,
-                                ),
-                              ),
-                            ],
-                          ),
-                          backgroundColor: Colors.green[700],
-                          behavior: SnackBarBehavior.floating,
-                          margin: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 20,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 8,
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
-                    }
-                  } else {
-                    ScaffoldMessenger.of(dialogContext).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          "Failed: ${response.statusCode} ${response.body}",
-                        ),
-                        backgroundColor: Colors.red[400],
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  await hideLoadingDialog(context);
-                  ScaffoldMessenger.of(
-                    dialogContext,
-                  ).showSnackBar(SnackBar(content: Text("Error: $e")));
-                }
-              },
-              label: const Text("Save"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  /// Returns a stylized text field widget for use in dialogs.
-  Widget _stylizedTextField({
-    required BuildContext context,
-    required TextEditingController controller,
-    required String label,
-    TextInputType inputType = TextInputType.text,
-  }) {
-    final primaryColor = Theme.of(context).colorScheme.primary;
-    return TextField(
-      controller: controller,
-      keyboardType: inputType,
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(color: primaryColor, fontWeight: FontWeight.w600),
-        filled: true,
-        fillColor: primaryColor.withOpacity(0.07),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: primaryColor, width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.red, width: 2),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.red, width: 2),
-        ),
-        contentPadding: EdgeInsets.symmetric(vertical: 18, horizontal: 18),
-      ),
     );
   }
 
   /// Deletes a class after confirmation.
-  void _deleteClass(BuildContext context, int classId) async {
-    final confirm = await showDialog<bool>(
+  void _deleteClass(BuildContext context, int classId) {
+    showDialog(
       context: context,
-      builder: (BuildContext dialogContext) {
-        final primaryColor = Theme.of(context).colorScheme.primary;
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+      builder:
+          (context) => DeleteClassDialog(
+            classId: classId,
+            onClassDeleted: _refreshClasses,
           ),
-          title: Row(
-            children: [
-              Icon(
-                Icons.warning_amber_rounded,
-                color: Theme.of(context).colorScheme.primary,
-                size: 30,
-              ),
-              SizedBox(width: 8),
-              Text(
-                "Confirm Delete",
-                style: TextStyle(
-                  fontSize: 20,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-          content: Text(
-            "Are you sure you want to delete this class?",
-            style: TextStyle(
-              fontSize: 16,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-          actionsPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 8,
-          ),
-          actions: [
-            TextButton.icon(
-              icon: const Icon(Icons.cancel, size: 18),
-              label: const Text("Cancel"),
-              // Cancel button
-              onPressed: () {
-                if (dialogContext.mounted) Navigator.pop(dialogContext);
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: primaryColor,
-                textStyle: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.delete_forever, size: 18),
-              onPressed: () {
-                if (dialogContext.mounted) Navigator.pop(dialogContext, true);
-              },
-              label: const Text("Delete"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
     );
-
-    if (confirm == true) {
-      showLoadingDialog('assets/animation/loading4.json', 'Deleting Class...');
-      try {
-        await ApiService.deleteClass(classId);
-        await hideLoadingDialog(context);
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  Icon(Icons.check_circle, color: Colors.white, size: 22),
-                  SizedBox(width: 10),
-                  Text(
-                    "Class deleted successfully!",
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onPrimary,
-                    ),
-                  ),
-                ],
-              ),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating,
-              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 8,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        }
-        _refreshClasses(); // Refresh or call setState
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to delete class')),
-          );
-        }
-      }
-    }
   }
 
   /// Builds the main widget tree for the dashboard page.
@@ -629,71 +301,60 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
         onPressed: () => _showCreateClassOrStudentDialog(context),
         backgroundColor: Theme.of(context).colorScheme.primary,
         child: const Icon(Icons.add, color: Colors.white),
-        tooltip: "Create Class or Student",
-        shape: const CircleBorder(),
       ),
       body: Stack(
         children: [
-          RefreshIndicator(
-            onRefresh: _handleRefresh,
-            child: ListView(
-              padding: const EdgeInsets.all(16.0),
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: [
-                _buildWelcomeMessage(),
-                const SizedBox(height: 20),
-                _buildStatisticsCards(),
-                const SizedBox(height: 20),
-                _buildMyClassesSection(),
-              ],
+          // Main content (hidden when loading)
+          if (!_isLoading && !_isRefreshing)
+            RefreshIndicator(
+              onRefresh: _handleRefresh,
+              child: ListView(
+                padding: const EdgeInsets.all(16.0),
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  _buildWelcomeMessage(),
+                  const SizedBox(height: 20),
+                  _buildStatisticsCards(),
+                  const SizedBox(height: 20),
+                  _buildMyClassesSection(),
+                ],
+              ),
             ),
-          ),
+
+          // Loading overlay
+          if (_isLoading || _isRefreshing)
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Lottie.asset(
+                    'assets/animation/loading_rainbow.json', // Your loading animation
+                    width: 90,
+                    height: 90,
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
   }
 
-  /// Builds the welcome message widget for the teacher.
   Widget _buildWelcomeMessage() {
     return FutureBuilder<Teacher>(
       future: _teacherFuture,
       builder: (context, snapshot) {
-        final theme = Theme.of(context);
-        final primary = theme.colorScheme.primary;
-        final onSurface = theme.colorScheme.onSurface;
-
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: LinearProgressIndicator(),
-          );
+        if (snapshot.hasError) {
+          return _buildErrorWidget("Failed to load teacher data");
         }
 
-        if (snapshot.hasError || !snapshot.hasData) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24),
-            child: Text(
-              "Error loading teacher data.",
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.redAccent,
-              ),
-            ),
-          );
-        }
-
-        final teacher = snapshot.data!;
+        final teacher = snapshot.data ?? Teacher.empty();
         final username = teacher.username ?? teacher.name;
-
-        // Generate fallback avatar letter from first name
-        String initials = '';
-        if (teacher.name.trim().isNotEmpty) {
-          initials = teacher.name.trim().split(' ').first[0].toUpperCase();
-        }
-
-        // Bust cache with timestamp if profile picture is available
-        final hasProfile =
-            teacher.profilePicture != null &&
-            teacher.profilePicture!.isNotEmpty;
+        final initials =
+            teacher.name.isNotEmpty
+                ? teacher.name.trim().split(' ').first[0].toUpperCase()
+                : 'T';
+        final hasProfile = teacher.profilePicture?.isNotEmpty ?? false;
         final avatarUrl =
             hasProfile
                 ? "${teacher.profilePicture!}?t=${DateTime.now().millisecondsSinceEpoch}"
@@ -703,9 +364,13 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceVariant.withOpacity(0.4),
+            color: Theme.of(
+              context,
+            ).colorScheme.surfaceVariant.withOpacity(0.4),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: onSurface.withOpacity(0.1)),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
+            ),
             boxShadow: const [
               BoxShadow(
                 color: Colors.black12,
@@ -719,18 +384,26 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
             children: [
               CircleAvatar(
                 radius: 30,
-                backgroundColor: primary.withOpacity(0.1),
-                backgroundImage: hasProfile ? NetworkImage(avatarUrl!) : null,
+                backgroundColor: Theme.of(
+                  context,
+                ).colorScheme.primary.withOpacity(0.1),
                 child:
-                    !hasProfile
-                        ? Text(
-                          initials,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            color: primary,
-                            fontWeight: FontWeight.bold,
+                    hasProfile
+                        ? ClipOval(
+                          child: FadeInImage.assetNetwork(
+                            placeholder:
+                                'assets/placeholder/avatar_placeholder.jpg',
+                            image: avatarUrl!,
+                            fit: BoxFit.cover,
+                            width: 100,
+                            height: 100,
+                            imageErrorBuilder:
+                                (_, __, ___) => _buildAvatarFallback(initials),
+                            fadeInDuration: const Duration(milliseconds: 300),
+                            fadeInCurve: Curves.easeInOut,
                           ),
                         )
-                        : null,
+                        : _buildAvatarFallback(initials),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -739,19 +412,23 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
                   children: [
                     Text(
                       "Welcome Teacher,",
-                      style: theme.textTheme.titleMedium?.copyWith(
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontSize: 18,
                         fontWeight: FontWeight.w400,
-                        color: onSurface.withOpacity(0.7),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withOpacity(0.7),
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       "$username 👋",
-                      style: theme.textTheme.headlineSmall?.copyWith(
+                      style: Theme.of(
+                        context,
+                      ).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                         fontSize: 26,
-                        color: primary,
+                        color: Theme.of(context).colorScheme.primary,
                         letterSpacing: 1.1,
                       ),
                     ),
@@ -765,15 +442,40 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     );
   }
 
-  /// Builds the horizontal statistics cards widget.
+  Widget _buildAvatarFallback(String initials) {
+    return Center(
+      child: Text(
+        initials,
+        style: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorWidget(String message) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: Text(
+        message,
+        style: Theme.of(
+          context,
+        ).textTheme.bodyMedium?.copyWith(color: Colors.redAccent),
+      ),
+    );
+  }
+
   Widget _buildStatisticsCards() {
     return FutureBuilder<List<Student>>(
       future: _studentsFuture,
       builder: (context, snapshot) {
-        int studentCount = 0;
-        if (snapshot.hasData) {
-          studentCount = snapshot.data!.length;
+        if (snapshot.hasError) {
+          return _buildErrorWidget("Failed to load student data");
         }
+
+        final studentCount = snapshot.hasData ? snapshot.data!.length : 0;
 
         return SizedBox(
           height: 180,
@@ -787,10 +489,18 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
                 icon: Icons.people,
                 onPressed: () => _showStudentListModal(context),
               ),
-              SizedBox(width: 16),
+              const SizedBox(width: 16),
               FutureBuilder<int>(
                 future: _classCountFuture,
                 builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return TeacherDashboardHorizontalCard(
+                      title: "My Classes",
+                      value: "0",
+                      gradientColors: [Colors.purple, Colors.deepPurpleAccent],
+                      icon: Icons.school,
+                    );
+                  }
                   final myClassCount = snapshot.data ?? 0;
                   return TeacherDashboardHorizontalCard(
                     title: "My Classes",
@@ -800,7 +510,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
                   );
                 },
               ),
-              SizedBox(width: 16),
+              const SizedBox(width: 16),
             ],
           ),
         );
@@ -808,7 +518,6 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     );
   }
 
-  /// Builds the "My Classes" section widget.
   Widget _buildMyClassesSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -823,8 +532,8 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
         FutureBuilder<List<Classroom>>(
           future: _classesFuture,
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
+            if (snapshot.hasError) {
+              return _buildErrorWidget("Failed to load class data");
             }
 
             final classrooms = snapshot.data ?? [];
@@ -835,7 +544,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Lottie.asset(
-                      'assets/animation/empty.json',
+                      'assets/animation/empty_box.json',
                       width: 200,
                       height: 200,
                       repeat: true,
@@ -848,14 +557,9 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
                         fontWeight: FontWeight.bold,
                         color: Colors.deepPurple,
                       ),
-                      textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'Tap the “+” button below to get started! 👇',
-                      style: TextStyle(fontSize: 16, color: Colors.black87),
-                      textAlign: TextAlign.center,
-                    ),
+                    const Text('Tap the "+" button below to get started! 👇'),
                   ],
                 ),
               );
@@ -884,33 +588,5 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
         ),
       ],
     );
-  }
-
-  Future<void> _handleRefresh() async {
-    try {
-      await Future.wait([
-        _loadStudents().then((students) {
-          setState(() {
-            _allStudents = students;
-            _studentsFuture = Future.value(students);
-          });
-        }),
-        _loadClassesAndCount().then((classes) {
-          setState(() {
-            _classesFuture = Future.value(classes);
-            _classCountFuture = Future.value(classes.length);
-          });
-        }),
-        // 👇 Reload the teacher to update the profile picture
-        Teacher.fromPrefs().then((teacher) {
-          setState(() {
-            _teacherFuture = Future.value(teacher);
-            _profilePicture = teacher.profilePicture;
-          });
-        }),
-      ]);
-    } catch (e) {
-      print("Refresh error: $e");
-    }
   }
 }

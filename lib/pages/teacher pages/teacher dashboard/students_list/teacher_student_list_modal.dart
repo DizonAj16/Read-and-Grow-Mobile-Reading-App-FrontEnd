@@ -1,4 +1,4 @@
-import 'package:deped_reading_app_laravel/api/api_service.dart';
+import 'package:deped_reading_app_laravel/api/user_service.dart';
 import 'package:deped_reading_app_laravel/models/student.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -136,7 +136,7 @@ class _TeacherStudentListModalState extends State<TeacherStudentListModal> {
     );
 
     try {
-      final response = await ApiService.updateUser(
+      final response = await UserService.updateUser(
         userId: student.userId!,
         body: data,
       );
@@ -172,13 +172,13 @@ class _TeacherStudentListModalState extends State<TeacherStudentListModal> {
   Future<void> _performStudentDeletion(Student student) async {
     DialogUtils.showLoadingDialog(
       context,
-      'assets/animation/loading4.json',
+      'assets/animation/delete.json',
       "Deleting Student...",
     );
 
     try {
       if (student.userId != null) {
-        final response = await ApiService.deleteUser(student.userId);
+        final response = await UserService.deleteUser(student.userId);
         await DialogUtils.hideLoadingDialog(context);
 
         if (response.statusCode == 200) {

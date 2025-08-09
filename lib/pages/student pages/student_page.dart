@@ -1,12 +1,11 @@
+import 'package:deped_reading_app_laravel/api/auth_service.dart';
 import 'package:deped_reading_app_laravel/pages/auth%20pages/landing_page.dart';
 import 'package:deped_reading_app_laravel/widgets/helpers/tts_helper.dart';
 import 'package:deped_reading_app_laravel/widgets/helpers/tts_modal.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import '../../api/api_service.dart';
 import '../../widgets/navigation/page_transition.dart';
-import 'my class pages/my_class_page.dart';
+import 'student class pages/student_class_page.dart';
 import 'student_dashboard_page.dart';
 import 'student_profile_page.dart';
 
@@ -20,7 +19,7 @@ class StudentPage extends StatefulWidget {
 class _StudentPageState extends State<StudentPage> {
   int _currentIndex = 0;
   final PageController _pageController = PageController();
-  final List<Widget> _pages = [StudentDashboardPage(), MyClassPage()];
+  final List<Widget> _pages = [StudentDashboardPage(), StudentClassPage()];
   final TTSHelper _ttsHelper = TTSHelper();
 
   @override
@@ -44,7 +43,7 @@ class _StudentPageState extends State<StudentPage> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? '';
 
-    final response = await ApiService.logout(token);
+    final response = await AuthService.logout(token);
 
     if (response.statusCode == 200) {
       await prefs.remove('token');

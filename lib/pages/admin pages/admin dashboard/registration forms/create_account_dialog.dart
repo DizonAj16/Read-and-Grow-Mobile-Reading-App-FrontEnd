@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:deped_reading_app_laravel/api/user_service.dart';
 import 'package:deped_reading_app_laravel/pages/admin%20pages/admin%20dashboard/dialogs%20and%20snackbars/error_dialog.dart';
 import 'package:deped_reading_app_laravel/pages/admin%20pages/admin%20dashboard/dialogs%20and%20snackbars/loading_dialog.dart';
 import 'package:deped_reading_app_laravel/pages/admin%20pages/admin%20dashboard/registration%20forms/student_form.dart';
@@ -6,7 +7,6 @@ import 'package:deped_reading_app_laravel/pages/admin%20pages/admin%20dashboard/
 import 'package:deped_reading_app_laravel/pages/admin%20pages/admin%20dashboard/dialogs%20and%20snackbars/success_snackbar.dart';
 import 'package:deped_reading_app_laravel/pages/admin%20pages/admin%20dashboard/registration%20forms/teacher_form.dart';
 import 'package:flutter/material.dart';
-import 'package:deped_reading_app_laravel/api/api_service.dart';
 
 /// Dialog for creating teacher or student accounts.
 
@@ -120,7 +120,7 @@ class _CreateAccountDialogState extends State<CreateAccountDialog> {
     });
     _showLoadingDialog("Creating teacher account...");
     try {
-      final response = await ApiService.registerTeacher({
+      final response = await UserService.registerTeacher({
         'teacher_username': usernameController.text,
         'teacher_password': passwordController.text,
         'teacher_password_confirmation': confirmTeacherPasswordController.text,
@@ -183,7 +183,7 @@ class _CreateAccountDialogState extends State<CreateAccountDialog> {
     });
     _showLoadingDialog("Creating student account...");
     try {
-      final response = await ApiService.registerStudent({
+      final response = await UserService.registerStudent({
         'student_username': studentUsernameController.text,
         'student_password': studentPasswordController.text,
         'student_password_confirmation': confirmStudentPasswordController.text,

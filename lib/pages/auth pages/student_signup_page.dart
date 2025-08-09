@@ -1,11 +1,11 @@
+import 'package:deped_reading_app_laravel/api/user_service.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'dart:convert';
 import '../../widgets/appbar/theme_toggle_button.dart';
-import '../../widgets/buttons/signup_button.dart';
-import '../../widgets/form/password_text_field.dart';
+import 'auth buttons widgets/signup_button.dart';
+import 'form fields widgets/password_text_field.dart';
 import '../../widgets/navigation/page_transition.dart';
-import '../../api/api_service.dart';
 import 'login_page.dart';
 
 class StudentSignUpPage extends StatefulWidget {
@@ -63,7 +63,7 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
     _showLoadingDialog("Creating your account...");
 
     try {
-      final response = await ApiService.registerStudent({
+      final response = await UserService.registerStudent({
         'student_username': studentUsernameController.text,
         'student_password': studentPasswordController.text,
         'student_password_confirmation': confirmPasswordController.text,
@@ -121,7 +121,7 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
       builder:
           (context) => Center(
             child: Container(
-              padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.8),
                 borderRadius: BorderRadius.circular(16),
@@ -129,16 +129,16 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(
-                    width: 75,
-                    height: 75,
-                    child: Lottie.asset('assets/animation/loading2.json'),
+                  Lottie.asset(
+                    'assets/animation/loading_rainbow.json',
+                    height: 90,
+                    width: 90,
                   ),
-                  const SizedBox(height: 12),
                   Text(
-                    message,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.onPrimary,
+                    'Signing in...',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.surface,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
@@ -152,7 +152,6 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
   /// Used after a successful registration.
   Future<void> _showSuccessAndProceedDialogs(String message) async {
     await _showSuccessDialog(message);
-    await _showProceedingDialog();
     Navigator.of(context).pushReplacement(PageTransition(page: LoginPage()));
   }
 
@@ -192,45 +191,6 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
     );
     await Future.delayed(const Duration(milliseconds: 2100));
     Navigator.of(context).pop(); // Close success dialog
-  }
-
-  /// Shows a dialog indicating the user is being redirected to the login page.
-  /// Waits for a few seconds before closing.
-  Future<void> _showProceedingDialog() async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      barrierColor: Colors.transparent,
-      builder:
-          (context) => Center(
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.8),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 75,
-                    height: 75,
-                    child: Lottie.asset('assets/animation/loading2.json'),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    "Proceeding to login...",
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.onPrimary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-    );
-    await Future.delayed(const Duration(seconds: 2));
-    Navigator.of(context).pop(); // Close proceeding dialog
   }
 
   /// Handles error dialogs:

@@ -1,3 +1,4 @@
+import 'package:deped_reading_app_laravel/api/auth_service.dart';
 import 'package:deped_reading_app_laravel/models/teacher.dart';
 import 'package:flutter/material.dart';
 import 'pupil_submissions_and_report_page.dart';
@@ -5,7 +6,6 @@ import 'teacher dashboard/teacher_dashboard_page.dart';
 import 'badges_list_page.dart';
 import 'teacher_profile_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../api/api_service.dart';
 import '../../pages/auth pages/landing_page.dart';
 import '../../widgets/navigation/page_transition.dart';
 
@@ -32,7 +32,7 @@ class _TeacherPageState extends State<TeacherPage> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? '';
 
-    final response = await ApiService.logout(token);
+    final response = await AuthService.logout(token);
 
     if (response.statusCode == 200) {
       // ✅ Remove authentication and user-specific data
