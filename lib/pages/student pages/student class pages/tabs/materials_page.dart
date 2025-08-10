@@ -1,4 +1,5 @@
 import 'package:deped_reading_app_laravel/api/pdf_service.dart';
+import 'package:deped_reading_app_laravel/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:deped_reading_app_laravel/models/pdf_material.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/pdf%20helper/pdf_viewer.dart';
@@ -13,9 +14,12 @@ class MaterialsPage extends StatefulWidget {
   State<MaterialsPage> createState() => _MaterialsPageState();
 }
 
-class _MaterialsPageState extends State<MaterialsPage> {
+class _MaterialsPageState extends State<MaterialsPage>
+    with SingleTickerProviderStateMixin {
   List<PdfMaterial> pdfMaterials = [];
   bool isLoading = true;
+  final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey =
+      GlobalKey<RefreshIndicatorState>();
 
   @override
   void initState() {
@@ -25,6 +29,7 @@ class _MaterialsPageState extends State<MaterialsPage> {
 
   Future<void> _loadPdfMaterials() async {
     try {
+      setState(() => isLoading = true);
       final fetchedPdfs = await PdfService.fetchStudentPdfMaterials();
       final filteredPdfs =
           fetchedPdfs.where((pdf) => pdf.classId == widget.classId).toList();
@@ -60,62 +65,81 @@ class _MaterialsPageState extends State<MaterialsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.lightBlue[50],
-      body:
-          isLoading
-              ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Lottie.asset(
-                      'assets/animation/loading_rainbow.json',
-                      width: 90,
-                      height: 90,
-                    ),
-                  ],
-                ),
-              )
-              : pdfMaterials.isEmpty
-              ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Lottie.asset(
-                      'assets/animation/empty_box.json',
-                      width: 250,
-                      height: 250,
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      "No Materials yet!",
-                      style: TextStyle(
-                        fontSize: 22,
-                        color: Colors.blue[800],
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      "Your teacher will add Materials soon!",
-                      style: TextStyle(fontSize: 16, color: Colors.blue[600]),
-                    ),
-                  ],
-                ),
-              )
-              : Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: ListView.builder(
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: pdfMaterials.length,
-                  itemBuilder: (context, index) {
-                    final pdf = pdfMaterials[index];
-                    return _buildBookCard(pdf);
-                  },
-                ),
-              ),
+      body: Column(
+        children: [
+          _buildHeader(),
+          Expanded(
+            child: RefreshIndicator(
+              key: _refreshIndicatorKey,
+              onRefresh: _loadPdfMaterials,
+              color: Colors.blue,
+              backgroundColor: Colors.white,
+              child: _buildContent(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return ClipPath(
+      clipper: WaveClipper(),
+      child: Container(
+        height: 140,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              kPrimaryColor, // main primary color
+              Color(0xFFB71C1C), // darker shade for depth
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        alignment: Alignment.center,
+        child: const Text(
+          "Class Materials",
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 26,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    if (isLoading) {
+      return _buildCenteredLottie('assets/animation/loading_rainbow.json', 90);
+    }
+    if (pdfMaterials.isEmpty) {
+      return _buildEmptyState();
+    }
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      itemCount: pdfMaterials.length,
+      itemBuilder: (context, index) {
+        final pdf = pdfMaterials[index];
+        return TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.9, end: 1.0),
+          duration: Duration(milliseconds: 400 + (index * 80)),
+          curve: Curves.easeOutBack,
+          builder:
+              (context, scale, child) =>
+                  Transform.scale(scale: scale, child: child),
+          child: _buildBookCard(pdf),
+        );
+      },
     );
   }
 
   Widget _buildBookCard(PdfMaterial pdf) {
+    var primaryColor = Theme.of(context).colorScheme.primary;
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
@@ -123,7 +147,7 @@ class _MaterialsPageState extends State<MaterialsPage> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.withOpacity(0.1),
+            color: Colors.blue.withOpacity(0.12),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -141,12 +165,11 @@ class _MaterialsPageState extends State<MaterialsPage> {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              // Book icon with colorful background
               Container(
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  color: _getRandomPastelColor(),
+                  color: primaryColor,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -182,7 +205,6 @@ class _MaterialsPageState extends State<MaterialsPage> {
                 ),
               ),
               const SizedBox(width: 8),
-              // Playful "Read" button
               Container(
                 decoration: BoxDecoration(
                   color: Colors.blue,
@@ -214,16 +236,78 @@ class _MaterialsPageState extends State<MaterialsPage> {
     );
   }
 
-  // Helper function to generate pastel colors for book icons
-  Color _getRandomPastelColor() {
-    final colors = [
-      Colors.pink[300]!,
-      Colors.blue[300]!,
-      Colors.green[300]!,
-      Colors.orange[300]!,
-      Colors.purple[300]!,
-      Colors.teal[300]!,
-    ];
-    return colors[DateTime.now().millisecondsSinceEpoch % colors.length];
+  Widget _buildCenteredLottie(String path, double size) {
+    return Center(child: Lottie.asset(path, width: size, height: size));
   }
+
+  Widget _buildEmptyState() {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      children: [
+        SizedBox(
+          height: MediaQuery.of(context).size.height * 0.7,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Lottie.asset(
+                'assets/animation/empty_box.json',
+                width: 220,
+                height: 220,
+              ),
+              const SizedBox(height: 20),
+              Text(
+                "No Materials yet!",
+                style: TextStyle(
+                  fontSize: 22,
+                  color: Colors.blue[800],
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                "Your teacher will add Materials soon!",
+                style: TextStyle(fontSize: 16, color: Colors.blue[600]),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// Reusable wave clipper
+class WaveClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    var path = Path();
+    path.lineTo(0, size.height - 20);
+    var firstControlPoint = Offset(size.width / 4, size.height);
+    var firstEndPoint = Offset(size.width / 2, size.height - 30);
+    path.quadraticBezierTo(
+      firstControlPoint.dx,
+      firstControlPoint.dy,
+      firstEndPoint.dx,
+      firstEndPoint.dy,
+    );
+    var secondControlPoint = Offset(
+      size.width - (size.width / 4),
+      size.height - 60,
+    );
+    var secondEndPoint = Offset(size.width, size.height - 20);
+    path.quadraticBezierTo(
+      secondControlPoint.dx,
+      secondControlPoint.dy,
+      secondEndPoint.dx,
+      secondEndPoint.dy,
+    );
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }

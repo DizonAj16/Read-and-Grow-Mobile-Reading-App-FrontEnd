@@ -18,14 +18,16 @@ class MaterialsPage extends StatefulWidget {
 class _MaterialsPageState extends State<MaterialsPage> {
   List<Map<String, String>> _pdfs = [];
   bool _isLoading = true;
+  final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey =
+      GlobalKey<RefreshIndicatorState>();
 
   @override
   void initState() {
     super.initState();
-    loadPdfTitles();
+    _loadPdfTitles();
   }
 
-  Future<void> loadPdfTitles() async {
+  Future<void> _loadPdfTitles() async {
     setState(() => _isLoading = true);
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -98,7 +100,7 @@ class _MaterialsPageState extends State<MaterialsPage> {
 
         if (success) {
           _showSuccessSnackbar("PDF uploaded successfully!");
-          await loadPdfTitles();
+          await _loadPdfTitles();
         } else {
           _showErrorSnackbar("Failed to upload PDF.");
         }
@@ -136,7 +138,7 @@ class _MaterialsPageState extends State<MaterialsPage> {
 
       if (success) {
         _showSuccessSnackbar("PDF deleted successfully!");
-        await loadPdfTitles();
+        await _loadPdfTitles();
       } else {
         _showErrorSnackbar("Failed to delete PDF.");
       }
@@ -183,7 +185,7 @@ class _MaterialsPageState extends State<MaterialsPage> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           ),
           child: const Text('Upload', style: TextStyle(color: Colors.white)),
         ),
@@ -233,7 +235,7 @@ class _MaterialsPageState extends State<MaterialsPage> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           ),
           child: const Text('Delete', style: TextStyle(color: Colors.white)),
         ),
@@ -354,8 +356,15 @@ class _MaterialsPageState extends State<MaterialsPage> {
 
     return Scaffold(
       backgroundColor: colorScheme.surfaceVariant.withOpacity(0.2),
-
-      body: _buildContent(),
+      body: RefreshIndicator(
+        key: _refreshIndicatorKey,
+        onRefresh: _loadPdfTitles,
+        color: colorScheme.primary,
+        backgroundColor: colorScheme.surface,
+        displacement: 40,
+        edgeOffset: 20,
+        child: _buildContent(),
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _pickAndUploadPdf,
         backgroundColor: colorScheme.primary,
@@ -394,42 +403,48 @@ class _MaterialsPageState extends State<MaterialsPage> {
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Lottie.asset(
-            'assets/animation/empty_box.json',
-            width: 200,
-            height: 200,
-          ),
-          const SizedBox(height: 24),
-          Text(
-            "No Materials Available",
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey[700],
-              fontWeight: FontWeight.w600,
+    return ListView(
+      children: [
+        SizedBox(
+          height: MediaQuery.of(context).size.height * 0.7,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Lottie.asset(
+                  'assets/animation/empty_box.json',
+                  width: 200,
+                  height: 200,
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  "No Materials Available",
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.grey[700],
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 40),
+                  child: Text(
+                    "Upload your first material by tapping the 'Upload PDF' button below",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Text(
-              "Upload your first material by tapping the 'Upload PDF' button below",
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildPdfList() {
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       itemCount: _pdfs.length,
       separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {

@@ -27,91 +27,74 @@ class ClassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 3,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        height: 150,
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
-        child: Stack(
-          children: [
-            Hero(
-              tag: 'class-bg-$className',
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.asset(
-                  backgroundImage,
-                  fit: BoxFit.cover,
-                  height: 150,
-                  width: double.infinity,
-                ),
-              ),
-            ),
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
+    return InkWell(
+      onTap: () => _navigateToClassDetails(context),
+      borderRadius: BorderRadius.circular(16),
+      child: Card(
+        elevation: 3,
+        margin: const EdgeInsets.only(bottom: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          height: 150,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
+          child: Stack(
+            children: [
+              Hero(
+                tag: 'class-bg-$className',
+                child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
-                  gradient: LinearGradient(
-                    colors: [
-                      Colors.black.withOpacity(0.7),
-                      Colors.black.withOpacity(0.4),
-                      Colors.transparent,
-                    ],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
+                  child: Image.asset(
+                    backgroundImage,
+                    fit: BoxFit.cover,
+                    height: 150,
+                    width: double.infinity,
                   ),
                 ),
               ),
-            ),
-            Positioned(
-              top: 8,
-              right: 8,
-              child: PopupMenuButton<String>(
-                onSelected: (value) => _handlePopupSelection(value, context),
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    value: 'view',
-                    child: Row(
-                      children: [
-                        Icon(Icons.visibility, color: Theme.of(context).colorScheme.primary),
-                        const SizedBox(width: 8),
-                        const Text('View Class'),
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.black.withOpacity(0.7),
+                        Colors.black.withOpacity(0.4),
+                        Colors.transparent,
                       ],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
                     ),
                   ),
-                ],
-                icon: const Icon(Icons.more_vert, color: Colors.white),
+                ),
               ),
-            ),
-            _buildClassInfo(context),
-          ],
+              _buildClassInfo(context),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  void _handlePopupSelection(String value, BuildContext context) {
-    if (value == 'view') {
-      Navigator.push(
-        context,
-        PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 600),
-          pageBuilder: (context, animation, secondaryAnimation) => ClassDetailsPage(
-            className: className,
-            backgroundImage: realBackgroundImage,
-            teacherName: teacherName,
-            teacherEmail: teacherEmail,
-            teacherPosition: teacherPosition,
-            teacherAvatar: teacherAvatar,
-            classId: classId,
-          ),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-        ),
-      );
-    }
+  void _navigateToClassDetails(BuildContext context) {
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 600),
+        pageBuilder:
+            (context, animation, secondaryAnimation) => ClassDetailsPage(
+              className: className,
+              backgroundImage: realBackgroundImage,
+              teacherName: teacherName,
+              teacherEmail: teacherEmail,
+              teacherPosition: teacherPosition,
+              teacherAvatar: teacherAvatar,
+              classId: classId,
+            ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
   }
 
   Widget _buildClassInfo(BuildContext context) {
@@ -131,7 +114,11 @@ class ClassCard extends StatelessWidget {
                   fontWeight: FontWeight.w900,
                   fontSize: 22,
                   shadows: [
-                    Shadow(offset: Offset(0, 1), blurRadius: 2, color: Colors.black45),
+                    Shadow(
+                      offset: Offset(0, 1),
+                      blurRadius: 2,
+                      color: Colors.black45,
+                    ),
                   ],
                 ),
               ),
@@ -144,7 +131,11 @@ class ClassCard extends StatelessWidget {
               fontWeight: FontWeight.w600,
               fontSize: 16,
               shadows: [
-                Shadow(offset: Offset(0, 1), blurRadius: 1.5, color: Colors.black26),
+                Shadow(
+                  offset: Offset(0, 1),
+                  blurRadius: 1.5,
+                  color: Colors.black26,
+                ),
               ],
             ),
           ),
@@ -160,22 +151,22 @@ class ClassCard extends StatelessWidget {
       children: [
         teacherAvatar != null && teacherAvatar!.isNotEmpty
             ? CircleAvatar(
-                radius: 14,
-                backgroundImage: NetworkImage(teacherAvatar!),
-                backgroundColor: Colors.grey[200],
-              )
+              radius: 14,
+              backgroundImage: NetworkImage(teacherAvatar!),
+              backgroundColor: Colors.grey[200],
+            )
             : CircleAvatar(
-                radius: 14,
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                child: Text(
-                  teacherName.isNotEmpty ? teacherName[0].toUpperCase() : '?',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
+              radius: 14,
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              child: Text(
+                teacherName.isNotEmpty ? teacherName[0].toUpperCase() : '?',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
+            ),
         const SizedBox(width: 8),
         Text(
           teacherName,
@@ -184,7 +175,11 @@ class ClassCard extends StatelessWidget {
             fontWeight: FontWeight.bold,
             fontSize: 14,
             shadows: [
-              Shadow(offset: Offset(0, 1), blurRadius: 1.5, color: Colors.black26),
+              Shadow(
+                offset: Offset(0, 1),
+                blurRadius: 1.5,
+                color: Colors.black26,
+              ),
             ],
           ),
         ),

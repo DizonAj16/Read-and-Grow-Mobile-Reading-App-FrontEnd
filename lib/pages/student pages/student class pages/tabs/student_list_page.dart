@@ -4,6 +4,7 @@ import 'package:deped_reading_app_laravel/pages/student%20pages/student%20class%
 import 'package:deped_reading_app_laravel/models/student.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lottie/lottie.dart';
+import 'package:flutter_custom_clippers/flutter_custom_clippers.dart';
 
 class StudentListPage extends StatefulWidget {
   final int classId;
@@ -22,6 +23,8 @@ class _StudentListPageState extends State<StudentListPage> {
   final PageController _pageController = PageController();
   String? baseUrl;
   int? currentStudentId;
+  final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey =
+      GlobalKey<RefreshIndicatorState>();
 
   @override
   void initState() {
@@ -86,176 +89,195 @@ class _StudentListPageState extends State<StudentListPage> {
     final int totalPages = (totalStudents / _studentsPerPage).ceil();
 
     return Scaffold(
-      backgroundColor: Colors.lightBlue[50],
-      body:
-          loading
-              ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Lottie.asset(
-                      'assets/animation/loading_rainbow.json',
-                      width: 90,
-                      height: 90,
-                    ),
-                  ],
-                ),
-              )
-              : students.isEmpty
-              ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Lottie.asset(
-                      'assets/animations/empty_classroom.json',
-                      width: 250,
-                      height: 250,
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      "No classmates yet!",
-                      style: TextStyle(
-                        fontSize: 22,
-                        color: Colors.blue[800],
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              )
-              : Column(
-                children: [
-                  // Classmates counter with fun emoji
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Colors.blue[200]!, Colors.blue[400]!],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.blue.withOpacity(0.2),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            "👫 ${totalStudents} Students",
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              fontFamily: 'ComicNeue',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: PageView.builder(
-                      controller: _pageController,
-                      onPageChanged: (index) {
-                        setState(() => _currentPage = index);
-                      },
-                      itemCount: totalPages,
-                      itemBuilder: (context, pageIndex) {
-                        final studentsToShow =
-                            students
-                                .skip(pageIndex * _studentsPerPage)
-                                .take(_studentsPerPage)
-                                .toList();
+      backgroundColor: Colors.blue[50],
+      body: Column(
+        children: [
+          // Header stays outside RefreshIndicator
+          _buildHeader(totalStudents),
 
-                        return GridView.builder(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16.0,
-                            vertical: 8.0,
-                          ),
-                          physics: const BouncingScrollPhysics(),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 16.0,
-                                mainAxisSpacing: 16.0,
-                                childAspectRatio: 0.8,
+          // List content with pull-to-refresh
+          Expanded(
+            child: RefreshIndicator(
+              key: _refreshIndicatorKey,
+              onRefresh: _fetchStudents,
+              color: Colors.blue,
+              backgroundColor: Colors.white,
+              displacement: 40,
+              edgeOffset: 20,
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child:
+                        loading
+                            ? Center(
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 80),
+                                child: Lottie.asset(
+                                  'assets/animation/loading_rainbow.json',
+                                  width: 90,
+                                  height: 90,
+                                ),
                               ),
-                          itemCount: studentsToShow.length,
-                          itemBuilder: (context, index) {
-                            final student = studentsToShow[index];
-                            final isCurrentUser =
-                                currentStudentId != null &&
-                                student.id == currentStudentId;
-                            final displayName =
-                                isCurrentUser
-                                    ? '${student.studentName} (You)'
-                                    : student.studentName;
-                            final sanitizedBaseUrl =
-                                baseUrl?.replaceAll(RegExp(r'/api/?$'), '') ??
-                                '';
-                            final profileUrl =
-                                (student.profilePicture != null &&
-                                        student.profilePicture!.isNotEmpty)
-                                    ? "$sanitizedBaseUrl/storage/profile_images/${student.profilePicture}"
-                                    : null;
-
-                            return _buildStudentCard(
-                              context,
-                              student: student,
-                              name: displayName,
-                              avatarLetter: student.avatarLetter,
-                              profileUrl: profileUrl,
-                              isCurrentUser: isCurrentUser,
-                            );
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                  // Page indicator
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(totalPages, (index) {
-                        return GestureDetector(
-                          onTap: () {
-                            _pageController.animateToPage(
-                              index,
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                            );
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            margin: const EdgeInsets.symmetric(horizontal: 4.0),
-                            width: _currentPage == index ? 16.0 : 8.0,
-                            height: 8.0,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(4),
-                              color:
-                                  _currentPage == index
-                                      ? Colors.blue
-                                      : Colors.blue.withOpacity(0.3),
+                            )
+                            : students.isEmpty
+                            ? _buildEmptyState()
+                            : Column(
+                              children: [
+                                _buildPagedStudentGrid(totalPages),
+                                _buildPageIndicators(totalPages),
+                              ],
                             ),
-                          ),
-                        );
-                      }),
-                    ),
                   ),
                 ],
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.8,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Lottie.asset('assets/animations/empty.json', width: 250, height: 250),
+          const SizedBox(height: 20),
+          Text(
+            "No classmates yet!",
+            style: TextStyle(
+              fontSize: 22,
+              color: Colors.blue[800],
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(int totalStudents) {
+    return ClipPath(
+      clipper: WaveClipperOne(reverse: false),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 40),
+        color: Theme.of(context).colorScheme.primary,
+        child: Column(
+          children: [
+            Text(
+              "$totalStudents Students",
+              style: const TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                fontFamily: 'ComicNeue',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPagedStudentGrid(int totalPages) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.7,
+      ),
+      child: PageView.builder(
+        controller: _pageController,
+        onPageChanged: (index) {
+          setState(() => _currentPage = index);
+        },
+        itemCount: totalPages,
+        itemBuilder: (context, pageIndex) {
+          final studentsToShow =
+              students
+                  .skip(pageIndex * _studentsPerPage)
+                  .take(_studentsPerPage)
+                  .toList();
+
+          return GridView.builder(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 8.0,
+            ),
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 16.0,
+              mainAxisSpacing: 16.0,
+              childAspectRatio: 0.8,
+            ),
+            itemCount: studentsToShow.length,
+            itemBuilder: (context, index) {
+              final student = studentsToShow[index];
+              final isCurrentUser =
+                  currentStudentId != null && student.id == currentStudentId;
+              final displayName =
+                  isCurrentUser
+                      ? '${student.studentName} (You)'
+                      : student.studentName;
+              final sanitizedBaseUrl =
+                  baseUrl?.replaceAll(RegExp(r'/api/?$'), '') ?? '';
+              final profileUrl =
+                  (student.profilePicture != null &&
+                          student.profilePicture!.isNotEmpty)
+                      ? "$sanitizedBaseUrl/storage/profile_images/${student.profilePicture}"
+                      : null;
+
+              return TweenAnimationBuilder<double>(
+                duration: Duration(milliseconds: 400 + (index * 100)),
+                tween: Tween(begin: 0.8, end: 1),
+                curve: Curves.easeOutBack,
+                builder: (context, scale, child) {
+                  return Transform.scale(
+                    scale: scale,
+                    child: _buildStudentCard(
+                      context,
+                      student: student,
+                      name: displayName,
+                      avatarLetter: student.avatarLetter,
+                      profileUrl: profileUrl,
+                      isCurrentUser: isCurrentUser,
+                    ),
+                  );
+                },
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildPageIndicators(int totalPages) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(totalPages, (index) {
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            margin: const EdgeInsets.symmetric(horizontal: 4.0),
+            width: _currentPage == index ? 18.0 : 8.0,
+            height: 8.0,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(4),
+              color:
+                  _currentPage == index
+                      ? Colors.blue[700]
+                      : Colors.blue.withOpacity(0.3),
+            ),
+          );
+        }),
+      ),
     );
   }
 
@@ -267,15 +289,7 @@ class _StudentListPageState extends State<StudentListPage> {
     required String? profileUrl,
     required bool isCurrentUser,
   }) {
-    final colors = [
-      Colors.pink[300]!,
-      Colors.blue[300]!,
-      Colors.green[300]!,
-      Colors.orange[300]!,
-      Colors.purple[300]!,
-      Colors.teal[300]!,
-    ];
-    final avatarColor = colors[student.id % colors.length];
+    final avatarColor = Colors.blue[300]!;
 
     return InkWell(
       onTap: () {
@@ -292,30 +306,16 @@ class _StudentListPageState extends State<StudentListPage> {
           ),
         );
       },
-      borderRadius: BorderRadius.circular(20),
-      child: Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        elevation: 4,
-        shadowColor: avatarColor.withOpacity(0.2),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
         child: Stack(
           children: [
-            // Background decoration
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      avatarColor.withOpacity(0.1),
-                      avatarColor.withOpacity(0.05),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // "You" badge
+            // "YOU" badge in upper right
             if (isCurrentUser)
               Positioned(
                 top: 8,
@@ -327,7 +327,7 @@ class _StudentListPageState extends State<StudentListPage> {
                   ),
                   decoration: BoxDecoration(
                     color: Colors.blue,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Text(
                     "YOU",
@@ -339,28 +339,21 @@ class _StudentListPageState extends State<StudentListPage> {
                   ),
                 ),
               ),
-            // Main content column
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Avatar container with centered alignment
-                  Center(
-                    child: Container(
-                      width: 80,
-                      height: 80,
+
+            // Main content
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 8),
+                    Container(
+                      width: 100,
+                      height: 100,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: avatarColor, width: 3),
-                        boxShadow: [
-                          BoxShadow(
-                            color: avatarColor.withOpacity(0.3),
-                            blurRadius: 8,
-                            spreadRadius: 1,
-                          ),
-                        ],
+                        border: Border.all(color: avatarColor, width: 2),
                       ),
                       child: ClipOval(
                         child:
@@ -376,31 +369,23 @@ class _StudentListPageState extends State<StudentListPage> {
                                         avatarColor,
                                       ),
                                 )
-                                : _buildAvatarFallback(
-                                  avatarLetter,
-                                  avatarColor,
-                                ),
+                                : _buildAvatarFallback(avatarLetter, avatarColor),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  // Name container with proper constraints
-                  Container(
-                    constraints: const BoxConstraints(maxWidth: 120),
-                    child: Text(
-                      name.split(' ')[0], // Show only first name
+                    const SizedBox(height: 8),
+                    Text(
+                      name.split(' ')[0],
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        fontFamily: 'ComicNeue',
-                        color: Colors.blueGrey,
+                        fontSize: 14,
+                        color: Colors.black87,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],

@@ -80,7 +80,7 @@ class TeacherDashboardClassCard extends StatelessWidget {
                   context,
                   icon: Icons.visibility,
                   label: 'View Class',
-                  color: Colors.blue,
+                  color: Theme.of(context).colorScheme.primary,
                   onTap: () {
                     Navigator.pop(context);
                     onView();
@@ -90,7 +90,7 @@ class TeacherDashboardClassCard extends StatelessWidget {
                   context,
                   icon: Icons.edit,
                   label: 'Edit Class',
-                  color: Colors.orange,
+                  color: Theme.of(context).colorScheme.primary,
                   onTap: () {
                     Navigator.pop(context);
                     onEdit();
@@ -100,7 +100,7 @@ class TeacherDashboardClassCard extends StatelessWidget {
                   context,
                   icon: Icons.delete,
                   label: 'Delete Class',
-                  color: Colors.red,
+                  color: Theme.of(context).colorScheme.primary,
                   onTap: () {
                     Navigator.pop(context);
                     onDelete();
@@ -121,6 +121,7 @@ class TeacherDashboardClassCard extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     return ListTile(
+      contentPadding: EdgeInsets.zero,
       leading: Container(
         width: 40,
         height: 40,

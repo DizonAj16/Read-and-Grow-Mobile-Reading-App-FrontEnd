@@ -415,7 +415,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
             label: "Students",
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.bar_chart),
+            icon: Icon(Icons.bar_chart_outlined),
             label: "Progress",
           ),
           BottomNavigationBarItem(
