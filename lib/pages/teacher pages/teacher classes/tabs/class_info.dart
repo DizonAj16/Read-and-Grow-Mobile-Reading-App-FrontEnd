@@ -1,113 +1,240 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shimmer/shimmer.dart';
 
-class ClassInfoPage extends StatelessWidget {
+class ClassInfoPage extends StatefulWidget {
   final Map<String, dynamic> classDetails;
 
   const ClassInfoPage({super.key, required this.classDetails});
+
+  @override
+  State<ClassInfoPage> createState() => _ClassInfoPageState();
+}
+
+class _ClassInfoPageState extends State<ClassInfoPage> {
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Simulate data loading
+    Future.delayed(const Duration(seconds: 1), () {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
+    return Scaffold(
+      body:
+          _isLoading
+              ? _buildShimmerLoading()
+              : _buildContent(theme, colorScheme),
+    );
+  }
+
+  Widget _buildContent(ThemeData theme, ColorScheme colorScheme) {
     final List<_ClassInfoItem> infoItems = [
       _ClassInfoItem(
         icon: Icons.class_outlined,
         label: "Class Name",
-        value: classDetails['class_name'],
+        value: widget.classDetails['class_name'],
         color: colorScheme.primary,
       ),
       _ClassInfoItem(
         icon: Icons.school_outlined,
         label: "Grade Level",
-        value: classDetails['grade_level'],
+        value: widget.classDetails['grade_level'],
         color: Colors.blue.shade600,
       ),
       _ClassInfoItem(
         icon: Icons.assignment_outlined,
         label: "Section",
-        value: classDetails['section'] ?? "N/A",
+        value: widget.classDetails['section'] ?? "N/A",
         color: Colors.teal.shade600,
       ),
       _ClassInfoItem(
         icon: Icons.people_outline,
         label: "Students",
-        value: "${classDetails['student_count']}",
+        value: "${widget.classDetails['student_count']}",
         color: Colors.deepPurple.shade600,
       ),
       _ClassInfoItem(
         icon: Icons.person_outline,
         label: "Teacher",
-        value: classDetails['teacher_name'] ?? 'N/A',
+        value: widget.classDetails['teacher_name'] ?? 'N/A',
         color: Colors.orange.shade600,
       ),
       _ClassInfoItem(
         icon: Icons.calendar_month_outlined,
         label: "School Year",
-        value: classDetails['school_year'] ?? "N/A",
+        value: widget.classDetails['school_year'] ?? "N/A",
         color: Colors.green.shade600,
       ),
       _ClassInfoItem(
         icon: Icons.vpn_key_outlined,
         label: "Class Code",
-        value: classDetails['classroom_code'] ?? "N/A",
+        value: widget.classDetails['classroom_code'] ?? "N/A",
         color: Colors.red.shade600,
         isCopyable: true,
       ),
     ];
 
-    return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: 1.2,
-                mainAxisExtent: 120, // Fixed height for each card
-              ),
-              delegate: SliverChildBuilderDelegate(
-                (context, index) => _InfoCard(item: infoItems[index]),
-                childCount: infoItems.length,
-              ),
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          sliver: SliverGrid(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: 1.2,
+              mainAxisExtent: 120,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, index) => _InfoCard(item: infoItems[index]),
+              childCount: infoItems.length,
             ),
           ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.all(20),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate([
+              Text(
+                "About This Class",
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceVariant.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  "Manage your class settings and view detailed information about your students and activities.",
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurface.withOpacity(0.8),
+                  ),
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ],
+    );
+  }
 
-          // Additional Info Section
-          SliverPadding(
-            padding: const EdgeInsets.all(20),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                Text(
-                  "About This Class",
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceVariant.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    "Manage your class settings and view detailed information about your students and activities.",
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurface.withOpacity(0.8),
-                    ),
-                  ),
-                ),
-              ]),
+  Widget _buildShimmerLoading() {
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          sliver: SliverGrid(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: 1.2,
+              mainAxisExtent: 120,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, index) => _ShimmerInfoCard(),
+              childCount: 7,
             ),
           ),
-        ],
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.all(20),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate([
+              _ShimmerText(width: 120, height: 24),
+              const SizedBox(height: 8),
+              _ShimmerText(width: double.infinity, height: 80),
+            ]),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ShimmerInfoCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(width: 80, height: 16, color: Colors.white),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: Align(
+                alignment: Alignment.bottomLeft,
+                child: Container(
+                  width: double.infinity,
+                  height: 24,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ShimmerText extends StatelessWidget {
+  final double width;
+  final double height;
+
+  const _ShimmerText({required this.width, required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(4),
+        ),
       ),
     );
   }
@@ -166,7 +293,6 @@ class _InfoCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Icon and Label
               Row(
                 children: [
                   Container(
@@ -190,8 +316,6 @@ class _InfoCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-
-              // Value
               Expanded(
                 child: Align(
                   alignment: Alignment.bottomLeft,

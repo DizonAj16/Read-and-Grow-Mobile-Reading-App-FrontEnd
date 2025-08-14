@@ -1,7 +1,7 @@
 import 'package:deped_reading_app_laravel/api/classroom_service.dart';
 import 'package:flutter/material.dart';
 import 'package:deped_reading_app_laravel/models/student.dart';
-import 'package:lottie/lottie.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class StudentsProgressPage extends StatefulWidget {
@@ -17,9 +17,12 @@ class _StudentsProgressPageState extends State<StudentsProgressPage> {
   List<Student> assignedStudents = [];
   bool isLoading = true;
   bool isRefreshing = false;
-  String? baseUrl; // ✅ store once
+  bool isInitialLoad = true; // Track if it's the first load
 
-  /// Grade to Task Mapping
+  bool showShimmer = true; // New state variable for controlling shimmer
+
+  String? baseUrl;
+
   final Map<int, List<int>> gradeTaskMap = {
     1: [1, 2],
     2: [3],
@@ -32,7 +35,15 @@ class _StudentsProgressPageState extends State<StudentsProgressPage> {
   void initState() {
     super.initState();
     _initBaseUrl();
-    _loadAssignedStudents();
+    // Initial load with minimum delay
+    Future.wait([
+      _loadAssignedStudents(),
+      Future.delayed(const Duration(seconds: 2)), // Minimum loading time
+    ]).then((_) {
+      if (mounted) {
+        setState(() => isInitialLoad = false);
+      }
+    });
   }
 
   Future<void> _initBaseUrl() async {
@@ -49,17 +60,21 @@ class _StudentsProgressPageState extends State<StudentsProgressPage> {
     if (!mounted) return;
 
     setState(() => isLoading = true);
+
     try {
       final students = await ClassroomService.getAssignedStudents(
         widget.classId,
       );
+
       if (mounted) {
         setState(() => assignedStudents = students);
       }
     } catch (e) {
       debugPrint("Error loading progress: $e");
     } finally {
-      if (mounted) setState(() => isLoading = false);
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
@@ -126,7 +141,7 @@ class _StudentsProgressPageState extends State<StudentsProgressPage> {
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [ 
+                children: [
                   Text(
                     student.studentName,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -200,16 +215,16 @@ class _StudentsProgressPageState extends State<StudentsProgressPage> {
                 child: Icon(
                   Icons.person_off_rounded,
                   size: 36,
-                  color: Colors.deepPurple,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
               const SizedBox(height: 20),
               Text(
-                "No Students Yet 👥",
+                "No Students Yet",
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: Colors.deepPurple.shade700,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
               const SizedBox(height: 8),
@@ -229,32 +244,95 @@ class _StudentsProgressPageState extends State<StudentsProgressPage> {
     );
   }
 
-  Future<void> _handleRefresh() async {
-    if (!mounted) return;
+  Widget _buildShimmerProgressCard() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      period: const Duration(milliseconds: 1500), // Slower shimmer animation
 
-    setState(() => isRefreshing = true);
-    try {
-      await _loadAssignedStudents();
-    } finally {
-      if (mounted) setState(() => isRefreshing = false);
-    }
-  }
-
-  Widget _buildLoadingIndicator() {
-    return Center(
-      child: SizedBox(
-        width: 75,
-        height: 75,
-        child: Lottie.asset('assets/animation/loading_rainbow.json'),
+      child: Card(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        elevation: 3,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(50),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      height: 20,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(height: 4),
+                    Container(width: 120, height: 12, color: Colors.white),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(width: 100, height: 12, color: Colors.white),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
+  Widget _buildShimmerLoading() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: 4, // Number of shimmer cards to show
+      itemBuilder: (context, index) => _buildShimmerProgressCard(),
+    );
+  }
+
+  Future<void> _handleRefresh() async {
+    if (!mounted) return;
+
+    setState(() {
+      isRefreshing = true;
+      isLoading = true; // Add this to trigger shimmer
+    });
+
+    try {
+      await _loadAssignedStudents();
+    } finally {
+      if (mounted) {
+        setState(() {
+          isRefreshing = false;
+          isLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Show loading indicator if initial loading or refreshing
-    if (isLoading || baseUrl == null) {
-      return Scaffold(body: _buildLoadingIndicator());
+    // Show shimmer during initial load OR while baseUrl is loading
+    if (isInitialLoad || isLoading || baseUrl == null) {
+      return Scaffold(body: _buildShimmerLoading());
     }
 
     return Scaffold(
@@ -274,11 +352,11 @@ class _StudentsProgressPageState extends State<StudentsProgressPage> {
                     ),
           ),
           if (isRefreshing)
-            Positioned.fill(
-              child: Container(
-                color: Colors.white.withOpacity(0.7),
-                child: _buildLoadingIndicator(),
-              ),
+            const Positioned(
+              top: 20,
+              left: 0,
+              right: 0,
+              child: Center(child: CircularProgressIndicator()),
             ),
         ],
       ),

@@ -8,23 +8,41 @@ class DialogUtils {
       barrierDismissible: false,
       builder:
           (context) => Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 75,
-                  height: 75,
-                  child: Lottie.asset('assets/animation/loading_rainbow.json'),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  message,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.surface,
-                    fontWeight: FontWeight.bold,
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    spreadRadius: 2,
                   ),
-                ),
-              ],
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 75,
+                    height: 75,
+                    child: Lottie.asset(
+                      'assets/animation/loading_rainbow.json',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    message,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color:
+                          Colors
+                              .black87, // Changed from surface to black for better contrast
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
     );

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shimmer/shimmer.dart';
 import '../pdf helper/pdf_viewer.dart';
 
 class MaterialsPage extends StatefulWidget {
@@ -20,21 +21,40 @@ class _MaterialsPageState extends State<MaterialsPage> {
   bool _isLoading = true;
   final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey =
       GlobalKey<RefreshIndicatorState>();
+  bool _isDisposed = false;
+  // Track if initial load has completed
 
   @override
   void initState() {
     super.initState();
-    _loadPdfTitles();
+    // Add minimum delay of 1.5 seconds for shimmer effect
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (!_isDisposed) {
+        _loadPdfTitles().then((_) {
+          if (!_isDisposed) {}
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
   }
 
   Future<void> _loadPdfTitles() async {
+    if (!mounted && !_isDisposed) return;
+
     setState(() => _isLoading = true);
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final baseUrl =
           prefs.getString('base_url') ?? 'http://192.168.100.77:8000';
-
       final pdfs = await PdfService.getUploadedPdfList(widget.classId);
+
+      if (!mounted && !_isDisposed) return;
 
       setState(() {
         _pdfs =
@@ -60,7 +80,9 @@ class _MaterialsPageState extends State<MaterialsPage> {
         _showErrorSnackbar("Error loading PDFs: ${e.toString()}");
       }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -82,7 +104,7 @@ class _MaterialsPageState extends State<MaterialsPage> {
 
       if (confirm != true) return;
 
-      // Show loading dialog
+      if (!mounted) return;
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -90,14 +112,19 @@ class _MaterialsPageState extends State<MaterialsPage> {
       );
 
       try {
-        final success = await PdfService.uploadPdfFile(
-          file: file,
-          pdfTitle: fileName,
-          classroomId: widget.classId,
-        );
+        final results = await Future.wait([
+          PdfService.uploadPdfFile(
+            file: file,
+            pdfTitle: fileName,
+            classroomId: widget.classId,
+          ),
+          Future.delayed(const Duration(milliseconds: 2000)),
+        ]);
 
+        if (!mounted) return;
         Navigator.pop(context); // Close loading dialog
 
+        final success = results[0] as bool;
         if (success) {
           _showSuccessSnackbar("PDF uploaded successfully!");
           await _loadPdfTitles();
@@ -105,8 +132,10 @@ class _MaterialsPageState extends State<MaterialsPage> {
           _showErrorSnackbar("Failed to upload PDF.");
         }
       } catch (e) {
-        Navigator.pop(context); // Close loading dialog
-        _showErrorSnackbar("Upload error: ${e.toString()}");
+        if (mounted) {
+          Navigator.pop(context);
+          _showErrorSnackbar("Upload error: ${e.toString()}");
+        }
       }
     }
   }
@@ -117,15 +146,14 @@ class _MaterialsPageState extends State<MaterialsPage> {
       builder: (context) => _buildDeleteConfirmationDialog(title),
     );
 
-    if (confirm != true) return;
+    if (confirm != true || !mounted) return;
 
     final pdfId = int.tryParse(id);
     if (pdfId == null) {
-      _showErrorSnackbar("Invalid PDF ID.");
+      if (mounted) _showErrorSnackbar("Invalid PDF ID.");
       return;
     }
 
-    // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -133,9 +161,15 @@ class _MaterialsPageState extends State<MaterialsPage> {
     );
 
     try {
-      final success = await PdfService.deletePdf(pdfId);
-      Navigator.pop(context); // Close loading dialog
+      final results = await Future.wait([
+        PdfService.deletePdf(pdfId),
+        Future.delayed(const Duration(milliseconds: 2000)),
+      ]);
 
+      if (!mounted) return;
+      Navigator.pop(context);
+
+      final success = results[0] as bool;
       if (success) {
         _showSuccessSnackbar("PDF deleted successfully!");
         await _loadPdfTitles();
@@ -143,8 +177,10 @@ class _MaterialsPageState extends State<MaterialsPage> {
         _showErrorSnackbar("Failed to delete PDF.");
       }
     } catch (e) {
-      Navigator.pop(context); // Close loading dialog
-      _showErrorSnackbar("Delete error: ${e.toString()}");
+      if (mounted) {
+        Navigator.pop(context);
+        _showErrorSnackbar("Delete error: ${e.toString()}");
+      }
     }
   }
 
@@ -181,7 +217,7 @@ class _MaterialsPageState extends State<MaterialsPage> {
         ElevatedButton(
           onPressed: () => Navigator.pop(context, true),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
+            backgroundColor: Theme.of(context).colorScheme.primary,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -231,7 +267,7 @@ class _MaterialsPageState extends State<MaterialsPage> {
         ElevatedButton(
           onPressed: () => Navigator.pop(context, true),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.primary,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -365,15 +401,20 @@ class _MaterialsPageState extends State<MaterialsPage> {
         edgeOffset: 20,
         child: _buildContent(),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _pickAndUploadPdf,
-        backgroundColor: colorScheme.primary,
-        foregroundColor: colorScheme.onPrimary,
-        elevation: 4,
-        icon: const Icon(Icons.upload_file),
-        label: const Text('Upload PDF'),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
+      floatingActionButton:
+          _isLoading
+              ? null // Hide the real FAB when loading
+              : FloatingActionButton.extended(
+                onPressed: _pickAndUploadPdf,
+                backgroundColor: colorScheme.primary,
+                foregroundColor: colorScheme.onPrimary,
+                elevation: 4,
+                icon: const Icon(Icons.upload_file),
+                label: const Text('Upload PDF'),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
     );
   }
 
@@ -388,17 +429,94 @@ class _MaterialsPageState extends State<MaterialsPage> {
   }
 
   Widget _buildLoadingState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Lottie.asset(
-            'assets/animation/loading_rainbow.json',
-            width: 75,
-            height: 75,
+    return Stack(
+      children: [
+        Shimmer.fromColors(
+          baseColor: Colors.grey[300]!,
+          highlightColor: Colors.grey[100]!,
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+            itemCount: 4, // Number of shimmer items to show
+            itemBuilder: (context, index) {
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: double.infinity,
+                              height: 16,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              width: 120,
+                              height: 12,
+                              color: Colors.white,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(width: 24, height: 24, color: Colors.white),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
-        ],
-      ),
+        ),
+
+        // Shimmer effect for Floating Action Button
+        Positioned(
+          bottom: 16,
+          right: 16,
+          child: Shimmer.fromColors(
+            baseColor: Colors.grey[300]!,
+            highlightColor: Colors.grey[100]!,
+            child: Container(
+              width: 150, // Width of your FAB
+              height: 48, // Height of your FAB
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(width: 24, height: 24, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Container(width: 60, height: 16, color: Colors.white),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -406,7 +524,7 @@ class _MaterialsPageState extends State<MaterialsPage> {
     return ListView(
       children: [
         SizedBox(
-          height: MediaQuery.of(context).size.height * 0.7,
+          height: MediaQuery.of(context).size.height * 0.5,
           child: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -450,7 +568,6 @@ class _MaterialsPageState extends State<MaterialsPage> {
       itemBuilder: (context, index) {
         final pdf = _pdfs[index];
         final title = pdf['title'] ?? 'Untitled';
-        final url = pdf['url'] ?? '';
 
         return Material(
           borderRadius: BorderRadius.circular(14),

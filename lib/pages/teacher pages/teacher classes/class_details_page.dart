@@ -4,6 +4,7 @@ import 'package:deped_reading_app_laravel/api/classroom_service.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/tabs/students_management_page.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/tabs/students_progress_page.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/tabs/materials_page.dart';
+import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/tabs/tasks_page.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -393,6 +394,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
             MaterialsPage(
               classId: int.parse(widget.classDetails['id'].toString()),
             ),
+            TasksPage(), // <- New Tab
           ],
         ),
       ),
@@ -422,6 +424,12 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
             icon: Icon(Icons.assignment_outlined),
             activeIcon: Icon(Icons.assignment),
             label: "Materials",
+          ),
+          BottomNavigationBarItem(
+            // <- New Tab
+            icon: Icon(Icons.task_outlined),
+            activeIcon: Icon(Icons.task),
+            label: "Tasks",
           ),
         ],
       ),

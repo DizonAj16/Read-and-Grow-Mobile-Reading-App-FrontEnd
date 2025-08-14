@@ -113,57 +113,56 @@ class _CreateClassOrStudentDialogState
     }
   }
 
-Future<void> _addClass() async {
-  if (!_formKey.currentState!.validate()) {
-    setState(() => _autoValidate = true);
-    return;
-  }
-
-  setState(() => _isLoading = true);
-  DialogUtils.showLoadingDialog(context, "Creating class...");
-  final startTime = DateTime.now();
-
-  try {
-    final response = await ClassroomService.createClass({
-      'class_name': classNameController.text.trim(),
-      'section': classSectionController.text.trim(),
-      'grade_level': gradeLevelController.text.trim(),
-      'school_year': schoolYearController.text.trim(),
-    });
-
-    final elapsed = DateTime.now().difference(startTime).inMilliseconds;
-    if (elapsed < 2000) {
-      await Future.delayed(Duration(milliseconds: 2000 - elapsed));
-    }
-
-    dynamic data;
-    try {
-      data = jsonDecode(response.body);
-    } catch (_) {
-      _handleError(
-        title: 'Server Error',
-        message: 'Invalid server response format.',
-      );
+  Future<void> _addClass() async {
+    if (!_formKey.currentState!.validate()) {
+      setState(() => _autoValidate = true);
       return;
     }
 
-    if (response.statusCode == 201) {
-      await _handleSuccess('Class created!');
-      widget.onClassAdded?.call();
-    } else {
+    setState(() => _isLoading = true);
+    DialogUtils.showLoadingDialog(context, "Creating class...");
+    final startTime = DateTime.now();
+
+    try {
+      final response = await ClassroomService.createClass({
+        'class_name': classNameController.text.trim(),
+        'section': classSectionController.text.trim(),
+        'grade_level': gradeLevelController.text.trim(),
+        'school_year': schoolYearController.text.trim(),
+      });
+
+      final elapsed = DateTime.now().difference(startTime).inMilliseconds;
+      if (elapsed < 2000) {
+        await Future.delayed(Duration(milliseconds: 2000 - elapsed));
+      }
+
+      dynamic data;
+      try {
+        data = jsonDecode(response.body);
+      } catch (_) {
+        _handleError(
+          title: 'Server Error',
+          message: 'Invalid server response format.',
+        );
+        return;
+      }
+
+      if (response.statusCode == 201) {
+        await _handleSuccess('Class created!');
+        widget.onClassAdded?.call();
+      } else {
+        _handleError(
+          title: 'Create Class Failed',
+          message: data['message'] ?? 'An error occurred.',
+        );
+      }
+    } catch (e) {
       _handleError(
-        title: 'Create Class Failed',
-        message: data['message'] ?? 'An error occurred.',
+        title: 'Error',
+        message: 'Failed to create class. Please try again.',
       );
     }
-  } catch (e) {
-    _handleError(
-      title: 'Error',
-      message: 'Failed to create class. Please try again.',
-    );
   }
-}
-
 
   Future<void> _handleSuccess(String message) async {
     if (!mounted) return;
@@ -220,6 +219,9 @@ Future<void> _addClass() async {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      scrollable: true,
+      actionsPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 16),
+      contentPadding: EdgeInsets.all(24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Column(
         children: [
@@ -334,46 +336,58 @@ Future<void> _addClass() async {
       ),
       actionsAlignment: MainAxisAlignment.center,
       actions: [
-        const SizedBox(height: 16),
-        TextButton.icon(
-          onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.close, color: Colors.grey),
-          label: const Text(
-            "Cancel",
-            style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w500),
-          ),
-          style: TextButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            foregroundColor: Colors.grey,
-          ),
-        ),
-        ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+        Row(
+          children: [
+            TextButton.icon(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.close, color: Colors.grey),
+              label: const Text(
+                "Cancel",
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                foregroundColor: Colors.grey,
+              ),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            elevation: 3,
-          ),
-          onPressed:
-              _isLoading
-                  ? null
-                  : () {
-                    if (selectedTab == 0) {
-                      _addClass();
-                    } else {
-                      _addStudent();
-                    }
-                  },
-          icon: const Icon(Icons.add, color: Colors.white),
-          label: Text(
-            selectedTab == 0 ? "Create" : "Create",
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                elevation: 3,
+              ),
+              onPressed:
+                  _isLoading
+                      ? null
+                      : () {
+                        if (selectedTab == 0) {
+                          _addClass();
+                        } else {
+                          _addStudent();
+                        }
+                      },
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: Text(
+                selectedTab == 0 ? "Create Class" : "Create Student",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ],
     );

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:deped_reading_app_laravel/api/classroom_service.dart';
 import 'package:deped_reading_app_laravel/models/student.dart';
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class StudentsManagementPage extends StatefulWidget {
@@ -23,11 +23,21 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
   final int studentsPerPage = 5;
   final double avatarSize = 55;
   int _refreshCounter = 0;
+  bool isRefreshing = false;
+  bool isInitialLoad = true; // Track initial load
 
   @override
   void initState() {
     super.initState();
-    _loadStudents();
+    // Initial load with minimum delay
+    Future.wait([
+      _loadStudents(),
+      Future.delayed(const Duration(seconds: 2)), // Minimum loading time
+    ]).then((_) {
+      if (mounted) {
+        setState(() => isInitialLoad = false);
+      }
+    });
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
@@ -84,8 +94,24 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
       }
     } finally {
       if (mounted) {
-        await Future.delayed(const Duration(milliseconds: 300));
         setState(() => loading = false);
+      }
+    }
+  }
+
+  Future<void> _handleRefresh() async {
+    if (!mounted) return;
+
+    setState(() {
+      isRefreshing = true;
+      loading = true; // Show shimmer during refresh
+    });
+
+    try {
+      await _loadStudents();
+    } finally {
+      if (mounted) {
+        setState(() => isRefreshing = false);
       }
     }
   }
@@ -211,7 +237,6 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
       color: colorScheme.surface,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        // onTap: () => _showStudentDetails(student, isAssigned),
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 8),
           padding: const EdgeInsets.all(16),
@@ -228,7 +253,6 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Avatar with status indicator
               Stack(
                 alignment: Alignment.bottomRight,
                 children: [
@@ -252,10 +276,7 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
                   ),
                 ],
               ),
-
               const SizedBox(width: 16),
-
-              // Student Info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -269,10 +290,7 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-
                     const SizedBox(height: 6),
-
-                    // Grade and Section Chips
                     Wrap(
                       spacing: 8,
                       runSpacing: 4,
@@ -308,8 +326,6 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
                   ],
                 ),
               ),
-
-              // Action Button
               IconButton(
                 icon: Container(
                   padding: const EdgeInsets.all(6),
@@ -330,6 +346,115 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShimmerTabBar() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: Container(
+        height: kToolbarHeight,
+        color: Colors.white,
+        child: Row(
+          children: List.generate(
+            2,
+            (index) => Expanded(
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShimmerStudentCard() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200, width: 1),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: avatarSize,
+              height: avatarSize,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    height: 20,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(height: 6),
+                  Container(width: 100, height: 16, color: Colors.white),
+                ],
+              ),
+            ),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShimmerSectionHeader() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: Container(
+        width: 200,
+        height: 24,
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(4),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShimmerPagination() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: Container(
+        width: 150,
+        height: 36,
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
         ),
       ),
     );
@@ -358,7 +483,6 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Drag handle
                 Center(
                   child: Container(
                     width: 48,
@@ -370,8 +494,6 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
                     ),
                   ),
                 ),
-
-                // Student info header
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: _buildStudentAvatar(student, isAssigned),
@@ -390,10 +512,7 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
                     ),
                   ),
                 ),
-
                 const Divider(height: 24),
-
-                // Action buttons
                 _buildActionTile(
                   context,
                   icon: isAssigned ? Icons.person_remove : Icons.person_add,
@@ -404,9 +523,7 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
                     _showConfirmationBottomSheet(student, isAssigned);
                   },
                 ),
-
                 const SizedBox(height: 8),
-
                 _buildActionTile(
                   context,
                   icon: Icons.close,
@@ -535,54 +652,77 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
     return assignedStudents.sublist(start, end);
   }
 
+  Widget _buildShimmerTabContent() {
+    return RefreshIndicator(
+      onRefresh: _handleRefresh,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildShimmerSectionHeader(),
+            const SizedBox(height: 12),
+            Column(
+              children: List.generate(3, (index) => _buildShimmerStudentCard()),
+            ),
+            _buildShimmerPagination(),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Show shimmer during initial load (with delay) or during refresh
+    if (isInitialLoad || loading) {
+      return Scaffold(
+        body: Column(
+          children: [
+            _buildShimmerTabBar(),
+            Expanded(child: _buildShimmerTabContent()),
+          ],
+        ),
+      );
+    }
+
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          toolbarHeight: 0,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          bottom: const TabBar(
-            dividerHeight: 0,
-            tabs: [Tab(text: "Available"), Tab(text: "Class List")],
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(kToolbarHeight),
+          child: SafeArea(
+            top: false, // removes status bar padding
+            child: const TabBar(
+              dividerHeight: 0,
+              tabs: [Tab(text: "Available"), Tab(text: "Class List")],
+            ),
           ),
         ),
-        body:
-            loading
-                ? Center(
-                  child: SizedBox(
-                    width: 75,
-                    height: 75,
-                    child: Lottie.asset(
-                      'assets/animation/loading_rainbow.json',
-                    ),
-                  ),
-                )
-                : TabBarView(
-                  children: [
-                    _buildStudentList(
-                      students: paginatedUnassigned,
-                      isAssigned: false,
-                      currentPage: currentUnassignedPage,
-                      totalItems: allStudents.length,
-                      totalCount: allStudents.length,
-                      onNextPage: () => setState(() => currentUnassignedPage++),
-                      onPrevPage: () => setState(() => currentUnassignedPage--),
-                    ),
-                    _buildStudentList(
-                      students: paginatedAssigned,
-                      isAssigned: true,
-                      currentPage: currentAssignedPage,
-                      totalItems: assignedStudents.length,
-                      totalCount: assignedStudents.length,
-                      onNextPage: () => setState(() => currentAssignedPage++),
-                      onPrevPage: () => setState(() => currentAssignedPage--),
-                    ),
-                  ],
-                ),
+
+        body: TabBarView(
+          children: [
+            _buildStudentList(
+              students: paginatedUnassigned,
+              isAssigned: false,
+              currentPage: currentUnassignedPage,
+              totalItems: allStudents.length,
+              totalCount: allStudents.length,
+              onNextPage: () => setState(() => currentUnassignedPage++),
+              onPrevPage: () => setState(() => currentUnassignedPage--),
+            ),
+            _buildStudentList(
+              students: paginatedAssigned,
+              isAssigned: true,
+              currentPage: currentAssignedPage,
+              totalItems: assignedStudents.length,
+              totalCount: assignedStudents.length,
+              onNextPage: () => setState(() => currentAssignedPage++),
+              onPrevPage: () => setState(() => currentAssignedPage--),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -597,7 +737,7 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
     required VoidCallback onPrevPage,
   }) {
     return RefreshIndicator(
-      onRefresh: _loadStudents,
+      onRefresh: _handleRefresh,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),

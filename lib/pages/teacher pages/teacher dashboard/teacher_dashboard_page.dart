@@ -3,12 +3,13 @@ import 'package:deped_reading_app_laravel/api/prefs_service.dart';
 import 'package:deped_reading_app_laravel/api/user_service.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/class_details_page.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20dashboard/create%20student%20and%20classes/create_class_or_student_dialog.dart';
-import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20dashboard/manage%20classes/delete_class_dialog.dart';
-import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20dashboard/manage%20classes/edit_class_dialog.dart';
+import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20dashboard/manage%20classes/delete_class_modal.dart';
+import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20dashboard/manage%20classes/edit_class_modal.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20dashboard/students_list/teacher_student_list_modal.dart';
 import 'package:deped_reading_app_laravel/widgets/navigation/page_transition.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import 'package:shimmer/shimmer.dart';
 import 'cards/horizontal_card.dart';
 import 'cards/class_card.dart';
 import '../../../models/student.dart';
@@ -42,7 +43,15 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
   @override
   void initState() {
     super.initState();
-    _loadInitialData();
+    // Initial load with minimum 2-second delay
+    Future.wait([
+      _loadInitialData(),
+      Future.delayed(const Duration(seconds: 2)),
+    ]).then((_) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    });
   }
 
   Future<void> _loadInitialData() async {
@@ -98,19 +107,24 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
   }
 
   Future<void> _handleRefresh() async {
-    _loadingStartTime = DateTime.now();
-    setState(() => _isRefreshing = true);
+    if (!mounted) return;
+
+    setState(() {
+      _isRefreshing = true;
+      _isLoading = true; // Show shimmer immediately
+    });
 
     try {
-      await Future.wait([
-        _loadTeacherData(),
-        _loadStudentData(),
-        _loadClassData(),
-      ]);
+      await _loadInitialData();
     } catch (e) {
       debugPrint("Refresh error: $e");
     } finally {
-      await _ensureMinimumLoadingTime();
+      if (mounted) {
+        setState(() {
+          _isRefreshing = false;
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -271,10 +285,12 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
 
   /// Opens a dialog to edit a class's details.
   void _editClass(BuildContext context, Classroom classroom) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder:
-          (context) => EditClassDialog(
+          (context) => EditClassBottomModal(
             classroom: classroom,
             onClassUpdated: _refreshClasses,
           ),
@@ -283,13 +299,108 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
 
   /// Deletes a class after confirmation.
   void _deleteClass(BuildContext context, int classId) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder:
-          (context) => DeleteClassDialog(
+          (context) => DeleteClassBottomModal(
             classId: classId,
             onClassDeleted: _refreshClasses,
           ),
+    );
+  }
+
+  Widget _buildShimmerLoading() {
+    return Stack(
+      children: [
+        // Main shimmer content
+        Shimmer.fromColors(
+          baseColor: Colors.grey.shade300,
+          highlightColor: Colors.grey.shade100,
+          child: ListView(
+            padding: const EdgeInsets.all(16.0),
+            children: [
+              // Shimmer for welcome card
+              Container(
+                height: 100,
+                margin: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Shimmer for statistics cards
+              SizedBox(
+                height: 180,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    Container(
+                      width: 160,
+                      margin: const EdgeInsets.only(right: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    Container(
+                      width: 160,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Shimmer for classes section
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(width: 150, height: 30, color: Colors.white),
+                  const SizedBox(height: 10),
+                  ...List.generate(
+                    1,
+                    (index) => Container(
+                      height: 150,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        // FAB shimmer overlay (always fixed at bottom right)
+        Positioned(
+          bottom: 16,
+          right: 16,
+          child: Shimmer.fromColors(
+            baseColor: Colors.grey.shade300,
+            highlightColor: Colors.grey.shade100,
+            child: Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.rectangle,
+                borderRadius: BorderRadius.circular(15),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -297,11 +408,14 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showCreateClassOrStudentDialog(context),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
+      floatingActionButton:
+          _isLoading || _isRefreshing
+              ? null
+              : FloatingActionButton(
+                onPressed: () => _showCreateClassOrStudentDialog(context),
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                child: const Icon(Icons.add, color: Colors.white),
+              ),
       body: Stack(
         children: [
           // Main content (hidden when loading)
@@ -321,20 +435,8 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
               ),
             ),
 
-          // Loading overlay
-          if (_isLoading || _isRefreshing)
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Lottie.asset(
-                    'assets/animation/loading_rainbow.json', // Your loading animation
-                    width: 90,
-                    height: 90,
-                  ),
-                ],
-              ),
-            ),
+          // Shimmer loading overlay
+          if (_isLoading || _isRefreshing) _buildShimmerLoading(),
         ],
       ),
     );
@@ -555,11 +657,18 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: Colors.deepPurple,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text('Tap the "+" button below to get started! 👇'),
+                    Text(
+                      'Tap the "+" button to get started! 👇',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withOpacity(0.7),
+                      ),
+                    ),
                   ],
                 ),
               );

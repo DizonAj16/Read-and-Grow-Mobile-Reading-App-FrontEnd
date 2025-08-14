@@ -17,91 +17,28 @@ class TeacherInfoPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final avatarLetter =
-        teacherName.isNotEmpty ? teacherName[0].toUpperCase() : '?';
-    final colors = [
-      Colors.pink[300]!,
-      Colors.blue[300]!,
-      Colors.green[300]!,
-      Colors.orange[300]!,
-      Colors.purple[300]!,
-      Colors.teal[300]!,
-    ];
-    final avatarColor = colors[teacherName.hashCode % colors.length];
+    final avatarLetter = teacherName.isNotEmpty ? teacherName[0].toUpperCase() : '?';
+    final avatarColor = _getAvatarColor(teacherName);
 
     return Scaffold(
       backgroundColor: Colors.lightBlue[50],
       body: Column(
         children: [
-          // Fixed header (not affected by scroll)
-          _buildCurvedHeader(context),
-
-          // Scrollable content below
+          const _TeacherHeader(),
           Expanded(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
               child: Column(
                 children: [
-                  // Main Profile Card
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: TweenAnimationBuilder<double>(
-                      duration: const Duration(milliseconds: 400),
-                      tween: Tween(begin: 0, end: 1),
-                      builder: (context, value, child) {
-                        return Transform.scale(scale: value, child: child);
-                      },
-                      child: _buildProfileCard(avatarColor, avatarLetter),
-                    ),
+                  _ProfileCard(
+                    teacherName: teacherName,
+                    teacherEmail: teacherEmail,
+                    teacherPosition: teacherPosition,
+                    teacherAvatar: teacherAvatar,
+                    avatarLetter: avatarLetter,
+                    avatarColor: avatarColor,
                   ),
-
-                  const SizedBox(height: 24),
-
-                  // Superpowers
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                    child: Text(
-                      "🌟 Teacher Superpowers 🌟",
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue[800],
-                        fontFamily: 'ComicNeue',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 130,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      children: [
-                        _buildSuperpowerCard(
-                          "Knowledge Ninja",
-                          Icons.lightbulb,
-                          Colors.pink[300]!,
-                        ),
-                        _buildSuperpowerCard(
-                          "Homework Hero",
-                          Icons.auto_awesome,
-                          Colors.blue[300]!,
-                        ),
-                        _buildSuperpowerCard(
-                          "Story Sage",
-                          Icons.menu_book,
-                          Colors.purple[300]!,
-                        ),
-                        _buildSuperpowerCard(
-                          "Patience Pro",
-                          Icons.self_improvement,
-                          Colors.green[300]!,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 30),
+                  const _SuperpowersSection(),
                 ],
               ),
             ),
@@ -111,25 +48,39 @@ class TeacherInfoPage extends StatelessWidget {
     );
   }
 
-  Widget _buildCurvedHeader(BuildContext context) {
+  Color _getAvatarColor(String name) {
+    final colors = [
+      Colors.pink[300]!,
+      Colors.blue[300]!,
+      Colors.green[300]!,
+      Colors.orange[300]!,
+      Colors.purple[300]!,
+      Colors.teal[300]!,
+    ];
+    return colors[name.hashCode % colors.length];
+  }
+}
+
+class _TeacherHeader extends StatelessWidget {
+  const _TeacherHeader();
+
+  @override
+  Widget build(BuildContext context) {
     return ClipPath(
       clipper: _WaveClipper(),
       child: Container(
         height: 120,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              kPrimaryColor, // main primary color
-              Color(0xFFB71C1C), // darker shade for depth
-            ],
+            colors: [kPrimaryColor, Color(0xFFB71C1C)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
         ),
-        child: Center(
+        child: const Center(
           child: Text(
             "Teacher Profile",
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.bold,
               color: Colors.white,
@@ -140,109 +91,211 @@ class TeacherInfoPage extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildProfileCard(Color avatarColor, String avatarLetter) {
-    return Card(
-      elevation: 5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      shadowColor: avatarColor.withOpacity(0.25),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: LinearGradient(
-            colors: [
-              Colors.white.withOpacity(0.85),
-              Colors.white.withOpacity(0.9),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(color: avatarColor.withOpacity(0.2)),
-        ),
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            // Avatar
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 400),
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: avatarColor, width: 3),
-                boxShadow: [
-                  BoxShadow(
-                    color: avatarColor.withOpacity(0.3),
-                    blurRadius: 8,
-                    spreadRadius: 1,
-                  ),
+class _ProfileCard extends StatelessWidget {
+  final String teacherName;
+  final String teacherEmail;
+  final String teacherPosition;
+  final String? teacherAvatar;
+  final String avatarLetter;
+  final Color avatarColor;
+
+  const _ProfileCard({
+    required this.teacherName,
+    required this.teacherEmail,
+    required this.teacherPosition,
+    required this.teacherAvatar,
+    required this.avatarLetter,
+    required this.avatarColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: TweenAnimationBuilder<double>(
+        duration: const Duration(milliseconds: 300),
+        tween: Tween(begin: 0, end: 1),
+        builder: (context, value, child) {
+          return Transform.scale(scale: value, child: child);
+        },
+        child: Card(
+          elevation: 5,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shadowColor: avatarColor.withOpacity(0.25),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white.withOpacity(0.85),
+                  Colors.white.withOpacity(0.9),
                 ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              child: ClipOval(
-                child:
-                    teacherAvatar != null && teacherAvatar!.isNotEmpty
-                        ? FadeInImage.assetNetwork(
-                          placeholder:
-                              'assets/placeholder/avatar_placeholder.jpg',
-                          image: teacherAvatar!,
-                          fit: BoxFit.cover,
-                          imageErrorBuilder:
-                              (_, __, ___) => _buildAvatarFallback(
-                                avatarLetter,
-                                avatarColor,
-                              ),
-                        )
-                        : _buildAvatarFallback(avatarLetter, avatarColor),
-              ),
+              border: Border.all(color: avatarColor.withOpacity(0.2)),
             ),
-            const SizedBox(height: 20),
-
-            // Name
-            Text(
-              teacherName,
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.blueGrey,
-                fontFamily: 'ComicNeue',
-              ),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                _TeacherAvatar(
+                  teacherAvatar: teacherAvatar,
+                  avatarLetter: avatarLetter,
+                  avatarColor: avatarColor,
+                ),
+                const SizedBox(height: 20),
+                _TeacherName(name: teacherName, avatarColor: avatarColor),
+                const SizedBox(height: 20),
+                _TeacherInfoCard(
+                  icon: Icons.email_rounded,
+                  color: Colors.pink[300]!,
+                  title: "Email",
+                  value: teacherEmail,
+                ),
+                const SizedBox(height: 12),
+                _TeacherInfoCard(
+                  icon: Icons.school_rounded,
+                  color: Colors.purple[300]!,
+                  title: "Position",
+                  value: teacherPosition,
+                ),
+              ],
             ),
-            Container(
-              width: 100,
-              height: 4,
-              margin: const EdgeInsets.only(top: 8),
-              decoration: BoxDecoration(
-                color: avatarColor,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            _buildInfoCard(
-              icon: Icons.email_rounded,
-              color: Colors.pink[300]!,
-              title: "Email",
-              value: teacherEmail,
-            ),
-            const SizedBox(height: 12),
-            _buildInfoCard(
-              icon: Icons.school_rounded,
-              color: Colors.purple[300]!,
-              title: "Position",
-              value: teacherPosition,
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildInfoCard({
-    required IconData icon,
-    required Color color,
-    required String title,
-    required String value,
-  }) {
+class _TeacherAvatar extends StatelessWidget {
+  final String? teacherAvatar;
+  final String avatarLetter;
+  final Color avatarColor;
+
+  const _TeacherAvatar({
+    required this.teacherAvatar,
+    required this.avatarLetter,
+    required this.avatarColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 400),
+      width: 120,
+      height: 120,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: avatarColor, width: 3),
+        boxShadow: [
+          BoxShadow(
+            color: avatarColor.withOpacity(0.3),
+            blurRadius: 8,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: teacherAvatar != null && teacherAvatar!.isNotEmpty
+            ? FadeInImage.assetNetwork(
+                placeholder: 'assets/placeholder/avatar_placeholder.jpg',
+                image: teacherAvatar!,
+                fit: BoxFit.cover,
+                imageErrorBuilder: (_, __, ___) => _AvatarFallback(
+                  letter: avatarLetter,
+                  backgroundColor: avatarColor,
+                ),
+              )
+            : _AvatarFallback(
+                letter: avatarLetter,
+                backgroundColor: avatarColor,
+              ),
+      ),
+    );
+  }
+}
+
+class _AvatarFallback extends StatelessWidget {
+  final String letter;
+  final Color backgroundColor;
+
+  const _AvatarFallback({
+    required this.letter,
+    required this.backgroundColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: backgroundColor,
+      alignment: Alignment.center,
+      child: Text(
+        letter.toUpperCase(),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 48,
+          fontWeight: FontWeight.bold,
+          fontFamily: 'ComicNeue',
+        ),
+      ),
+    );
+  }
+}
+
+class _TeacherName extends StatelessWidget {
+  final String name;
+  final Color avatarColor;
+
+  const _TeacherName({
+    required this.name,
+    required this.avatarColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          name,
+          style: const TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: Colors.blueGrey,
+            fontFamily: 'ComicNeue',
+          ),
+        ),
+        Container(
+          width: 100,
+          height: 4,
+          margin: const EdgeInsets.only(top: 8),
+          decoration: BoxDecoration(
+            color: avatarColor,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TeacherInfoCard extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String value;
+
+  const _TeacherInfoCard({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () {},
@@ -295,8 +348,78 @@ class TeacherInfoPage extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildSuperpowerCard(String title, IconData icon, Color color) {
+class _SuperpowersSection extends StatelessWidget {
+  const _SuperpowersSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const SizedBox(height: 24),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          child: Text(
+            "🌟 Teacher Superpowers 🌟",
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue[800],
+              fontFamily: 'ComicNeue',
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 130,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            children: const [
+              _SuperpowerCard(
+                title: "Knowledge Ninja",
+                icon: Icons.lightbulb,
+                color: Colors.pink,
+              ),
+              _SuperpowerCard(
+                title: "Homework Hero",
+                icon: Icons.auto_awesome,
+                color: Colors.blue,
+              ),
+              _SuperpowerCard(
+                title: "Story Sage",
+                icon: Icons.menu_book,
+                color: Colors.purple,
+              ),
+              _SuperpowerCard(
+                title: "Patience Pro",
+                icon: Icons.self_improvement,
+                color: Colors.green,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 30),
+      ],
+    );
+  }
+}
+
+class _SuperpowerCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Color color;
+
+  const _SuperpowerCard({
+    required this.title,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 400),
       width: 140,
@@ -343,25 +466,8 @@ class TeacherInfoPage extends StatelessWidget {
       ),
     );
   }
-
-  Widget _buildAvatarFallback(String letter, Color backgroundColor) {
-    return Container(
-      color: backgroundColor,
-      alignment: Alignment.center,
-      child: Text(
-        letter.toUpperCase(),
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 48,
-          fontWeight: FontWeight.bold,
-          fontFamily: 'ComicNeue',
-        ),
-      ),
-    );
-  }
 }
 
-// Custom wave header
 class _WaveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
