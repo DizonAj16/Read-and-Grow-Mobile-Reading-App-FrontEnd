@@ -185,12 +185,12 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
       final response = await AuthService.adminLogin({
         'login': _emailController.text.trim(),
         'password': _passwordController.text,
-        'admin_security_code': '', // Step 1: no code yet
+        'admin_security_code': '',
       });
 
       await Future.delayed(const Duration(seconds: 1));
       if (!mounted) return;
-      Navigator.of(context).pop(); // Close loading dialog
+      Navigator.of(context).pop();
 
       if (response['step'] == 2) {
         await _showSecurityCodeDialog(
@@ -200,9 +200,8 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
       } else if (response['success'] == true) {
         try {
           final prefs = await SharedPreferences.getInstance();
-          if (response['token'] != null)
-            await prefs.setString('token', response['token'].toString());
-          await prefs.setString('role', 'admin');
+          await prefs.setString('token', response['token']);
+          await prefs.setString('role', response['user']['role']);
         } catch (_) {}
         await _showSuccessDialog();
         await _showProceedingDialog();
@@ -219,7 +218,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
       }
     } catch (e) {
       if (mounted) {
-        Navigator.of(context).pop(); // Close loading dialog if open
+        Navigator.of(context).pop();
         _showErrorDialog(
           title: 'Error',
           message: 'An error occurred. Please try again.',

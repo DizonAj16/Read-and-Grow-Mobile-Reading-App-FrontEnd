@@ -3,7 +3,7 @@ import 'package:lottie/lottie.dart';
 import 'package:deped_reading_app_laravel/api/classroom_service.dart';
 import 'package:deped_reading_app_laravel/api/fun_fact_service.dart';
 import 'package:deped_reading_app_laravel/api/prefs_service.dart';
-import 'package:deped_reading_app_laravel/models/classroom.dart';
+import 'package:deped_reading_app_laravel/models/classroom_model.dart';
 import 'widgets/class_card.dart';
 import 'widgets/empty_classes_widget.dart';
 import 'widgets/loading_widget.dart';

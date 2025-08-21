@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/student.dart';
-import '../models/teacher.dart';
+import '../models/student_model.dart';
+import '../models/teacher_model.dart';
 
 class UserService {
   static Future<String> _getBaseUrl() async {
@@ -17,30 +17,18 @@ class UserService {
   };
 
   static Future<void> storeTeacherDetails(Map<String, dynamic> details) async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedBaseUrl = prefs.getString('base_url') ?? 'http://10.0.2.2:8000/api';
-    final uri = Uri.parse(savedBaseUrl);
-    final baseUrl = '${uri.scheme}://${uri.authority}';
-
     final teacher = Teacher.fromJson(details);
-
-    if (teacher.profilePicture != null && !teacher.profilePicture!.startsWith('http')) {
-      teacher.profilePicture = '$baseUrl/storage/profile_images/${teacher.profilePicture}';
-    }
-
     await teacher.saveToPrefs();
   }
 
   static Future<void> storeStudentDetails(Map<String, dynamic> details) async {
     final student = Student.fromJson(details);
     await student.saveToPrefs();
-    final prefs = await SharedPreferences.getInstance();
-    if (details['user_id'] != null) {
-      await prefs.setString('user_id', details['user_id'].toString());
-    }
   }
 
-  static Future<http.Response> registerStudent(Map<String, dynamic> body) async {
+  static Future<http.Response> registerStudent(
+    Map<String, dynamic> body,
+  ) async {
     final url = Uri.parse('${await _getBaseUrl()}/register/student');
     return await http.post(
       url,
@@ -52,7 +40,9 @@ class UserService {
     );
   }
 
-  static Future<http.Response> registerTeacher(Map<String, dynamic> body) async {
+  static Future<http.Response> registerTeacher(
+    Map<String, dynamic> body,
+  ) async {
     final url = Uri.parse('${await _getBaseUrl()}/register/teacher');
     return await http.post(
       url,
@@ -68,7 +58,7 @@ class UserService {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
     if (token == null) throw Exception('No auth token found');
-    
+
     final response = await http.get(
       Uri.parse('${await _getBaseUrl()}/teachers/students'),
       headers: _authHeaders(token),
@@ -88,7 +78,7 @@ class UserService {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
     if (token == null) throw Exception('No auth token found');
-    
+
     final response = await http.get(
       Uri.parse('${await _getBaseUrl()}/teachers/'),
       headers: _authHeaders(token),
@@ -108,7 +98,7 @@ class UserService {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
     if (token == null) throw Exception('No auth token found');
-    
+
     final role = prefs.getString('role');
     String url;
     if (role == 'teacher') {
@@ -150,17 +140,19 @@ class UserService {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
 
-    String endpoint = role == 'teacher' 
-      ? '/profile/teacher/upload' 
-      : '/profile/student/upload';
-      
-    final uri = Uri.parse('${await _getBaseUrl()}$endpoint');
+    // use one dynamic endpoint for both roles
+    final uri = Uri.parse('${await _getBaseUrl()}/profile/$role/upload');
     final request = http.MultipartRequest('POST', uri);
 
     request.headers['Authorization'] = 'Bearer $token';
     request.headers['Accept'] = 'application/json';
-    request.fields['${role}_id'] = userId;
-    request.files.add(await http.MultipartFile.fromPath('profile_picture', filePath));
+
+    // ✅ Laravel expects `user_id`, not `teacher_id` or `student_id`
+    request.fields['user_id'] = userId;
+
+    request.files.add(
+      await http.MultipartFile.fromPath('profile_picture', filePath),
+    );
 
     return await request.send();
   }

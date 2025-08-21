@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:deped_reading_app_laravel/api/classroom_service.dart';
-import 'package:deped_reading_app_laravel/models/student.dart';
+import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -180,7 +180,7 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
         final String? profileUrl =
             (student.profilePicture != null &&
                     student.profilePicture!.isNotEmpty)
-                ? "${snapshot.data}/storage/profile_images/${student.profilePicture}"
+                ? "${snapshot.data}/${student.profilePicture}"
                 : null;
 
         if (profileUrl == null) {

@@ -1,6 +1,6 @@
 import 'package:deped_reading_app_laravel/api/prefs_service.dart';
 import 'package:deped_reading_app_laravel/api/user_service.dart';
-import 'package:deped_reading_app_laravel/models/student.dart';
+import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:flutter/material.dart';
 
 class AdminViewStudentsPage extends StatefulWidget {

@@ -1,4 +1,5 @@
 import 'package:deped_reading_app_laravel/api/auth_service.dart';
+import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:deped_reading_app_laravel/pages/auth%20pages/landing_page.dart';
 import 'package:deped_reading_app_laravel/widgets/helpers/tts_helper.dart';
 import 'package:deped_reading_app_laravel/widgets/helpers/tts_modal.dart';
@@ -9,6 +10,12 @@ import 'student class pages/student_class_page.dart';
 import 'student_dashboard_page.dart';
 import 'student_profile_page.dart';
 
+// =============================================================================
+// STUDENT PAGE - MAIN CONTAINER FOR STUDENT FUNCTIONALITY
+// =============================================================================
+
+/// Main page container for student functionality with bottom navigation
+/// Handles navigation between dashboard and class pages
 class StudentPage extends StatefulWidget {
   const StudentPage({super.key});
 
@@ -17,6 +24,10 @@ class StudentPage extends StatefulWidget {
 }
 
 class _StudentPageState extends State<StudentPage> {
+  // ===========================================================================
+  // STATE VARIABLES
+  // ===========================================================================
+
   int _currentIndex = 0;
   final PageController _pageController = PageController();
   final TTSHelper _ttsHelper = TTSHelper();
@@ -25,6 +36,10 @@ class _StudentPageState extends State<StudentPage> {
     StudentDashboardPage(),
     StudentClassPage(),
   ];
+
+  // ===========================================================================
+  // LIFECYCLE METHODS
+  // ===========================================================================
 
   @override
   void initState() {
@@ -39,6 +54,11 @@ class _StudentPageState extends State<StudentPage> {
     super.dispose();
   }
 
+  // ===========================================================================
+  // AUTHENTICATION METHODS
+  // ===========================================================================
+
+  /// Logs out the student with comprehensive cleanup
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? '';
@@ -54,6 +74,7 @@ class _StudentPageState extends State<StudentPage> {
     }
   }
 
+  /// Clears all user-specific data from shared preferences
   Future<void> _clearUserData(SharedPreferences prefs) async {
     await prefs.remove('token');
     await prefs.remove('student_name');
@@ -62,18 +83,21 @@ class _StudentPageState extends State<StudentPage> {
     await prefs.remove('profile_picture');
     await prefs.remove('students_data');
     await prefs.remove('student_classes');
+    await prefs.remove('student_data');
   }
 
+  /// Shows logout success dialog with progress indicator
   Future<void> _showLogoutSuccess(BuildContext context) async {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => _LogoutProgressDialog(context: context),
+      builder: (context) => const _LogoutProgressDialog(),
     );
     await Future.delayed(const Duration(seconds: 1));
     if (mounted) Navigator.of(context).pop();
   }
 
+  /// Navigates to landing page after logout
   void _navigateToLandingPage() {
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
@@ -83,6 +107,7 @@ class _StudentPageState extends State<StudentPage> {
     }
   }
 
+  /// Shows logout error dialog
   void _showLogoutError(BuildContext context) {
     showDialog(
       context: context,
@@ -90,6 +115,11 @@ class _StudentPageState extends State<StudentPage> {
     );
   }
 
+  // ===========================================================================
+  // NAVIGATION METHODS
+  // ===========================================================================
+
+  /// Handles bottom navigation tab selection
   void _onTabTapped(int index) {
     setState(() => _currentIndex = index);
     _pageController.animateToPage(
@@ -99,6 +129,7 @@ class _StudentPageState extends State<StudentPage> {
     );
   }
 
+  /// Shows logout confirmation dialog
   void _showLogoutConfirmation() {
     showDialog(
       context: context,
@@ -110,6 +141,10 @@ class _StudentPageState extends State<StudentPage> {
     );
   }
 
+  // ===========================================================================
+  // BUILD METHOD
+  // ===========================================================================
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -119,6 +154,11 @@ class _StudentPageState extends State<StudentPage> {
     );
   }
 
+  // ===========================================================================
+  // UI COMPONENT BUILDERS
+  // ===========================================================================
+
+  /// Builds the app bar with dynamic title
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
       title: Text(
@@ -141,6 +181,7 @@ class _StudentPageState extends State<StudentPage> {
     );
   }
 
+  /// Builds the page view for navigation
   PageView _buildPageView() {
     return PageView(
       controller: _pageController,
@@ -149,6 +190,7 @@ class _StudentPageState extends State<StudentPage> {
     );
   }
 
+  /// Builds the bottom navigation bar
   BottomNavigationBar _buildBottomNavigationBar(BuildContext context) {
     return BottomNavigationBar(
       currentIndex: _currentIndex,
@@ -165,6 +207,7 @@ class _StudentPageState extends State<StudentPage> {
     );
   }
 
+  /// Builds bottom navigation items
   List<BottomNavigationBarItem> _buildBottomNavItems() {
     return const [
       BottomNavigationBarItem(
@@ -181,6 +224,10 @@ class _StudentPageState extends State<StudentPage> {
   }
 }
 
+// =============================================================================
+// PROFILE POPUP MENU COMPONENT
+// =============================================================================
+
 class _ProfilePopupMenu extends StatefulWidget {
   final VoidCallback onLogout;
   final TTSHelper ttsHelper;
@@ -192,8 +239,16 @@ class _ProfilePopupMenu extends StatefulWidget {
 }
 
 class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
-  String _studentName = "Student";
+  // ===========================================================================
+  // STATE VARIABLES
+  // ===========================================================================
+
+  Student? _student;
   String? _profilePictureUrl;
+
+  // ===========================================================================
+  // LIFECYCLE METHODS
+  // ===========================================================================
 
   @override
   void initState() {
@@ -201,28 +256,111 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
     _loadStudentData();
   }
 
+  // ===========================================================================
+  // DATA LOADING METHODS (ENHANCED WITH API FALLBACK)
+  // ===========================================================================
+
+  /// Loads student data with robust fallback mechanism
+  /// Tries API first, then falls back to local storage if API fails
   Future<void> _loadStudentData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedBaseUrl =
-        prefs.getString('base_url') ?? 'http://10.0.2.2:8000/api';
-    final uri = Uri.parse(savedBaseUrl);
-    final baseUrl = '${uri.scheme}://${uri.authority}';
+    try {
+      // ✅ Try fetching from API first
+      final profileResponse = await AuthService.getAuthProfile();
+      final studentProfile = profileResponse['profile'] ?? profileResponse;
 
-    String? storedProfilePicture = prefs.getString('profile_picture');
-    if (storedProfilePicture != null &&
-        storedProfilePicture.isNotEmpty &&
-        !storedProfilePicture.startsWith('http')) {
-      storedProfilePicture =
-          '$baseUrl/storage/profile_images/$storedProfilePicture';
-    }
+      // Create Student object from API response
+      final Student student = Student.fromJson(studentProfile);
 
-    if (mounted) {
-      setState(() {
-        _studentName = prefs.getString('student_name') ?? "Student";
-        _profilePictureUrl = storedProfilePicture;
-      });
+      // ✅ Save to prefs using the model's saveToPrefs method
+      await student.saveToPrefs();
+
+      // ✅ Build full profile picture URL
+      final String? fullProfileUrl = await _buildProfilePictureUrl(
+        student.profilePicture,
+      );
+
+      if (mounted) {
+        setState(() {
+          _student = student;
+          _profilePictureUrl = fullProfileUrl;
+        });
+        debugPrint("🖼️ Profile URL: $_profilePictureUrl");
+      }
+
+      debugPrint("✅ Loaded student profile from API: ${student.studentName}");
+    } catch (e) {
+      debugPrint("⚠️ API failed, loading student from prefs instead: $e");
+
+      try {
+        // ✅ Fallback to prefs using the model's fromPrefs method
+        final Student student = await Student.fromPrefs();
+
+        // ✅ Build full profile picture URL
+        final String? fullProfileUrl = await _buildProfilePictureUrl(
+          student.profilePicture,
+        );
+
+        if (mounted) {
+          setState(() {
+            _student = student;
+            _profilePictureUrl = fullProfileUrl;
+          });
+        }
+
+        debugPrint(
+          "✅ Loaded student profile from prefs: ${student.studentName}",
+        );
+      } catch (prefsError) {
+        debugPrint("❌ Failed to load student from prefs: $prefsError");
+
+        // ✅ Handle case where both API & prefs fail
+        if (mounted) {
+          setState(() {
+            _student = Student(
+              id: 0,
+              studentName: "Student",
+              studentLrn: null,
+              studentGrade: null,
+              studentSection: null,
+              username: null,
+              profilePicture: null,
+              classRoomId: null,
+              completedTasks: 0,
+            );
+            _profilePictureUrl = null;
+          });
+        }
+      }
     }
   }
+
+  /// Builds the complete profile picture URL from base URL
+  Future<String?> _buildProfilePictureUrl(String? profilePicture) async {
+    if (profilePicture == null || profilePicture.isEmpty) {
+      return null;
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedBaseUrl =
+          prefs.getString('base_url') ?? 'http://10.0.2.2:8000/api';
+
+      final uri = Uri.parse(savedBaseUrl);
+      final baseUrl = '${uri.scheme}://${uri.authority}';
+      final url = '$baseUrl/$profilePicture';
+
+      debugPrint("✅ Built profile picture URL: $url"); // 👈 print here
+
+      return url;
+    } catch (e) {
+      debugPrint("❌ Error building profile picture URL: $e");
+      return null;
+    }
+  }
+
+  // ===========================================================================
+  // BUILD METHOD
+  // ===========================================================================
 
   @override
   Widget build(BuildContext context) {
@@ -231,9 +369,17 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
       tooltip: "Student Profile",
       onSelected: (value) => _handleMenuSelection(value, context),
       itemBuilder: (context) => _buildMenuItems(context),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 4,
+      color: Theme.of(context).colorScheme.surface,
     );
   }
 
+  // ===========================================================================
+  // MENU HANDLING METHODS
+  // ===========================================================================
+
+  /// Handles menu item selection
   Future<void> _handleMenuSelection(String value, BuildContext context) async {
     switch (value) {
       case 'logout':
@@ -248,6 +394,7 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
     }
   }
 
+  /// Shows profile modal bottom sheet
   Future<void> _showProfileModal(BuildContext context) async {
     await showModalBottomSheet(
       context: context,
@@ -257,9 +404,10 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
           (context) =>
               _ProfileModalContainer(child: const StudentProfilePage()),
     );
-    await _loadStudentData();
+    await _loadStudentData(); // Refresh data after closing profile
   }
 
+  /// Shows settings modal bottom sheet
   Future<void> _showSettingsModal(BuildContext context) async {
     await showModalBottomSheet(
       context: context,
@@ -276,56 +424,102 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
     );
   }
 
-  List<PopupMenuItem<String>> _buildMenuItems(BuildContext context) {
+  // ===========================================================================
+  // UI COMPONENT BUILDERS
+  // ===========================================================================
+
+  /// Builds the popup menu items
+  List<PopupMenuEntry<String>> _buildMenuItems(BuildContext context) {
+    final theme = Theme.of(context);
+    final textColor = theme.colorScheme.onSurface;
+    final studentName = _student?.studentName ?? "Student";
+
     return [
-      PopupMenuItem(
+      // Profile header
+      PopupMenuItem<String>(
         value: 'profile',
+        height: 100,
         child: SizedBox(
-          height: 160,
+          width: double.infinity,
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              _buildProfileAvatar(radius: 40),
-              const SizedBox(height: 12),
+              _buildProfileAvatar(radius: 32),
+              const SizedBox(height: 8),
               Text(
-                _studentName,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                studentName,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 4),
               Text(
                 'Student',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey.shade600,
-                  fontSize: 10,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: textColor.withOpacity(0.6),
                 ),
               ),
-              const Divider(height: 24),
             ],
           ),
         ),
       ),
-      const PopupMenuItem(
+      const PopupMenuDivider(),
+      // Settings option
+      PopupMenuItem<String>(
         value: 'settings',
-        child: _MenuOptionRow(
-          icon: Icons.settings,
-          iconColor: Colors.blue,
-          label: 'Settings',
+        height: 48,
+        child: SizedBox(
+          width: double.infinity,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Icon(Icons.settings, size: 20, color: Colors.blue),
+              const SizedBox(width: 12),
+              Text(
+                'Settings',
+                style: theme.textTheme.bodyMedium?.copyWith(color: textColor),
+              ),
+            ],
+          ),
         ),
       ),
-      PopupMenuItem(
+      // Logout option
+      PopupMenuItem<String>(
         value: 'logout',
-        child: _MenuOptionRow(
-          icon: Icons.logout,
-          iconColor: Colors.red,
-          label: 'Logout',
+        height: 48,
+        child: SizedBox(
+          width: double.infinity,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Icon(Icons.logout, size: 20, color: Colors.red),
+              const SizedBox(width: 12),
+              Text(
+                'Logout',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.red,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     ];
   }
 
+  /// Builds the profile avatar with image or fallback
   Widget _buildProfileAvatar({required double radius}) {
+    final studentName = _student?.studentName ?? "Student";
+    final initials =
+        _student?.avatarLetter ??
+        (studentName.isNotEmpty ? studentName[0].toUpperCase() : "S");
+
     return CircleAvatar(
       radius: radius,
       backgroundColor:
@@ -335,7 +529,7 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
       child:
           _profilePictureUrl == null
               ? Text(
-                _studentName.isNotEmpty ? _studentName[0].toUpperCase() : "S",
+                initials,
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -344,8 +538,7 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
               )
               : ClipOval(
                 child: FadeInImage.assetNetwork(
-                  placeholder:
-                      'assets/placeholder/avatar_placeholder.jpg', // Add this asset to your project
+                  placeholder: 'assets/placeholder/avatar_placeholder.jpg',
                   image: _profilePictureUrl!,
                   fit: BoxFit.cover,
                   width: radius * 2,
@@ -355,9 +548,7 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
                       color: Theme.of(context).colorScheme.primary,
                       child: Center(
                         child: Text(
-                          _studentName.isNotEmpty
-                              ? _studentName[0].toUpperCase()
-                              : "S",
+                          initials,
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -374,6 +565,10 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
     );
   }
 }
+
+// =============================================================================
+// SUPPORTING DIALOG COMPONENTS
+// =============================================================================
 
 class _ProfileModalContainer extends StatelessWidget {
   final Widget child;
@@ -406,33 +601,8 @@ class _ProfileModalContainer extends StatelessWidget {
   }
 }
 
-class _MenuOptionRow extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String label;
-
-  const _MenuOptionRow({
-    required this.icon,
-    required this.iconColor,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, color: iconColor),
-        const SizedBox(width: 16),
-        Text(label),
-      ],
-    );
-  }
-}
-
 class _LogoutProgressDialog extends StatelessWidget {
-  final BuildContext context;
-
-  const _LogoutProgressDialog({required this.context});
+  const _LogoutProgressDialog();
 
   @override
   Widget build(BuildContext context) {

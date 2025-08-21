@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/student.dart';
-import '../models/classroom.dart';
+import '../models/student_model.dart';
+import '../models/classroom_model.dart';
 
 class PrefsService {
   static Future<void> storeStudentsToPrefs(List<Student> students) async {

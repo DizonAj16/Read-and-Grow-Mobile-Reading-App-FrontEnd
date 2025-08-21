@@ -65,58 +65,159 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder:
-          (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: Row(
-              children: [
-                Icon(Icons.image, color: Theme.of(ctx).colorScheme.primary),
-                const SizedBox(width: 8),
-                Text(
-                  "Preview Image",
-                  style: Theme.of(ctx).textTheme.titleLarge,
-                ),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.file(
-                    File(pickedFile.path),
-                    fit: BoxFit.cover,
-                    width: MediaQuery.of(context).size.width * 0.8,
-                    height: 180,
+          (ctx) => Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.all(20),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Theme.of(ctx).colorScheme.surface,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.25),
+                    blurRadius: 25,
+                    offset: const Offset(0, 12),
                   ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  "Do you want to set this as the new class background?",
-                  style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(ctx).colorScheme.onSurface,
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Title with icon
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.image_rounded,
+                        color: Theme.of(ctx).colorScheme.primary,
+                        size: 28,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        "Preview Image",
+                        style: Theme.of(ctx).textTheme.headlineSmall?.copyWith(
+                          color: Theme.of(ctx).colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
                   ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+                  const SizedBox(height: 20),
+                  // Larger image preview
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Theme.of(
+                          ctx,
+                        ).colorScheme.primary.withOpacity(0.3),
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.15),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: Image.file(
+                        File(pickedFile.path),
+                        fit: BoxFit.cover,
+                        width: MediaQuery.of(context).size.width * 0.7,
+                        height: 220, // Increased height for larger image
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // Smaller and lighter text
+                  Text(
+                    "Do you want to set this as the new class background?",
+                    textAlign: TextAlign.center,
+                    style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(
+                        ctx,
+                      ).colorScheme.onSurface.withOpacity(0.7),
+                      fontWeight: FontWeight.w400,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Buttons with icons
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          icon: Icon(
+                            Icons.cancel_rounded,
+                            size: 20,
+                            color: Theme.of(
+                              ctx,
+                            ).colorScheme.onSurface.withOpacity(0.8),
+                          ),
+                          label: Text(
+                            "Cancel",
+                            style: TextStyle(
+                              color: Theme.of(ctx).colorScheme.onSurface,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 14,
+                              horizontal: 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            side: BorderSide(
+                              color: Theme.of(
+                                ctx,
+                              ).colorScheme.outline.withOpacity(0.5),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          icon: Icon(
+                            Icons.check_circle_rounded,
+                            size: 20,
+                            color: Theme.of(ctx).colorScheme.onPrimary,
+                          ),
+                          label: Text(
+                            "Update",
+                            style: TextStyle(
+                              color: Theme.of(ctx).colorScheme.onPrimary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(ctx).colorScheme.primary,
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 14,
+                              horizontal: 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 3,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            actions: [
-              TextButton(
-                child: const Text("Cancel"),
-                onPressed: () => Navigator.pop(ctx, false),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(ctx).colorScheme.primary,
-                ),
-                child: Text(
-                  "Yes, Update",
-                  style: TextStyle(color: Theme.of(ctx).colorScheme.onPrimary),
-                ),
-                onPressed: () => Navigator.pop(ctx, true),
-              ),
-            ],
           ),
     );
 
@@ -335,16 +436,34 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
                           if (_isUploading)
                             Positioned.fill(
                               child: Container(
-                                color: Colors.white,
+                                color:
+                                    Colors
+                                        .white, // Slightly transparent for better overlay effect
                                 child: Center(
-                                  child: SizedBox(
-                                    width: 120,
-                                    height: 120,
-                                    child: Image.asset(
-                                      'assets/animation/upload.gif',
-                                      width: 100,
-                                      height: 100,
-                                    ),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      SizedBox(
+                                        width: 120,
+                                        height: 120,
+                                        child: Image.asset(
+                                          'assets/animation/upload.gif',
+                                          width: 100,
+                                          height: 100,
+                                        ),
+                                      ),
+                                      const SizedBox(
+                                        height: 16,
+                                      ), // Space between GIF and text
+                                      Text(
+                                        "Uploading background image...",
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.grey[700],
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),

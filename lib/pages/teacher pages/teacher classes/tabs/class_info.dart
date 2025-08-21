@@ -95,7 +95,7 @@ class _ClassInfoPageState extends State<ClassInfoPage> {
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
               childAspectRatio: 1.2,
-              mainAxisExtent: 120,
+              mainAxisExtent: 160, // Increased height for better spacing
             ),
             delegate: SliverChildBuilderDelegate(
               (context, index) => _InfoCard(item: infoItems[index]),
@@ -114,7 +114,7 @@ class _ClassInfoPageState extends State<ClassInfoPage> {
                   color: colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
@@ -147,7 +147,7 @@ class _ClassInfoPageState extends State<ClassInfoPage> {
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
               childAspectRatio: 1.2,
-              mainAxisExtent: 120,
+              mainAxisExtent: 160,
             ),
             delegate: SliverChildBuilderDelegate(
               (context, index) => _ShimmerInfoCard(),
@@ -160,7 +160,7 @@ class _ClassInfoPageState extends State<ClassInfoPage> {
           sliver: SliverList(
             delegate: SliverChildListDelegate([
               _ShimmerText(width: 120, height: 24),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               _ShimmerText(width: double.infinity, height: 80),
             ]),
           ),
@@ -199,13 +199,13 @@ class _ShimmerInfoCard extends StatelessWidget {
                 Container(width: 80, height: 16, color: Colors.white),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Expanded(
               child: Align(
                 alignment: Alignment.bottomLeft,
                 child: Container(
                   width: double.infinity,
-                  height: 24,
+                  height: 28,
                   color: Colors.white,
                 ),
               ),
@@ -304,42 +304,50 @@ class _InfoCard extends StatelessWidget {
                     child: Icon(item.icon, size: 20, color: item.color),
                   ),
                   const SizedBox(width: 12),
-                  Expanded(
+                  Flexible(
                     child: Text(
                       item.label,
                       style: theme.textTheme.labelLarge?.copyWith(
                         color: colorScheme.onSurface.withOpacity(0.8),
                         fontWeight: FontWeight.w600,
                       ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               Expanded(
-                child: Align(
-                  alignment: Alignment.bottomLeft,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          item.value,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onSurface,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item.value,
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.onSurface,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      if (item.isCopyable && item.value != "N/A")
-                        Icon(
-                          Icons.copy,
-                          size: 18,
-                          color: item.color.withOpacity(0.7),
-                        ),
-                    ],
-                  ),
+                        if (item.isCopyable && item.value != "N/A")
+                          Padding(
+                            padding: const EdgeInsets.only(left: 8),
+                            child: Icon(
+                              Icons.copy,
+                              size: 20,
+                              color: item.color.withOpacity(0.7),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ],

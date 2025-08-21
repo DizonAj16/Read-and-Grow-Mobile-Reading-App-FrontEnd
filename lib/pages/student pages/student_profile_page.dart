@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:ui';
 import 'package:deped_reading_app_laravel/api/auth_service.dart';
 import 'package:deped_reading_app_laravel/api/user_service.dart';
-import 'package:deped_reading_app_laravel/models/student.dart';
+import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
@@ -59,8 +59,7 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
     if (student.profilePicture != null &&
         !student.profilePicture!.startsWith('http')) {
       student = student.copyWith(
-        profilePicture:
-            '$_baseUrl/storage/profile_images/${student.profilePicture}',
+        profilePicture: '$_baseUrl/${student.profilePicture}',
       );
       debugPrint(
         '🖼️ Normalized profile picture URL: ${student.profilePicture}',
@@ -112,7 +111,7 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
         final newProfileUrl =
             data['profile_picture']?.startsWith('http')
                 ? data['profile_picture']
-                : '$_baseUrl/storage/profile_images/${data['profile_picture']}';
+                : '$_baseUrl/${data['profile_picture']}';
 
         final updatedStudent = student.copyWith(profilePicture: newProfileUrl);
         await updatedStudent.saveToPrefs();

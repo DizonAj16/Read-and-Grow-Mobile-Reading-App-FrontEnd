@@ -75,12 +75,12 @@ class TeacherDashboardClassCard extends StatelessWidget {
                   subtitle: Text(section),
                 ),
                 const Divider(),
-                // Action buttons
+                // Action buttons with distinct colors
                 _buildActionButton(
                   context,
                   icon: Icons.visibility,
                   label: 'View Class',
-                  color: Theme.of(context).colorScheme.primary,
+                  color: Colors.blue, // Distinct blue for view
                   onTap: () {
                     Navigator.pop(context);
                     onView();
@@ -90,7 +90,7 @@ class TeacherDashboardClassCard extends StatelessWidget {
                   context,
                   icon: Icons.edit,
                   label: 'Edit Class',
-                  color: Theme.of(context).colorScheme.primary,
+                  color: Colors.orange, // Distinct orange for edit
                   onTap: () {
                     Navigator.pop(context);
                     onEdit();
@@ -100,7 +100,7 @@ class TeacherDashboardClassCard extends StatelessWidget {
                   context,
                   icon: Icons.delete,
                   label: 'Delete Class',
-                  color: Theme.of(context).colorScheme.primary,
+                  color: Colors.red, // Distinct red for delete
                   onTap: () {
                     Navigator.pop(context);
                     onDelete();
@@ -131,8 +131,13 @@ class TeacherDashboardClassCard extends StatelessWidget {
         ),
         child: Icon(icon, color: color),
       ),
-
-      title: Text(label, style: Theme.of(context).textTheme.bodyLarge),
+      title: Text(
+        label,
+        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
       onTap: onTap,
     );
   }
@@ -161,7 +166,6 @@ class TeacherDashboardClassCard extends StatelessWidget {
                   width: double.infinity,
                 ),
               ),
-
               // Gradient overlay
               Positioned.fill(
                 child: Container(
@@ -179,7 +183,6 @@ class TeacherDashboardClassCard extends StatelessWidget {
                   ),
                 ),
               ),
-
               // Class Info
               Padding(
                 padding: const EdgeInsets.all(16.0),

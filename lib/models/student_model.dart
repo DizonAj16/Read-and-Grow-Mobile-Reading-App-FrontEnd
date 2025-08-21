@@ -62,26 +62,23 @@ class Student {
 
   factory Student.fromJson(Map<String, dynamic> json) {
     final name = json['student_name'] ?? '';
+
     return Student(
       id:
-          json['student_id'] != null
-              ? (json['student_id'] is int
-                  ? json['student_id']
-                  : int.tryParse(json['student_id'].toString()) ?? 0)
-              : (json['id'] is int
-                  ? json['id']
-                  : int.tryParse(json['id'].toString()) ?? 0),
+          json['id'] is int
+              ? json['id']
+              : int.tryParse(json['id']?.toString() ?? '') ?? 0, // ✅ student_id
       userId:
           json['user_id'] is int
               ? json['user_id']
-              : int.tryParse(json['user_id']?.toString() ?? ''),
+              : int.tryParse(json['user_id']?.toString() ?? ''), // ✅ user_id
       studentName: name,
       studentLrn: json['student_lrn'],
       studentGrade: json['student_grade']?.toString(),
       studentSection: json['student_section']?.toString(),
       username: json['username'],
       avatarLetter: name.isNotEmpty ? name[0].toUpperCase() : 'S',
-      profilePicture: json['profile_picture'],
+      profilePicture: json['profile_picture'], // ✅ keep as filename
       classRoomId:
           json['class_room_id'] is int
               ? json['class_room_id']
@@ -91,7 +88,7 @@ class Student {
               ? (json['completed_tasks'] is int
                   ? json['completed_tasks']
                   : int.tryParse(json['completed_tasks'].toString()) ?? 0)
-              : 0, // ✅ Default if missing
+              : 0,
     );
   }
 
@@ -112,6 +109,7 @@ class Student {
   static Future<Student> fromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     final name = prefs.getString('student_name') ?? '';
+
     return Student(
       id: int.tryParse(prefs.getString('student_id') ?? '') ?? 0,
       userId: int.tryParse(prefs.getString('user_id') ?? ''),
@@ -130,7 +128,11 @@ class Student {
 
   Future<void> saveToPrefs() async {
     final prefs = await SharedPreferences.getInstance();
-    if (id != 0) await prefs.setString('student_id', id.toString());
+
+    await prefs.setString(
+      'student_id',
+      id.toString(),
+    ); // ✅ always save profile.id
     if (userId != null) await prefs.setString('user_id', userId.toString());
     if (studentName.isNotEmpty)
       await prefs.setString('student_name', studentName);

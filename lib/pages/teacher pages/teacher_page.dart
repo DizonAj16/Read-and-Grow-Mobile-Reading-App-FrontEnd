@@ -1,5 +1,5 @@
 import 'package:deped_reading_app_laravel/api/auth_service.dart';
-import 'package:deped_reading_app_laravel/models/teacher.dart';
+import 'package:deped_reading_app_laravel/models/teacher_model.dart';
 import 'package:flutter/material.dart';
 import 'pupil_submissions_and_report_page.dart';
 import 'teacher dashboard/teacher_dashboard_page.dart';
@@ -9,25 +9,27 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../pages/auth pages/landing_page.dart';
 import '../../widgets/navigation/page_transition.dart';
 
+// Main page container for teacher functionality with navigation drawer
 class TeacherPage extends StatefulWidget {
   const TeacherPage({super.key});
 
   @override
-  _TeacherPageState createState() => _TeacherPageState();
+  State<TeacherPage> createState() => _TeacherPageState();
 }
 
 class _TeacherPageState extends State<TeacherPage> {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
-  String _currentTitle = "Teacher Dashboard";
+  String _currentTitle = "Dashboard";
   String _currentRoute = '/dashboard';
-  String _teacherName = "Teacher"; // Default
+  String _teacherName = "Teacher";
   String? _profilePicture;
 
-  /// Logs out the teacher:
-  /// - Calls the API to logout.
-  /// - Clears SharedPreferences.
-  /// - Shows a loading dialog and then navigates to the landing page.
-  /// - Shows an error dialog if logout fails.
+  @override
+  void initState() {
+    super.initState();
+    _loadTeacherData();
+  }
+
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? '';
@@ -35,360 +37,543 @@ class _TeacherPageState extends State<TeacherPage> {
     final response = await AuthService.logout(token);
 
     if (response.statusCode == 200) {
-      // ✅ Remove authentication and user-specific data
       await Teacher.clearPrefs();
-
-      // ✅ Remove stored classes and students data
       await prefs.remove('teacher_classes');
       await prefs.remove('students_data');
-      
 
-      // ✅ Show logout progress dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder:
-            (context) => Dialog(
-              backgroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 32,
-                  horizontal: 32,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const CircularProgressIndicator(),
-                    const SizedBox(height: 24),
-                    Text(
-                      "Logging out...",
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-      );
+      _showLoadingDialog(context);
 
       await Future.delayed(const Duration(seconds: 1));
 
       if (mounted) {
-        Navigator.of(context).pop(); // Close the loading dialog
+        Navigator.of(context).pop();
         Navigator.of(context).pushAndRemoveUntil(
-          PageTransition(page: LandingPage()),
+          PageTransition(page: const LandingPage()),
           (route) => false,
         );
       }
     } else {
-      // ❌ Handle logout failure
-      showDialog(
-        context: context,
-        builder:
-            (context) => AlertDialog(
-              title: const Text('Logout Failed'),
-              content: const Text('Unable to logout. Please try again.'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('OK'),
-                ),
-              ],
-            ),
+      _showErrorDialog(
+        context,
+        'Logout Failed',
+        'Unable to logout. Please try again.',
       );
     }
   }
 
-  /// Shows a confirmation dialog before logging out.
-  /// Provides options to stay or log out.
   void _showLogoutConfirmation(BuildContext context) {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: Column(
-              children: [
-                // Logout icon and title
-                Icon(
-                  Icons.logout,
-                  color: Theme.of(context).colorScheme.primary,
-                  size: 50,
-                ),
-                SizedBox(height: 8),
-                Text(
-                  "Are you sure?",
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-            // Dialog message
-            content: Text(
-              "You are about to log out. Make sure to save your work before leaving.",
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            actionsAlignment: MainAxisAlignment.center,
-            actions: [
-              // Stay button
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: () => Navigator.pop(context), // Close dialog
-                child: Text(
-                  "Stay",
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onPrimary,
-                  ),
-                ),
-              ),
-              // Log out button
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.error,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: logout,
-                child: Text("Log Out", style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
-              ),
-            ],
-          ),
+      builder: (context) => _LogoutConfirmationDialog(logout: logout),
     );
   }
 
-  /// Navigates to a specific route and updates the app bar title.
-  /// Closes the drawer and pushes the new route in the nested navigator.
   void _navigateTo(String route, String title) {
     if (_currentRoute != route) {
       setState(() {
         _currentTitle = title;
-        _currentRoute = route; // Update the current route
+        _currentRoute = route;
       });
-      Navigator.pop(context); // Close the drawer
+      Navigator.pop(context);
       _navigatorKey.currentState?.pushReplacementNamed(route);
     }
   }
 
-  @override
-  void initState() {
-    // Initializes the teacher page and loads the teacher's name.
-    super.initState();
-    _loadTeacherName();
+  Future<void> _loadTeacherData() async {
+    try {
+      final profileResponse = await AuthService.getAuthProfile();
+      final teacherDetails = profileResponse['profile'] ?? profileResponse;
+      final teacher = Teacher.fromJson(teacherDetails);
+      await teacher.saveToPrefs();
+
+      final prefs = await SharedPreferences.getInstance();
+      String baseUrl = prefs.getString('base_url') ?? '';
+      baseUrl = baseUrl.replaceAll(RegExp(r'/api/?$'), '');
+
+      String? profilePicture;
+      if (teacher.profilePicture != null &&
+          teacher.profilePicture!.isNotEmpty) {
+        profilePicture = _buildProfilePictureUrl(
+          baseUrl,
+          teacher.profilePicture!,
+        );
+      }
+
+      if (mounted) {
+        setState(() {
+          _teacherName = teacher.name;
+          _profilePicture = profilePicture;
+        });
+      }
+    } catch (e) {
+      debugPrint("Failed to load teacher from API: $e");
+      await _loadTeacherFromPrefs();
+    }
   }
 
-  /// Loads the teacher's name from SharedPreferences.
-  /// Updates the UI if a name is found.
-  Future<void> _loadTeacherName() async {
-    final teacher = await Teacher.fromPrefs();
+  Future<void> _loadTeacherFromPrefs() async {
+    try {
+      final teacher = await Teacher.fromPrefs();
+      final prefs = await SharedPreferences.getInstance();
+      String baseUrl = prefs.getString('base_url') ?? '';
+      baseUrl = baseUrl.replaceAll(RegExp(r'/api/?$'), '');
 
-    setState(() {
-      _teacherName = teacher.name;
-      _profilePicture = teacher.profilePicture;
-    });
+      String? profilePicture;
+      if (teacher.profilePicture != null &&
+          teacher.profilePicture!.isNotEmpty) {
+        profilePicture = _buildProfilePictureUrl(
+          baseUrl,
+          teacher.profilePicture!,
+        );
+      }
+
+      if (mounted) {
+        setState(() {
+          _teacherName = teacher.name;
+          _profilePicture = profilePicture;
+        });
+      }
+    } catch (prefsError) {
+      debugPrint("Failed to load teacher from prefs: $prefsError");
+      if (mounted) {
+        setState(() {
+          _teacherName = "Teacher";
+          _profilePicture = null;
+        });
+      }
+    }
+  }
+
+  String _buildProfilePictureUrl(String baseUrl, String profilePicturePath) {
+    return "$baseUrl/${profilePicturePath.replaceFirst(RegExp(r'^/'), '')}?t=${DateTime.now().millisecondsSinceEpoch}";
+  }
+
+  Widget _buildDrawerItem(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String? route,
+    required bool isSelected,
+    VoidCallback? onTap,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: isSelected ? Colors.white.withOpacity(0.15) : Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        border:
+            isSelected
+                ? Border.all(color: Colors.white.withOpacity(0.3), width: 1.0)
+                : null,
+      ),
+      child: ListTile(
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color:
+                isSelected
+                    ? Theme.of(context).colorScheme.primary.withOpacity(0.2)
+                    : Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(
+            icon,
+            color: isSelected ? Colors.white : Colors.white.withOpacity(0.9),
+            size: 20,
+          ),
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.white.withOpacity(0.9),
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            fontSize: 16,
+          ),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        minLeadingWidth: 0,
+        horizontalTitleGap: 12,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        onTap:
+            onTap ?? (route != null ? () => _navigateTo(route, title) : null),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    /// Main build method for the teacher page.
-    /// Assembles the app bar, drawer, and nested navigator for teacher sections.
     return Scaffold(
       appBar: AppBar(
-        // AppBar with dynamic title and search button
-        title: Text(_currentTitle, style: TextStyle(color: Colors.white)),
+        title: Text(
+          _currentTitle,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+          ),
+        ),
         backgroundColor: Theme.of(context).colorScheme.primary,
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          IconButton(onPressed: () {}, icon: Icon(Icons.search_rounded)),
+          IconButton(onPressed: () {}, icon: const Icon(Icons.search_rounded)),
         ],
       ),
-      drawer: Drawer(
-        // Drawer with navigation options
-        child: ListView(
-          padding: EdgeInsets.zero,
+      drawer: _buildDrawer(context),
+      body: Navigator(
+        key: _navigatorKey,
+        initialRoute: '/dashboard',
+        onGenerateRoute: _generateRoute,
+      ),
+    );
+  }
+
+  Widget _buildDrawer(BuildContext context) {
+    return Drawer(
+      width: MediaQuery.of(context).size.width * 0.78,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.horizontal(right: Radius.circular(20)),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Theme.of(context).colorScheme.primary,
+              Theme.of(context).colorScheme.primary.withOpacity(0.95),
+              Theme.of(context).colorScheme.primary.withOpacity(0.9),
+            ],
+          ),
+          borderRadius: const BorderRadius.horizontal(
+            right: Radius.circular(20),
+          ),
+        ),
+        child: Column(
           children: [
-            SizedBox(
-              height: 230, // DrawerHeader height
-              child: DrawerHeader(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                child: GestureDetector(
-                  // Navigate to the teacher profile page on tap
-                  onTap: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const TeacherProfilePage(),
-                      ),
-                    );
-                    await _loadTeacherName(); // Reload teacher_name and profile_picture from SharedPreferences
-                  },
-
-                  child: Column(
-                    children: [
-                      // Teacher profile avatar with Hero animation
-                      Hero(
-                        tag: 'teacher-profile-image',
-                        child: Material(
-                          color: Colors.transparent,
-                          child: CircleAvatar(
-                            backgroundColor: Colors.white70,
-                            radius: 50,
-                            child: ClipOval(
-                              child:
-                                  _profilePicture != null &&
-                                          _profilePicture!.isNotEmpty
-                                      ? Image.network(
-                                        _profilePicture!,
-                                        height: 100,
-                                        width: 100,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (
-                                          context,
-                                          error,
-                                          stackTrace,
-                                        ) {
-                                          return Image.asset(
-                                            'assets/placeholder/teacher_placeholder.png',
-                                            height: 80,
-                                            width: 80,
-                                            fit: BoxFit.cover,
-                                          );
-                                        },
-                                      )
-                                      : Image.asset(
-                                        'assets/placeholder/teacher_placeholder.png',
-                                        height: 80,
-                                        width: 80,
-                                        fit: BoxFit.cover,
-                                      ),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      SizedBox(height: 10),
-                      // Teacher name label
-                      Text(
-                        _teacherName, // Use loaded teacher name
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // Dashboard navigation option
-            ListTile(
-              leading: Icon(Icons.home),
-              title: Text('Dashboard'),
-              selected: _currentRoute == '/dashboard', // Highlight if active
-              selectedTileColor: Theme.of(
-                context,
-              ).colorScheme.primary.withOpacity(0.1),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.horizontal(
-                  right: Radius.circular(30),
-                ),
-              ),
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: _currentRoute == '/dashboard' ? 24 : 16,
-              ), // Adjust padding for selected
-              onTap: () => _navigateTo('/dashboard', 'Teacher Dashboard'),
-            ),
-            // Badges list navigation option
-            ListTile(
-              leading: Icon(Icons.task_rounded),
-              title: Text('Badges List'),
-              selected: _currentRoute == '/badges', // Highlight if active
-              selectedTileColor: Theme.of(
-                context,
-              ).colorScheme.primary.withOpacity(0.1),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.horizontal(
-                  right: Radius.circular(30),
-                ),
-              ),
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: _currentRoute == '/badges' ? 24 : 16,
-              ), // Adjust padding for selected
-              onTap: () => _navigateTo('/badges', 'Badges List'),
-            ),
-            // Pupil submissions/reports navigation option
-            ListTile(
-              leading: Icon(Icons.assignment),
-              title: Text('Pupil Submissions/Reports'),
-              selected: _currentRoute == '/submissions', // Highlight if active
-              selectedTileColor: Theme.of(
-                context,
-              ).colorScheme.primary.withOpacity(0.1),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.horizontal(
-                  right: Radius.circular(30),
-                ),
-              ),
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: _currentRoute == '/submissions' ? 24 : 16,
-              ), // Adjust padding for selected
-              onTap: () => _navigateTo('/submissions', 'Student Submissions'),
-            ),
-            // Log out option
-            ListTile(
-              leading: Icon(Icons.logout_sharp),
-              title: Text('Log out'),
-              onTap:
-                  () => _showLogoutConfirmation(
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  _buildDrawerHeader(context),
+                  const SizedBox(height: 16),
+                  _buildDrawerItem(
                     context,
-                  ), // Show logout confirmation
+                    icon: Icons.home_rounded,
+                    title: 'Dashboard',
+                    route: '/dashboard',
+                    isSelected: _currentRoute == '/dashboard',
+                  ),
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.emoji_events_rounded,
+                    title: 'Badges List',
+                    route: '/badges',
+                    isSelected: _currentRoute == '/badges',
+                  ),
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.assignment_rounded,
+                    title: 'Pupil Submissions/Reports',
+                    route: '/submissions',
+                    isSelected: _currentRoute == '/submissions',
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              child: Column(
+                children: [
+                  const Divider(
+                    color: Colors.white30,
+                    thickness: 1,
+                    height: 32,
+                  ),
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.logout_rounded,
+                    title: 'Log out',
+                    route: null,
+                    isSelected: false,
+                    onTap: () => _showLogoutConfirmation(context),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
       ),
-      body: Navigator(
-        // Nested navigator to handle page transitions within teacher section
-        key: _navigatorKey,
-        initialRoute: '/dashboard',
-        onGenerateRoute: (RouteSettings settings) {
-          Widget page;
-          switch (settings.name) {
-            case '/badges':
-              page = BadgesListPage();
-              break;
-            case '/submissions':
-              page = StudentSubmissionsPage();
-              break;
-            case '/dashboard':
-            default:
-              page = TeacherDashboardPage();
-              break;
-          }
-          return MaterialPageRoute(builder: (_) => page);
-        },
+    );
+  }
+
+  Widget _buildDrawerHeader(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.only(top: 40, bottom: 20),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: const BorderRadius.only(
+          topRight: Radius.circular(20),
+          bottomRight: Radius.circular(20),
+        ),
+      ),
+      child: Column(
+        children: [
+          GestureDetector(
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const TeacherProfilePage(),
+                ),
+              );
+              await _loadTeacherData();
+            },
+            child: Stack(
+              alignment: Alignment.bottomRight,
+              children: [
+                Hero(
+                  tag: 'teacher-profile-image',
+                  child: Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.3),
+                        width: 3.0,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: CircleAvatar(
+                      backgroundColor: Colors.white70,
+                      child: ClipOval(
+                        child:
+                            _profilePicture != null &&
+                                    _profilePicture!.isNotEmpty
+                                ? FadeInImage.assetNetwork(
+                                  placeholder:
+                                      'assets/placeholder/avatar_placeholder.jpg',
+                                  image: _profilePicture!,
+                                  fit: BoxFit.cover,
+                                  fadeInDuration: const Duration(
+                                    milliseconds: 300,
+                                  ),
+                                  fadeInCurve: Curves.easeInOut,
+                                  imageErrorBuilder: (
+                                    context,
+                                    error,
+                                    stackTrace,
+                                  ) {
+                                    return Image.asset(
+                                      'assets/placeholder/avatar_placeholder.jpg',
+                                      fit: BoxFit.cover,
+                                    );
+                                  },
+                                )
+                                : Image.asset(
+                                  'assets/placeholder/avatar_placeholder.jpg',
+                                  fit: BoxFit.cover,
+                                ),
+                      ),
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: const Icon(
+                    Icons.edit_rounded,
+                    color: Colors.white,
+                    size: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              _teacherName,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                shadows: [
+                  Shadow(
+                    color: Colors.black,
+                    blurRadius: 6,
+                    offset: Offset(1, 1),
+                  ),
+                ],
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            "Teacher",
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.8),
+              fontSize: 14,
+            ),
+          ),
+        ],
       ),
     );
   }
+
+  Route _generateRoute(RouteSettings settings) {
+    Widget page;
+    switch (settings.name) {
+      case '/badges':
+        page = const BadgesListPage();
+        break;
+      case '/submissions':
+        page = const StudentSubmissionsPage();
+        break;
+      case '/dashboard':
+      default:
+        page = const TeacherDashboardPage();
+        break;
+    }
+    return MaterialPageRoute(builder: (_) => page);
+  }
+}
+
+class _LogoutConfirmationDialog extends StatelessWidget {
+  final VoidCallback logout;
+
+  const _LogoutConfirmationDialog({required this.logout});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.logout_rounded,
+              color: Theme.of(context).colorScheme.primary,
+              size: 48,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              "Are you sure?",
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              "You are about to log out. Make sure to save your work before leaving.",
+              style: Theme.of(context).textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text("Cancel"),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.error,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: logout,
+                    child: const Text(
+                      "Log Out",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+void _showLoadingDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder:
+        (context) => Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 24),
+                Text(
+                  "Logging out...",
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+  );
+}
+
+void _showErrorDialog(BuildContext context, String title, String message) {
+  showDialog(
+    context: context,
+    builder:
+        (context) => AlertDialog(
+          title: Text(title),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+  );
 }

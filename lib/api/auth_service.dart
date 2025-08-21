@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -29,14 +30,13 @@ class AuthService {
     );
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+      final decoded = jsonDecode(response.body);
+      final data = decoded['data'];
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('token', data['token']);
-      await prefs.setString('role', data['role']);
-
-      if (data['user_id'] != null) {
-        await prefs.setString('user_id', data['user_id'].toString());
-      }
+      await prefs.setString('role', data['user']['role']);
+      await prefs.setString('user_id', data['user']['id'].toString());
     }
 
     return response;
@@ -47,17 +47,32 @@ class AuthService {
     return await http.post(url, headers: _authHeaders(token));
   }
 
-  static Future<Map<String, dynamic>> adminLogin(Map<String, dynamic> body) async {
+  static Future<Map<String, dynamic>> adminLogin(
+    Map<String, dynamic> body,
+  ) async {
     final url = Uri.parse('${await _getBaseUrl()}/auth/admin/login');
     final response = await http.post(
       url,
       headers: _jsonHeaders(),
       body: jsonEncode(body),
     );
+
+    debugPrint('Admin login status: ${response.statusCode}');
+    debugPrint('Admin login body: ${response.body}');
+
     final data = jsonDecode(response.body);
-    
-    if (response.statusCode == 200) {
-      return {'success': true, ...data};
+
+    if (response.statusCode == 200 && data['success'] == true) {
+      // Extract token and user info
+      final token = data['data']?['token'];
+      final user = data['data']?['user'];
+
+      return {
+        'success': true,
+        'message': data['message'],
+        'token': token,
+        'user': user,
+      };
     } else if (response.statusCode == 401 && data['step'] == 2) {
       return {'success': false, 'step': 2, 'message': data['message']};
     } else {
@@ -72,6 +87,10 @@ class AuthService {
 
     final url = Uri.parse('${await _getBaseUrl()}/profile/me');
     final response = await http.get(url, headers: _authHeaders(token));
+
+    // ✅ Put the debugPrints right after getting the response
+    debugPrint('Profile status: ${response.statusCode}');
+    debugPrint('Profile body: ${response.body}');
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);

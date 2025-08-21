@@ -1,3 +1,4 @@
+import 'package:deped_reading_app_laravel/api/auth_service.dart';
 import 'package:deped_reading_app_laravel/api/classroom_service.dart';
 import 'package:deped_reading_app_laravel/api/prefs_service.dart';
 import 'package:deped_reading_app_laravel/api/user_service.dart';
@@ -9,13 +10,15 @@ import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20dashbo
 import 'package:deped_reading_app_laravel/widgets/navigation/page_transition.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 import 'cards/horizontal_card.dart';
 import 'cards/class_card.dart';
-import '../../../models/student.dart';
-import '../../../models/teacher.dart';
-import '../../../models/classroom.dart';
+import '../../../models/student_model.dart';
+import '../../../models/teacher_model.dart';
+import '../../../models/classroom_model.dart';
 
+/// Teacher Dashboard Page - Main dashboard for teachers to manage classes and students
 class TeacherDashboardPage extends StatefulWidget {
   const TeacherDashboardPage({super.key});
 
@@ -24,7 +27,11 @@ class TeacherDashboardPage extends StatefulWidget {
 }
 
 class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
-  // Initialize futures with default values
+  // ===========================================================================
+  // STATE VARIABLES
+  // ===========================================================================
+
+  // Future variables for async data loading
   Future<List<Student>> _studentsFuture = Future.value([]);
   Future<Teacher> _teacherFuture = Future.value(
     Teacher(id: 0, userId: 0, name: 'Loading...', profilePicture: null),
@@ -32,18 +39,24 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
   Future<int> _classCountFuture = Future.value(0);
   Future<List<Classroom>> _classesFuture = Future.value([]);
 
+  // Constants and configuration
   static const List<int> _pageSizes = [2, 5, 10, 20, 50];
   final int _pageSize = 10;
   List<Student> _allStudents = [];
 
+  // Loading states
   bool _isLoading = true;
   bool _isRefreshing = false;
   DateTime? _loadingStartTime;
 
+  // ===========================================================================
+  // LIFECYCLE METHODS
+  // ===========================================================================
+
   @override
   void initState() {
     super.initState();
-    // Initial load with minimum 2-second delay
+    // Initial load with minimum 2-second delay for better UX
     Future.wait([
       _loadInitialData(),
       Future.delayed(const Duration(seconds: 2)),
@@ -54,6 +67,11 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     });
   }
 
+  // ===========================================================================
+  // DATA LOADING METHODS
+  // ===========================================================================
+
+  /// Loads all initial data for the dashboard with minimum loading time
   Future<void> _loadInitialData() async {
     _loadingStartTime = DateTime.now();
     setState(() => _isLoading = true);
@@ -71,11 +89,45 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     }
   }
 
+  /// Loads teacher data with fallback mechanism (API → Local Storage)
   Future<void> _loadTeacherData() async {
-    _teacherFuture = Teacher.fromPrefs();
-    await _teacherFuture;
+    try {
+      // ✅ Try fetching from API first
+      final profileResponse = await AuthService.getAuthProfile();
+      final teacherDetails = profileResponse['profile'] ?? profileResponse;
+
+      // ✅ Convert to Teacher model
+      final teacher = Teacher.fromJson(teacherDetails);
+
+      // ✅ Save to prefs for offline/fallback use
+      await teacher.saveToPrefs();
+
+      setState(() {
+        _teacherFuture = Future.value(teacher);
+      });
+    } catch (e) {
+      debugPrint("⚠️ API failed, loading from prefs instead: $e");
+
+      try {
+        // ✅ Fallback to prefs
+        final teacher = await Teacher.fromPrefs();
+        setState(() {
+          _teacherFuture = Future.value(teacher);
+        });
+      } catch (prefsError) {
+        debugPrint("❌ Failed to load teacher from prefs: $prefsError");
+
+        // ✅ Handle case where both API & prefs fail
+        setState(() {
+          _teacherFuture = Future.error(
+            "Unable to load teacher data. Please check connection and try again.",
+          );
+        });
+      }
+    }
   }
 
+  /// Loads student data with caching mechanism
   Future<void> _loadStudentData() async {
     _studentsFuture = _loadStudents().then((students) {
       _allStudents = students;
@@ -84,6 +136,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     await _studentsFuture;
   }
 
+  /// Loads class data and updates count
   Future<void> _loadClassData() async {
     _classesFuture = _loadClassesAndCount().then((classes) {
       _classCountFuture = Future.value(classes.length);
@@ -92,6 +145,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     await _classesFuture;
   }
 
+  /// Ensures a minimum loading time of 2 seconds for better UX
   Future<void> _ensureMinimumLoadingTime() async {
     if (_loadingStartTime != null) {
       final elapsed = DateTime.now().difference(_loadingStartTime!);
@@ -106,6 +160,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     }
   }
 
+  /// Handles pull-to-refresh functionality
   Future<void> _handleRefresh() async {
     if (!mounted) return;
 
@@ -128,6 +183,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     }
   }
 
+  /// Loads students from API with local storage fallback
   Future<List<Student>> _loadStudents() async {
     try {
       final apiList = await UserService.fetchAllStudents();
@@ -140,16 +196,23 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     return await PrefsService.getStudentsFromPrefs();
   }
 
+  /// Loads classes and stores them in local storage
   Future<List<Classroom>> _loadClassesAndCount() async {
     final classes = await ClassroomService.fetchTeacherClasses();
     await PrefsService.storeTeacherClassesToPrefs(classes);
     return classes;
   }
 
+  // ===========================================================================
+  // DATA REFRESH METHODS
+  // ===========================================================================
+
+  /// Refreshes student count data
   void _refreshStudentCount() {
     setState(() => _studentsFuture = _loadStudents());
   }
 
+  /// Refreshes class data
   void _refreshClasses() {
     setState(() {
       _classesFuture = _loadClassesAndCount();
@@ -157,7 +220,11 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     });
   }
 
-  /// Shows the create class/student dialog.
+  // ===========================================================================
+  // DIALOG AND MODAL METHODS
+  // ===========================================================================
+
+  /// Shows the create class/student dialog
   void _showCreateClassOrStudentDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -169,7 +236,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     );
   }
 
-  /// Shows a loading dialog with a Lottie animation and text.
+  /// Shows a loading dialog with a Lottie animation and text
   void showLoadingDialog(String lottieAsset, String loadingText) {
     showDialog(
       context: context,
@@ -204,15 +271,9 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     );
   }
 
-  /// Hides the loading dialog after a delay.
-  Future<void> hideLoadingDialog(BuildContext context) async {
-    await Future.delayed(const Duration(milliseconds: 2500));
-    if (Navigator.of(context, rootNavigator: true).canPop()) {
-      Navigator.of(context, rootNavigator: true).pop();
-    }
-  }
+  
 
-  /// Shows the student list modal bottom sheet.
+  /// Shows the student list modal bottom sheet
   Future<void> _showStudentListModal(BuildContext context) async {
     if (_allStudents.isEmpty) {
       await _studentsFuture;
@@ -232,10 +293,10 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
                 (context, scrollController) => Container(
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
-                    borderRadius: BorderRadius.vertical(
+                    borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(24),
                     ),
-                    boxShadow: [
+                    boxShadow: const [
                       BoxShadow(
                         color: Colors.black26,
                         blurRadius: 10,
@@ -261,7 +322,11 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     );
   }
 
-  /// Navigates to the class details page for a given class ID.
+  // ===========================================================================
+  // CLASS MANAGEMENT METHODS
+  // ===========================================================================
+
+  /// Navigates to the class details page for a given class ID
   void _viewClassDetails(BuildContext context, int classId) async {
     try {
       final details = await ClassroomService.getClassDetails(classId);
@@ -283,7 +348,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     }
   }
 
-  /// Opens a dialog to edit a class's details.
+  /// Opens a dialog to edit a class's details
   void _editClass(BuildContext context, Classroom classroom) {
     showModalBottomSheet(
       context: context,
@@ -297,7 +362,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     );
   }
 
-  /// Deletes a class after confirmation.
+  /// Deletes a class after confirmation
   void _deleteClass(BuildContext context, int classId) {
     showModalBottomSheet(
       context: context,
@@ -311,6 +376,11 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     );
   }
 
+  // ===========================================================================
+  // UI BUILDING METHODS
+  // ===========================================================================
+
+  /// Builds the shimmer loading effect for initial loading
   Widget _buildShimmerLoading() {
     return Stack(
       children: [
@@ -404,7 +474,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     );
   }
 
-  /// Builds the main widget tree for the dashboard page.
+  /// Main build method for the dashboard page
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -442,10 +512,15 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     );
   }
 
+  /// Builds the welcome message section with teacher info
   Widget _buildWelcomeMessage() {
     return FutureBuilder<Teacher>(
-      future: _teacherFuture,
+      future: _teacherFuture, // API-only
       builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
         if (snapshot.hasError) {
           return _buildErrorWidget("Failed to load teacher data");
         }
@@ -457,93 +532,116 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
                 ? teacher.name.trim().split(' ').first[0].toUpperCase()
                 : 'T';
         final hasProfile = teacher.profilePicture?.isNotEmpty ?? false;
-        final avatarUrl =
-            hasProfile
-                ? "${teacher.profilePicture!}?t=${DateTime.now().millisecondsSinceEpoch}"
-                : null;
 
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Theme.of(
-              context,
-            ).colorScheme.surfaceVariant.withOpacity(0.4),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black12,
-                blurRadius: 6,
-                offset: Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              CircleAvatar(
-                radius: 30,
-                backgroundColor: Theme.of(
-                  context,
-                ).colorScheme.primary.withOpacity(0.1),
-                child:
-                    hasProfile
-                        ? ClipOval(
-                          child: FadeInImage.assetNetwork(
-                            placeholder:
-                                'assets/placeholder/avatar_placeholder.jpg',
-                            image: avatarUrl!,
-                            fit: BoxFit.cover,
-                            width: 100,
-                            height: 100,
-                            imageErrorBuilder:
-                                (_, __, ___) => _buildAvatarFallback(initials),
-                            fadeInDuration: const Duration(milliseconds: 300),
-                            fadeInCurve: Curves.easeInOut,
-                          ),
-                        )
-                        : _buildAvatarFallback(initials),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Welcome Teacher,",
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w400,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withOpacity(0.7),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "$username 👋",
-                      style: Theme.of(
-                        context,
-                      ).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 26,
-                        color: Theme.of(context).colorScheme.primary,
-                        letterSpacing: 1.1,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+        if (!hasProfile) {
+          return _buildWelcomeContainer(username, initials, null);
+        }
+
+        // Fetch base_url from SharedPreferences
+        return FutureBuilder<SharedPreferences>(
+          future: SharedPreferences.getInstance(),
+          builder: (context, prefsSnapshot) {
+            if (!prefsSnapshot.hasData) {
+              return _buildWelcomeContainer(username, initials, null);
+            }
+
+            String baseUrl = prefsSnapshot.data!.getString('base_url') ?? '';
+            // Remove "/api" if present
+            baseUrl = baseUrl.replaceAll(RegExp(r'/api/?$'), '');
+
+            final avatarUrl =
+                "$baseUrl/${teacher.profilePicture!.replaceFirst(RegExp(r'^/'), '')}?t=${DateTime.now().millisecondsSinceEpoch}";
+
+            // ✅ Debug print
+            debugPrint("Avatar URL with base: $avatarUrl");
+
+            return _buildWelcomeContainer(username, initials, avatarUrl);
+          },
         );
       },
     );
   }
 
+  /// Builds the welcome container with teacher avatar and greeting
+  Widget _buildWelcomeContainer(
+    String username,
+    String initials,
+    String? avatarUrl,
+  ) {
+    final hasAvatar = avatarUrl != null && avatarUrl.isNotEmpty;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.4),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
+        ),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3)),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          CircleAvatar(
+            radius: 30,
+            backgroundColor: Theme.of(
+              context,
+            ).colorScheme.primary.withOpacity(0.1),
+            child:
+                hasAvatar
+                    ? ClipOval(
+                      child: FadeInImage.assetNetwork(
+                        placeholder:
+                            'assets/placeholder/avatar_placeholder.jpg',
+                        image: avatarUrl,
+                        fit: BoxFit.cover,
+                        width: 100,
+                        height: 100,
+                        imageErrorBuilder:
+                            (_, __, ___) => _buildAvatarFallback(initials),
+                        fadeInDuration: const Duration(milliseconds: 300),
+                        fadeInCurve: Curves.easeInOut,
+                      ),
+                    )
+                    : _buildAvatarFallback(initials),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Welcome Teacher,",
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w400,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withOpacity(0.7),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "$username 👋",
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 26,
+                    color: Theme.of(context).colorScheme.primary,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Builds fallback avatar with initials
   Widget _buildAvatarFallback(String initials) {
     return Center(
       child: Text(
@@ -557,6 +655,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     );
   }
 
+  /// Builds error widget with message
   Widget _buildErrorWidget(String message) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 24),
@@ -569,6 +668,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     );
   }
 
+  /// Builds statistics cards section
   Widget _buildStatisticsCards() {
     return FutureBuilder<List<Student>>(
       future: _studentsFuture,
@@ -620,6 +720,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     );
   }
 
+  /// Builds the "My Classes" section
   Widget _buildMyClassesSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -676,22 +777,26 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
 
             return Column(
               children:
-                  classrooms.map((classroom) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: TeacherDashboardClassCard(
-                        classId: classroom.id!,
-                        className: classroom.className,
-                        section:
-                            "${classroom.gradeLevel} - ${classroom.section}",
-                        studentCount: classroom.studentCount,
-                        teacherName: classroom.teacherName ?? "Unknown",
-                        onView: () => _viewClassDetails(context, classroom.id!),
-                        onEdit: () => _editClass(context, classroom),
-                        onDelete: () => _deleteClass(context, classroom.id!),
-                      ),
-                    );
-                  }).toList(),
+                  classrooms
+                      .map(
+                        (classroom) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: TeacherDashboardClassCard(
+                            classId: classroom.id!,
+                            className: classroom.className,
+                            section:
+                                "${classroom.gradeLevel} - ${classroom.section}",
+                            studentCount: classroom.studentCount,
+                            teacherName: classroom.teacherName ?? "Unknown",
+                            onView:
+                                () => _viewClassDetails(context, classroom.id!),
+                            onEdit: () => _editClass(context, classroom),
+                            onDelete:
+                                () => _deleteClass(context, classroom.id!),
+                          ),
+                        ),
+                      )
+                      .toList(),
             );
           },
         ),

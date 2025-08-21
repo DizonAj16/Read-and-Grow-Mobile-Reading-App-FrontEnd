@@ -2,7 +2,7 @@ import 'package:deped_reading_app_laravel/api/classroom_service.dart';
 import 'package:deped_reading_app_laravel/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:deped_reading_app_laravel/pages/student%20pages/student%20class%20pages/widgets/student_view_page.dart';
-import 'package:deped_reading_app_laravel/models/student.dart';
+import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lottie/lottie.dart';
 import 'package:flutter_custom_clippers/flutter_custom_clippers.dart';
@@ -211,7 +211,7 @@ class _StudentListContent extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 SizedBox(
-                  height: constraints.maxHeight * 0.8,
+                  height: constraints.maxHeight * 1.0,
                   child: _StudentGridView(
                     students: students,
                     currentPage: currentPage,
@@ -428,7 +428,7 @@ class _StudentCard extends StatelessWidget {
     final sanitizedBaseUrl = baseUrl?.replaceAll(RegExp(r'/api/?$'), '') ?? '';
     return (student.profilePicture != null &&
             student.profilePicture!.isNotEmpty)
-        ? "$sanitizedBaseUrl/storage/profile_images/${student.profilePicture}"
+        ? "$sanitizedBaseUrl/${student.profilePicture}"
         : null;
   }
 

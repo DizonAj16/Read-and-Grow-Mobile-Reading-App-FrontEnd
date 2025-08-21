@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-import 'package:deped_reading_app_laravel/api/pdf_service.dart';
+import 'package:deped_reading_app_laravel/api/material_service.dart';
 import 'package:deped_reading_app_laravel/constants.dart';
-import 'package:deped_reading_app_laravel/models/pdf_material.dart';
+import 'package:deped_reading_app_laravel/models/material_model.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/pdf%20helper/pdf_viewer.dart';
 
 class MaterialsPage extends StatefulWidget {
@@ -14,7 +14,7 @@ class MaterialsPage extends StatefulWidget {
 }
 
 class _MaterialsPageState extends State<MaterialsPage> {
-  late List<PdfMaterial> _pdfMaterials;
+  late List<MaterialModel> _materials;
   late bool _isLoading;
   late bool _hasError;
   final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey = GlobalKey();
@@ -23,16 +23,16 @@ class _MaterialsPageState extends State<MaterialsPage> {
   void initState() {
     super.initState();
     _initializeState();
-    _loadPdfMaterials();
+    _loadMaterials();
   }
 
   void _initializeState() {
-    _pdfMaterials = [];
+    _materials = [];
     _isLoading = true;
     _hasError = false;
   }
 
-  Future<void> _loadPdfMaterials() async {
+  Future<void> _loadMaterials() async {
     if (!mounted) return;
 
     setState(() {
@@ -41,12 +41,13 @@ class _MaterialsPageState extends State<MaterialsPage> {
     });
 
     try {
-      final fetchedPdfs = await PdfService.fetchStudentPdfMaterials();
+      final fetchedMaterials = await MaterialService.fetchStudentMaterials();
       if (!mounted) return;
 
       setState(() {
-        _pdfMaterials =
-            fetchedPdfs.where((pdf) => pdf.classId == widget.classId).toList();
+        _materials = fetchedMaterials
+            .where((material) => material.classRoomId == widget.classId)
+            .toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -69,15 +70,15 @@ class _MaterialsPageState extends State<MaterialsPage> {
           Expanded(
             child: RefreshIndicator(
               key: _refreshIndicatorKey,
-              onRefresh: _loadPdfMaterials,
+              onRefresh: _loadMaterials,
               color: Colors.blue,
               backgroundColor: Colors.white,
               child: _ContentBuilder(
                 isLoading: _isLoading,
                 hasError: _hasError,
-                pdfMaterials: _pdfMaterials,
-                onRetry: _loadPdfMaterials,
-                onPdfTap: _navigateToPdfViewer,
+                materials: _materials,
+                onRetry: _loadMaterials,
+                onMaterialTap: _handleMaterialTap,
               ),
             ),
           ),
@@ -104,11 +105,119 @@ class _MaterialsPageState extends State<MaterialsPage> {
     );
   }
 
-  void _navigateToPdfViewer(String url) {
+  void _handleMaterialTap(MaterialModel material) {
     if (!mounted) return;
+    
+    // Handle different material types
+    if (material.materialType == 'pdf') {
+      _navigateToPdfViewer(material.materialFileUrl);
+    } else if (material.materialType == 'image') {
+      _showImageDialog(material.materialFileUrl);
+    } else if (material.materialType == 'video') {
+      _showVideoDialog(material.materialFileUrl);
+    } else if (material.materialType == 'audio') {
+      _showAudioDialog(material.materialFileUrl);
+    } else {
+      // For documents and archives, show a download/open dialog
+      _showDownloadDialog(material);
+    }
+  }
+
+  void _navigateToPdfViewer(String url) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => PdfViewerPage(pdfUrl: url)),
+    );
+  }
+
+  void _showImageDialog(String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.network(imageUrl),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showVideoDialog(String videoUrl) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Video Material'),
+        content: const Text('This video will open in an external player.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // TODO: Implement video player or external app opening
+              Navigator.pop(context);
+            },
+            child: const Text('Open Video'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAudioDialog(String audioUrl) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Audio Material'),
+        content: const Text('This audio file will open in an external player.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // TODO: Implement audio player or external app opening
+              Navigator.pop(context);
+            },
+            child: const Text('Play Audio'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDownloadDialog(MaterialModel material) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Download ${material.materialType.toUpperCase()}'),
+        content: Text('Would you like to download "${material.materialTitle}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // TODO: Implement file download
+              Navigator.pop(context);
+            },
+            child: const Text('Download'),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -147,24 +256,24 @@ class _MaterialsHeader extends StatelessWidget {
 class _ContentBuilder extends StatelessWidget {
   final bool isLoading;
   final bool hasError;
-  final List<PdfMaterial> pdfMaterials;
+  final List<MaterialModel> materials;
   final VoidCallback onRetry;
-  final Function(String) onPdfTap;
+  final Function(MaterialModel) onMaterialTap;
 
   const _ContentBuilder({
     required this.isLoading,
     required this.hasError,
-    required this.pdfMaterials,
+    required this.materials,
     required this.onRetry,
-    required this.onPdfTap,
+    required this.onMaterialTap,
   });
 
   @override
   Widget build(BuildContext context) {
     if (isLoading) return const _LoadingView();
     if (hasError) return _ErrorView(onRetry: onRetry);
-    if (pdfMaterials.isEmpty) return const _EmptyView();
-    return _PdfListView(pdfs: pdfMaterials, onPdfTap: onPdfTap);
+    if (materials.isEmpty) return const _EmptyView();
+    return _MaterialListView(materials: materials, onMaterialTap: onMaterialTap);
   }
 }
 
@@ -265,37 +374,75 @@ class _EmptyView extends StatelessWidget {
   }
 }
 
-class _PdfListView extends StatelessWidget {
-  final List<PdfMaterial> pdfs;
-  final Function(String) onPdfTap;
+class _MaterialListView extends StatelessWidget {
+  final List<MaterialModel> materials;
+  final Function(MaterialModel) onMaterialTap;
 
-  const _PdfListView({required this.pdfs, required this.onPdfTap});
+  const _MaterialListView({required this.materials, required this.onMaterialTap});
 
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: pdfs.length,
+      itemCount: materials.length,
       itemBuilder: (context, index) {
-        return _PdfCard(
-          pdf: pdfs[index],
-          onTap: () => onPdfTap(pdfs[index].url),
+        return _MaterialCard(
+          material: materials[index],
+          onTap: () => onMaterialTap(materials[index]),
         );
       },
     );
   }
 }
 
-class _PdfCard extends StatelessWidget {
-  final PdfMaterial pdf;
+class _MaterialCard extends StatelessWidget {
+  final MaterialModel material;
   final VoidCallback onTap;
 
-  const _PdfCard({required this.pdf, required this.onTap});
+  const _MaterialCard({required this.material, required this.onTap});
+
+  IconData _getMaterialIcon() {
+    switch (material.materialType) {
+      case 'pdf':
+        return Icons.picture_as_pdf;
+      case 'image':
+        return Icons.image;
+      case 'video':
+        return Icons.videocam;
+      case 'audio':
+        return Icons.audiotrack;
+      case 'document':
+        return Icons.article;
+      case 'archive':
+        return Icons.folder;
+      default:
+        return Icons.insert_drive_file;
+    }
+  }
+
+  Color _getMaterialColor(BuildContext context) {
+    switch (material.materialType) {
+      case 'pdf':
+        return Colors.red;
+      case 'image':
+        return Colors.green;
+      case 'video':
+        return Colors.purple;
+      case 'audio':
+        return Colors.orange;
+      case 'document':
+        return Colors.blue;
+      case 'archive':
+        return Colors.brown;
+      default:
+        return Theme.of(context).colorScheme.primary;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = Theme.of(context).colorScheme.primary;
+    final materialColor = _getMaterialColor(context);
 
     return TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 400),
@@ -328,11 +475,11 @@ class _PdfCard extends StatelessWidget {
                       width: 60,
                       height: 60,
                       decoration: BoxDecoration(
-                        color: primaryColor,
+                        color: materialColor,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
-                        Icons.menu_book,
+                      child: Icon(
+                        _getMaterialIcon(),
                         size: 32,
                         color: Colors.white,
                       ),
@@ -343,7 +490,7 @@ class _PdfCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            pdf.title,
+                            material.materialTitle,
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -354,23 +501,31 @@ class _PdfCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            "By: ${pdf.teacherName ?? 'Teacher'}",
+                            "By: ${material.teacherName}",
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.blueGrey[400],
                             ),
                           ),
+                          if (material.fileSize != null)
+                            Text(
+                              material.fileSize!,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.blueGrey[300],
+                              ),
+                            ),
                         ],
                       ),
                     ),
                     const SizedBox(width: 8),
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.blue,
+                        color: materialColor,
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.blue.withOpacity(0.3),
+                            color: materialColor.withOpacity(0.3),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),

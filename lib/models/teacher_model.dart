@@ -50,8 +50,8 @@ class Teacher {
   static Future<Teacher> fromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     return Teacher(
-      id: prefs.getInt(_kTeacherIdKey),
-      userId: int.tryParse(prefs.getString(_kUserIdKey) ?? ''),
+      id: _parseInt(prefs.getString(_kTeacherIdKey)),
+      userId: _parseInt(prefs.getString(_kUserIdKey)),
       name: prefs.getString(_kNameKey) ?? 'Teacher',
       position: prefs.getString(_kPositionKey),
       email: prefs.getString(_kEmailKey),
@@ -65,7 +65,7 @@ class Teacher {
   /// Create a Teacher object from JSON or Map
   factory Teacher.fromJson(Map<String, dynamic> json) {
     return Teacher(
-      id: _parseInt(json['teacher_id']),
+      id: _parseInt(json['id'] ?? json['teacher_id']),
       userId: _parseInt(json['user_id']),
       name: json['teacher_name'] ?? 'Teacher',
       position: json['teacher_position'],
@@ -102,12 +102,15 @@ class Teacher {
     await prefs.setString(_kEmailKey, email ?? '');
     await prefs.setString(_kUsernameKey, username ?? '');
     await prefs.setString(_kProfilePictureKey, profilePicture ?? '');
-    await prefs.setString(
-        _kCreatedAtKey, createdAt?.toIso8601String() ?? '');
-    await prefs.setString(
-        _kUpdatedAtKey, updatedAt?.toIso8601String() ?? '');
-    if (userId != null) await prefs.setString(_kUserIdKey, userId.toString());
-    if (id != null) await prefs.setInt(_kTeacherIdKey, id!);
+    await prefs.setString(_kCreatedAtKey, createdAt?.toIso8601String() ?? '');
+    await prefs.setString(_kUpdatedAtKey, updatedAt?.toIso8601String() ?? '');
+
+    if (userId != null) {
+      await prefs.setString(_kUserIdKey, userId.toString());
+    }
+    if (id != null) {
+      await prefs.setString(_kTeacherIdKey, id.toString());
+    }
   }
 
   /// Clear Teacher data from SharedPreferences

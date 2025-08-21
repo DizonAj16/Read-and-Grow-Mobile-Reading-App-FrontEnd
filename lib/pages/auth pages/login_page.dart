@@ -1,5 +1,4 @@
 import 'package:deped_reading_app_laravel/api/auth_service.dart';
-import 'package:deped_reading_app_laravel/api/user_service.dart';
 import 'package:deped_reading_app_laravel/pages/admin%20pages/admin_page.dart';
 import 'package:deped_reading_app_laravel/pages/student%20pages/student_page.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher_page.dart';
@@ -49,82 +48,61 @@ class _LoginPageState extends State<LoginPage> {
         'password': passwordController.text,
       });
 
-      final data = jsonDecode(response.body);
+      final decoded = jsonDecode(response.body);
+      final data = decoded['data'] ?? {};
       await Future.delayed(const Duration(seconds: 2));
       Navigator.of(context).pop();
 
-      if (response.statusCode == 200) {
-        // First store the basic auth info
+      if (response.statusCode == 200 && data.isNotEmpty) {
+        // Store auth data
         final prefs = await SharedPreferences.getInstance();
-
-        // Check where the token is located in your response
-        final token = data['token'] ?? data['access_token'] ?? '';
+        final token = data['token'] ?? '';
         await prefs.setString('token', token);
 
-        // Get role from user object
-        final role = data['role']?.toString() ?? '';
+        final role = data['user']?['role']?.toString() ?? '';
         await prefs.setString('role', role);
 
-        // Store user ID if available
         if (data['user']?['id'] != null) {
           await prefs.setString('user_id', data['user']['id'].toString());
         }
 
-        // Now fetch the complete profile
-        _showLoadingDialog("Loading profile...");
-        try {
-          final profile = await AuthService.getAuthProfile();
-          Navigator.of(context).pop();
+        // 🚫 Temporarily disable profile fetching
+        /*
+      _showLoadingDialog("Loading profile...");
+      try {
+        final profile = await AuthService.getAuthProfile();
+        Navigator.of(context).pop();
 
-          // Since getAuthProfile() already returns a Map, we don't need to decode it again
-          final profileData = profile; // profile is already the decoded Map
-
-          // Store the complete profile data based on role
-          if (role == 'teacher') {
-            await UserService.storeTeacherDetails(
-              profileData['teacher'] ?? profileData,
-            );
-            // await ApiService.fetchAndStoreTeacherClasses();
-          } else if (role == 'student') {
-            await UserService.storeStudentDetails(
-              profileData['student'] ?? profileData,
-            );
-
-            // // Handle student classes if available
-            // //to be refactored
-            // if (profileData['student_class'] != null) {
-            //   List<Classroom> classes =
-            //       (profileData['student_class'] as List)
-            //           .map(
-            //             (json) =>
-            //                 Classroom.fromJson(Map<String, dynamic>.from(json)),
-            //           )
-            //           .toList();
-            //   await ApiService.storeStudentClassesToPrefs(classes);
-            // }
-          }
-
-          await _showSuccessAndProceedDialogs(role);
-        } catch (e) {
-          Navigator.of(context).pop();
-          _showErrorDialog(
-            title: 'Profile Error',
-            message: 'Logged in but failed to load profile. Please try again.',
-          );
-          debugPrint('Profile error: $e');
+        final profileData = profile;
+        if (role == 'teacher') {
+          final teacherData = profileData['teacher'] ?? profileData;
+          print("📌 Teacher Profile Data: $teacherData"); // debug log
+          await UserService.storeTeacherDetails(teacherData);
+        } else if (role == 'student') {
+          final studentData = profileData['student'] ?? profileData;
+          print("📌 Student Profile Data: $studentData"); // debug log
+          await UserService.storeStudentDetails(studentData);
         }
+
+        await _showSuccessAndProceedDialogs(role);
+      } catch (e) {
+        Navigator.of(context).pop();
+        _showErrorDialog(
+          title: 'Profile Error',
+          message: 'Logged in but failed to load profile. Please try again.',
+        );
+        debugPrint('Profile error: $e');
+      }
+      */
+
+        // ✅ Directly go to success flow without profile
+        await _showSuccessAndProceedDialogs(role);
       } else {
-        // Handle error responses
-        String errorMessage = 'Login failed';
-        if (data['message'] != null) {
-          errorMessage = data['message'];
-        } else if (data['error'] != null) {
-          errorMessage = data['error'];
-        }
+        final errorMessage = decoded['message'] ?? 'Login failed';
         _showErrorDialog(title: 'Login Failed', message: errorMessage);
       }
     } catch (e) {
-      Navigator.of(context).pop(); // Close loading dialog if open
+      Navigator.of(context).pop();
       _showErrorDialog(
         title: 'Error',
         message: 'An error occurred. Please try again.',

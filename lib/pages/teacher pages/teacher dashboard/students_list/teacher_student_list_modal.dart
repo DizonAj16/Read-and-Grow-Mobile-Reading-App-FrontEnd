@@ -1,5 +1,5 @@
 import 'package:deped_reading_app_laravel/api/user_service.dart';
-import 'package:deped_reading_app_laravel/models/student.dart';
+import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dialog_utils.dart';
@@ -79,7 +79,7 @@ class _TeacherStudentListModalState extends State<TeacherStudentListModal> {
     final baseUrl = await _getBaseUrl();
     final profileUrl =
         (student.profilePicture != null && student.profilePicture!.isNotEmpty)
-            ? "$baseUrl/storage/profile_images/${student.profilePicture}"
+            ? "$baseUrl/${student.profilePicture}"
             : null;
 
     showDialog(
@@ -332,8 +332,7 @@ class _TeacherStudentListModalState extends State<TeacherStudentListModal> {
               if (snapshot.hasData &&
                   student.profilePicture != null &&
                   student.profilePicture!.isNotEmpty) {
-                imageUrl =
-                    "${snapshot.data}/storage/profile_images/${student.profilePicture}";
+                imageUrl = "${snapshot.data}/${student.profilePicture}";
               }
 
               return StudentListItem(

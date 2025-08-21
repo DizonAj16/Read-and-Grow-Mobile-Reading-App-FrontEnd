@@ -15,6 +15,29 @@ class SetBaseUrlPage extends StatefulWidget {
 class _SetBaseUrlPageState extends State<SetBaseUrlPage> {
   final _controller = TextEditingController();
   String? _errorText;
+  bool _isValidInput = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_validateInput);
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_validateInput);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _validateInput() {
+    final input = _controller.text.trim();
+    final isValid = _isValidIpPort(input);
+    setState(() {
+      _isValidInput = isValid;
+      _errorText = null;
+    });
+  }
 
   bool _isValidIpPort(String input) {
     final trimmed = input.trim();
@@ -283,23 +306,57 @@ class _SetBaseUrlPageState extends State<SetBaseUrlPage> {
                                   ?.copyWith(color: Colors.grey[600]),
                             ),
                             const SizedBox(height: 24),
-
                             // Action buttons
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton.icon(
-                                onPressed: _saveUrl,
+                                onPressed: _isValidInput ? _saveUrl : null,
                                 icon: const Icon(Icons.save),
                                 label: const Text("SAVE CONFIGURATION"),
-                                style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
+                                style: ButtonStyle(
+                                  backgroundColor: MaterialStateProperty.resolveWith<
+                                    Color?
+                                  >((Set<MaterialState> states) {
+                                    if (states.contains(
+                                      MaterialState.disabled,
+                                    )) {
+                                      return Colors.orange[800]!.withOpacity(
+                                        0.6,
+                                      ); // Disabled state
+                                    } else if (states.contains(
+                                      MaterialState.pressed,
+                                    )) {
+                                      return Colors
+                                          .orange[300]; // Lightest color when pressed
+                                    } else if (_isValidInput) {
+                                      return Colors
+                                          .orange[400]; // Lighter color when valid
+                                    }
+                                    return Colors
+                                        .orange[800]; // Original color when invalid
+                                  }),
+                                  foregroundColor:
+                                      MaterialStateProperty.resolveWith<Color?>(
+                                        (Set<MaterialState> states) {
+                                          if (states.contains(
+                                            MaterialState.disabled,
+                                          )) {
+                                            return Colors.white.withOpacity(
+                                              0.6,
+                                            ); // Dimmed text when disabled
+                                          }
+                                          return Colors
+                                              .white; // Normal text color
+                                        },
+                                      ),
+                                  padding: MaterialStateProperty.all(
+                                    const EdgeInsets.symmetric(vertical: 16),
                                   ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                                  shape: MaterialStateProperty.all(
+                                    RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                   ),
-                                  backgroundColor: Colors.orange[800],
-                                  foregroundColor: Colors.white,
                                 ),
                               ),
                             ),

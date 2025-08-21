@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/classroom.dart';
-import '../models/student.dart';
+import '../models/classroom_model.dart';
+import '../models/student_model.dart';
 
 class ClassroomService {
   static Future<String> _getBaseUrl() async {

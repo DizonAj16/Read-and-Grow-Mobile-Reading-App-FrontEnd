@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:deped_reading_app_laravel/api/classroom_service.dart';
-import 'package:deped_reading_app_laravel/models/classroom.dart';
+import 'package:deped_reading_app_laravel/models/classroom_model.dart';
 import 'package:lottie/lottie.dart';
 
 class EditClassBottomModal extends StatefulWidget {
