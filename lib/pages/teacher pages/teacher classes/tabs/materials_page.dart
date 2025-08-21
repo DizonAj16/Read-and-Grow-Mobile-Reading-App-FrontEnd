@@ -1,16 +1,16 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 import 'package:deped_reading_app_laravel/api/material_service.dart';
 import 'package:deped_reading_app_laravel/models/material_model.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shimmer/shimmer.dart';
-import '../pdf helper/pdf_viewer.dart'; 
+import '../pdf helper/pdf_viewer.dart';
 import 'package:chewie/chewie.dart';
 import 'package:video_player/video_player.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter_pdfview/flutter_pdfview.dart';
-import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
@@ -20,7 +20,7 @@ enum ActionType { view, edit, delete, add, archive }
 
 class MaterialsPage extends StatefulWidget {
   final int classId;
- 
+
   const MaterialsPage({super.key, required this.classId});
 
   @override
@@ -111,26 +111,24 @@ class _MaterialsPageState extends State<MaterialsPage> {
   }
 
   Future<void> _uploadMaterial() async {
-    if (_titleController.text.isEmpty) {
-      _showErrorSnackbar("Please enter a title for the material");
-      return;
-    }
-
-    if (_selectedFile == null) {
-      _showErrorSnackbar("Please select a file to upload");
-      return;
-    }
-
+    // Show file size before uploading
+    final fileSize = await _selectedFile!.length();
     final fileName = _selectedFile!.path.split('/').last;
     final fileExtension = fileName.split('.').last.toLowerCase();
     final materialType = _determineMaterialType(fileExtension);
+    final sizeText = _formatFileSize(fileSize);
+
+    print('🟡 DEBUG: Uploading file: $fileName');
+    print('🟡 DEBUG: File size: $sizeText');
+    print('🟡 DEBUG: File type: $materialType');
 
     Navigator.pop(context); // Close the dialog
 
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => _buildUploadingDialog(materialType),
+      builder:
+          (context) => _buildUploadingDialog(materialType, fileName, sizeText),
     );
 
     try {
@@ -149,14 +147,21 @@ class _MaterialsPageState extends State<MaterialsPage> {
       Navigator.pop(context); // Close loading dialog
 
       if (success) {
-        _showSuccessSnackbar("$materialType uploaded successfully!");
+        // Use the main context after dialog is closed
+        if (mounted) {
+          _showSuccessSnackbar("$materialType uploaded successfully!");
+        }
         await _loadMaterials();
       } else {
-        _showErrorSnackbar("Failed to upload $materialType.");
+        // Use the main context after dialog is closed
+        if (mounted) {
+          _showErrorSnackbar("Failed to upload $materialType.");
+        }
       }
     } catch (e) {
       if (mounted) {
         Navigator.pop(context);
+        // Use the main context after dialog is closed
         _showErrorSnackbar("Upload error: ${e.toString()}");
       }
     }
@@ -241,10 +246,17 @@ class _MaterialsPageState extends State<MaterialsPage> {
   }
 
   // NEW: Function to view material in-app
+  // NEW: Function to view material in-app
   Future<void> _viewMaterialInApp(MaterialModel material) async {
     try {
+      // DEBUG PRINT: Show what URL is being used
+      print('🟡 DEBUG: Attempting to view material: ${material.materialTitle}');
+      print('🟡 DEBUG: Material type: ${material.materialType}');
+      print('🟡 DEBUG: Material file URL: ${material.materialFileUrl}');
+
       switch (material.materialType) {
         case 'pdf':
+          print('🟡 DEBUG: Opening PDF viewer');
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -252,44 +264,55 @@ class _MaterialsPageState extends State<MaterialsPage> {
             ),
           );
           break;
-        
+
         case 'image':
+          print('🟡 DEBUG: Opening Image viewer');
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => ImageViewerPage(imageUrl: material.materialFileUrl),
+              builder:
+                  (_) => ImageViewerPage(imageUrl: material.materialFileUrl),
             ),
           );
           break;
-        
+
         case 'video':
+          print('🟡 DEBUG: Opening Video viewer');
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => VideoViewerPage(videoUrl: material.materialFileUrl),
+              builder:
+                  (_) => VideoViewerPage(videoUrl: material.materialFileUrl),
             ),
           );
           break;
-        
+
         case 'audio':
+          print('🟡 DEBUG: Opening Audio viewer');
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => AudioViewerPage(audioUrl: material.materialFileUrl, title: material.materialTitle),
+              builder:
+                  (_) => AudioViewerPage(
+                    audioUrl: material.materialFileUrl,
+                    title: material.materialTitle,
+                  ),
             ),
           );
           break;
-        
+
         case 'document':
         case 'archive':
-          // For documents and archives, download and open with external app
+          print('🟡 DEBUG: Downloading document/archive');
           _downloadAndOpenFile(material);
           break;
-        
+
         default:
+          print('🟡 DEBUG: Downloading unknown file type');
           _downloadAndOpenFile(material);
       }
     } catch (e) {
+      print('🔴 DEBUG: Error in _viewMaterialInApp: $e');
       _showErrorSnackbar("Error opening file: ${e.toString()}");
     }
   }
@@ -299,11 +322,11 @@ class _MaterialsPageState extends State<MaterialsPage> {
     try {
       final response = await http.get(Uri.parse(material.materialFileUrl));
       final bytes = response.bodyBytes;
-      
+
       final directory = await getTemporaryDirectory();
       final file = File('${directory.path}/${material.materialTitle}');
       await file.writeAsBytes(bytes);
-      
+
       await OpenFile.open(file.path);
     } catch (e) {
       _showErrorSnackbar("Error opening file: ${e.toString()}");
@@ -311,99 +334,411 @@ class _MaterialsPageState extends State<MaterialsPage> {
   }
 
   Widget _buildUploadDialog() {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Upload Material",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
+    String? errorMessage;
 
-            // Title Field
-            TextFormField(
-              controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: "Material Title *",
-                border: OutlineInputBorder(),
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter a title';
-                }
-                return null;
-              },
+    return StatefulBuilder(
+      builder: (context, setDialogState) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          elevation: 4,
+          shadowColor: Colors.black.withOpacity(0.25),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(20),
             ),
-            const SizedBox(height: 16),
-
-            // Description Field
-            TextFormField(
-              controller: _descriptionController,
-              decoration: const InputDecoration(
-                labelText: "Description (Optional)",
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 3,
-            ),
-            const SizedBox(height: 16),
-
-            // File Picker
-            ElevatedButton(
-              onPressed: _pickFile,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue[50],
-                foregroundColor: Colors.blue,
-                minimumSize: const Size(double.infinity, 50),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.attach_file),
-                  const SizedBox(width: 8),
+                  // Header
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.upload_file,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 28,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        "Upload Material",
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 8),
                   Text(
-                    _selectedFile != null
-                        ? _selectedFile!.path.split('/').last
-                        : "Choose File",
+                    "Share learning materials with your class",
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Error message display
+                  if (errorMessage != null)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.orange[100],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.orange),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.error_outline, color: Colors.orange[800]),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              errorMessage!,
+                              style: TextStyle(
+                                color: Colors.orange[800],
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // Title Field
+                  TextFormField(
+                    controller: _titleController,
+                    decoration: InputDecoration(
+                      labelText: "Material Title *",
+                      labelStyle: TextStyle(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withOpacity(0.7),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.outline.withOpacity(0.3),
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.outline.withOpacity(0.3),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 2,
+                        ),
+                      ),
+                      filled: true,
+                      fillColor: Theme.of(
+                        context,
+                      ).colorScheme.surfaceVariant.withOpacity(0.3),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                    ),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontSize: 16,
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Description Field
+                  TextFormField(
+                    controller: _descriptionController,
+                    decoration: InputDecoration(
+                      labelText: "Description (Optional)",
+                      labelStyle: TextStyle(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withOpacity(0.7),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.outline.withOpacity(0.3),
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.outline.withOpacity(0.3),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 2,
+                        ),
+                      ),
+                      filled: true,
+                      fillColor: Theme.of(
+                        context,
+                      ).colorScheme.surfaceVariant.withOpacity(0.3),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                    ),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontSize: 16,
+                    ),
+                    maxLines: 3,
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // File Picker Section
+                  Text(
+                    "Select File *",
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withOpacity(0.8),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // File selection area
+                  InkWell(
+                    onTap: () async {
+                      await _pickFile();
+                      setDialogState(() {
+                        errorMessage =
+                            null; // Clear error when file is selected
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceVariant.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.outline.withOpacity(0.3),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.cloud_upload,
+                            size: 40,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withOpacity(0.7),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _selectedFile != null
+                                ? "Change File"
+                                : "Tap to select file",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Supported: PDF, Images, Videos, Audio, Documents",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withOpacity(0.5),
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Selected file display
+                  if (_selectedFile != null) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.primary.withOpacity(0.2),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _getFileIcon(_selectedFile!.path),
+                            color: Theme.of(context).colorScheme.primary,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _selectedFile!.path.split('/').last,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color:
+                                        Theme.of(context).colorScheme.onSurface,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                FutureBuilder<int>(
+                                  future: _selectedFile!.length(),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.hasData) {
+                                      final size = snapshot.data!;
+                                      final sizeText = _formatFileSize(size);
+                                      return Text(
+                                        sizeText,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface
+                                              .withOpacity(0.6),
+                                        ),
+                                      );
+                                    }
+                                    return const SizedBox();
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              Icons.close,
+                              size: 18,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withOpacity(0.5),
+                            ),
+                            onPressed: () {
+                              setDialogState(() {
+                                _selectedFile = null;
+                                errorMessage = null;
+                              });
+                            },
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 28),
+
+                  // Action Buttons
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withOpacity(0.7),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                        ),
+                        child: const Text("Cancel"),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton(
+                        onPressed: () {
+                          if (_titleController.text.isEmpty) {
+                            setDialogState(() {
+                              errorMessage =
+                                  "Please enter a title for the material";
+                            });
+                            return;
+                          }
+
+                          if (_selectedFile == null) {
+                            setDialogState(() {
+                              errorMessage = "Please select a file to upload";
+                            });
+                            return;
+                          }
+
+                          // If validation passes, proceed with upload
+                          _uploadMaterial();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 2,
+                        ),
+                        child: const Text("Upload Material"),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 8),
-            if (_selectedFile != null)
-              Text(
-                "Selected: ${_selectedFile!.path.split('/').last}",
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-
-            const SizedBox(height: 24),
-
-            // Action Buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("Cancel"),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton(
-                  onPressed: _uploadMaterial,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text("Upload"),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -457,7 +792,11 @@ class _MaterialsPageState extends State<MaterialsPage> {
     );
   }
 
-  Widget _buildUploadingDialog(String materialType) {
+  Widget _buildUploadingDialog(
+    String materialType,
+    String fileName,
+    String fileSize,
+  ) {
     IconData icon;
     Color color;
 
@@ -495,22 +834,69 @@ class _MaterialsPageState extends State<MaterialsPage> {
       backgroundColor: Colors.transparent,
       elevation: 0,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 60, color: color),
-            const SizedBox(height: 16),
+            // Animated uploading icon
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(color),
+                  strokeWidth: 3,
+                ),
+                Icon(icon, size: 36, color: color),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
             Text(
-              "Uploading ${materialType.toUpperCase()}...",
+              "Uploading ${materialType.toUpperCase()}",
               style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
                 color: color,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            Text(
+              fileName,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+
+            const SizedBox(height: 4),
+
+            Text(
+              fileSize,
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+
+            const SizedBox(height: 16),
+
+            Text(
+              "Please wait...",
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[500],
+                fontStyle: FontStyle.italic,
               ),
             ),
           ],
@@ -775,87 +1161,191 @@ class _MaterialsPageState extends State<MaterialsPage> {
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       itemCount: _materials.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      separatorBuilder: (context, index) => const SizedBox(height: 16),
       itemBuilder: (context, index) {
         final material = _materials[index];
+        final materialColor = _getMaterialColor(material.materialType);
 
         return Material(
-          borderRadius: BorderRadius.circular(14),
-          elevation: 1,
+          borderRadius: BorderRadius.circular(16),
+          elevation: 2,
           color: Theme.of(context).colorScheme.surface,
+          shadowColor: Colors.black.withOpacity(0.1),
           child: InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: () => _viewMaterialInApp(material), // UPDATED: Direct view on tap
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => _viewMaterialInApp(material),
+            splashColor: materialColor.withOpacity(0.1),
+            highlightColor: materialColor.withOpacity(0.05),
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // File type icon with colored background
                   Container(
+                    width: 52,
+                    height: 52,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: _getMaterialColor(
-                        material.materialType,
-                      ).withOpacity(0.1),
+                      color: materialColor.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: materialColor.withOpacity(0.3),
+                        width: 1.5,
+                      ),
                     ),
                     child: Icon(
                       _getMaterialIcon(material.materialType),
-                      color: _getMaterialColor(material.materialType),
-                      size: 28,
+                      color: materialColor,
+                      size: 26,
                     ),
                   ),
+
                   const SizedBox(width: 16),
+
+                  // Content area
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Title
                         Text(
                           material.materialTitle,
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w600),
-                          maxLines: 1,
+                          style: Theme.of(
+                            context,
+                          ).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: Theme.of(context).colorScheme.onSurface,
+                            fontSize: 16,
+                          ),
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
+
+                        const SizedBox(height: 6),
+
+                        // Description
                         if (material.description != null &&
                             material.description!.isNotEmpty)
                           Padding(
-                            padding: const EdgeInsets.only(top: 4),
+                            padding: const EdgeInsets.only(bottom: 6),
                             child: Text(
                               material.description!,
                               style: Theme.of(
                                 context,
-                              ).textTheme.bodySmall?.copyWith(
+                              ).textTheme.bodyMedium?.copyWith(
                                 color: Theme.of(
                                   context,
-                                ).colorScheme.onSurface.withOpacity(0.6),
+                                ).colorScheme.onSurface.withOpacity(0.7),
+                                fontSize: 14,
+                                height: 1.4,
                               ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "${material.materialType.toUpperCase()} • ${material.fileSize ?? 'Unknown size'}",
-                          style: Theme.of(
-                            context,
-                          ).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurface.withOpacity(0.6),
-                          ),
+
+                        // File info row
+                        Row(
+                          children: [
+                            // File type badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: materialColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                material.materialType.toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: materialColor,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(width: 8),
+
+                            // File size
+                            if (material.fileSize != null)
+                              Text(
+                                material.fileSize!,
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.bodySmall?.copyWith(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface.withOpacity(0.5),
+                                  fontSize: 12,
+                                ),
+                              ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 6),
+
+                        // Upload date and teacher info
+                        Row(
+                          children: [
+                            // Upload date
+                            if (material.uploadedAt != null)
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.calendar_today,
+                                    size: 12,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface.withOpacity(0.4),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    "Uploaded: ${_formatDate(material.uploadedAt!)}",
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall?.copyWith(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurface.withOpacity(0.5),
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                            if (material.uploadedAt != null &&
+                                material.teacherName.isNotEmpty)
+                              const SizedBox(width: 12),
+                          ],
                         ),
                       ],
                     ),
                   ),
+
+                  const SizedBox(width: 12),
+
+                  // Options button
                   IconButton(
                     icon: Icon(
                       Icons.more_vert,
+                      size: 22,
                       color: Theme.of(
                         context,
-                      ).colorScheme.onSurface.withOpacity(0.6),
+                      ).colorScheme.onSurface.withOpacity(0.5),
                     ),
                     onPressed:
                         () => _showMaterialOptionsModal(context, material),
+                    splashRadius: 20,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 40,
+                      minHeight: 40,
+                    ),
                   ),
                 ],
               ),
@@ -864,6 +1354,25 @@ class _MaterialsPageState extends State<MaterialsPage> {
         );
       },
     );
+  }
+
+  // Helper method to format date nicely
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays == 0) {
+      return 'Today';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    } else if (difference.inDays < 30) {
+      final weeks = (difference.inDays / 7).floor();
+      return '${weeks}w ago';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
   }
 
   IconData _getMaterialIcon(String materialType) {
@@ -1060,6 +1569,45 @@ class _MaterialsPageState extends State<MaterialsPage> {
   }
 }
 
+String _formatFileSize(int bytes) {
+  if (bytes <= 0) return "0 B";
+  const suffixes = ["B", "KB", "MB", "GB"];
+  final i = (log(bytes) / log(1024)).floor();
+  return '${(bytes / pow(1024, i)).toStringAsFixed(1)} ${suffixes[i]}';
+}
+
+// Helper method to get file icon based on extension
+IconData _getFileIcon(String filePath) {
+  final extension = filePath.split('.').last.toLowerCase();
+  switch (extension) {
+    case 'pdf':
+      return Icons.picture_as_pdf;
+    case 'jpg':
+    case 'jpeg':
+    case 'png':
+    case 'gif':
+    case 'bmp':
+      return Icons.image;
+    case 'mp4':
+    case 'avi':
+    case 'mov':
+    case 'wmv':
+      return Icons.videocam;
+    case 'mp3':
+    case 'wav':
+    case 'ogg':
+      return Icons.audiotrack;
+    case 'doc':
+    case 'docx':
+      return Icons.article;
+    case 'zip':
+    case 'rar':
+      return Icons.folder_zip;
+    default:
+      return Icons.insert_drive_file;
+  }
+}
+
 // NEW: Image Viewer Page
 class ImageViewerPage extends StatelessWidget {
   final String imageUrl;
@@ -1088,6 +1636,7 @@ class ImageViewerPage extends StatelessWidget {
 }
 
 // NEW: Video Viewer Page
+
 class VideoViewerPage extends StatefulWidget {
   final String videoUrl;
 
@@ -1099,32 +1648,136 @@ class VideoViewerPage extends StatefulWidget {
 
 class _VideoViewerPageState extends State<VideoViewerPage> {
   late VideoPlayerController _videoPlayerController;
-  late ChewieController _chewieController;
+  ChewieController? _chewieController;
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _videoPlayerController = VideoPlayerController.network(widget.videoUrl);
-    _chewieController = ChewieController(
-      videoPlayerController: _videoPlayerController,
-      autoPlay: true,
-      looping: false,
-      allowFullScreen: true,
-      allowMuting: true,
-      showControls: true,
-      materialProgressColors: ChewieProgressColors(
-        playedColor: Colors.blue,
-        handleColor: Colors.blue,
-        backgroundColor: Colors.grey,
-        bufferedColor: Colors.grey.withOpacity(0.5),
-      ),
-    );
+    _initializeVideo();
+  }
+
+  Future<void> _initializeVideo() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      print('🟡 DEBUG: Video URL received: ${widget.videoUrl}');
+
+      if (!_isValidUrl(widget.videoUrl)) {
+        throw Exception('Invalid video URL');
+      }
+
+      // Check if URL is HTTP and might cause cleartext issues
+      if (widget.videoUrl.startsWith('http://')) {
+        print(
+          '🟡 DEBUG: HTTP URL detected - may cause cleartext issues on Android',
+        );
+      }
+
+      _videoPlayerController = VideoPlayerController.network(widget.videoUrl);
+
+      await _videoPlayerController.initialize().timeout(
+        const Duration(seconds: 120),
+        onTimeout: () {
+          throw TimeoutException('Video took too long to load');
+        },
+      );
+
+      _chewieController = ChewieController(
+        videoPlayerController: _videoPlayerController,
+        autoPlay: true,
+        looping: false,
+        allowFullScreen: true,
+        errorBuilder: (context, errorMessage) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error, size: 64, color: Colors.red),
+                const SizedBox(height: 16),
+                Text(
+                  'Video playback error',
+                  style: TextStyle(color: Colors.white, fontSize: 18),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'This may be due to HTTP restrictions on Android',
+                  style: TextStyle(color: Colors.grey),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    // Open video in external player as fallback
+                    _openVideoExternally(widget.videoUrl);
+                  },
+                  child: const Text('Open in external player'),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e.toString();
+
+        // Check for cleartext error specifically
+        if (e.toString().contains('Cleartext') ||
+            e.toString().contains('cleartext')) {
+          _errorMessage =
+              'HTTP video playback blocked. '
+              'This is an Android security restriction. '
+              'Try using HTTPS or open in external player.';
+        }
+      });
+
+      print('🔴 DEBUG: Video initialization error: $e');
+    }
+  }
+
+  // Fallback: Open video in external player
+  Future<void> _openVideoExternally(String videoUrl) async {
+    try {
+      // Download and open with external app
+      final response = await http.get(Uri.parse(videoUrl));
+      final bytes = response.bodyBytes;
+
+      final directory = await getTemporaryDirectory();
+      final file = File('${directory.path}/video_temp.mp4');
+      await file.writeAsBytes(bytes);
+
+      await OpenFile.open(file.path);
+    } catch (e) {
+      print('🔴 DEBUG: Error opening video externally: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to open video: ${e.toString()}')),
+      );
+    }
+  }
+
+  bool _isValidUrl(String url) {
+    try {
+      final uri = Uri.parse(url);
+      return uri.isAbsolute;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
   void dispose() {
     _videoPlayerController.dispose();
-    _chewieController.dispose();
+    _chewieController?.dispose();
     super.dispose();
   }
 
@@ -1135,12 +1788,70 @@ class _VideoViewerPageState extends State<VideoViewerPage> {
         title: const Text('Video Player'),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
+        actions: [
+          // Add a button to open in external player as fallback
+          IconButton(
+            icon: const Icon(Icons.open_in_new),
+            onPressed: () => _openVideoExternally(widget.videoUrl),
+            tooltip: 'Open in external player',
+          ),
+        ],
       ),
       backgroundColor: Colors.black,
-      body: Center(
-        child: Chewie(controller: _chewieController),
-      ),
+      body: _buildBody(),
     );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: Colors.white),
+            SizedBox(height: 16),
+            Text('Loading video...', style: TextStyle(color: Colors.white)),
+          ],
+        ),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 64, color: Colors.red),
+              const SizedBox(height: 16),
+              Text(
+                'Video playback failed',
+                style: TextStyle(color: Colors.white, fontSize: 18),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _errorMessage!,
+                style: TextStyle(color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _initializeVideo,
+                child: const Text('Retry'),
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: () => _openVideoExternally(widget.videoUrl),
+                child: const Text('Open in external player'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Chewie(controller: _chewieController!);
   }
 }
 
@@ -1149,7 +1860,11 @@ class AudioViewerPage extends StatefulWidget {
   final String audioUrl;
   final String title;
 
-  const AudioViewerPage({super.key, required this.audioUrl, required this.title});
+  const AudioViewerPage({
+    super.key,
+    required this.audioUrl,
+    required this.title,
+  });
 
   @override
   State<AudioViewerPage> createState() => _AudioViewerPageState();
@@ -1169,7 +1884,7 @@ class _AudioViewerPageState extends State<AudioViewerPage> {
 
   Future<void> _initAudio() async {
     await _audioPlayer.setSource(UrlSource(widget.audioUrl));
-    
+
     _audioPlayer.onDurationChanged.listen((duration) {
       setState(() => _duration = duration);
     });
@@ -1205,11 +1920,7 @@ class _AudioViewerPageState extends State<AudioViewerPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.audiotrack,
-              size: 80,
-              color: Colors.white,
-            ),
+            Icon(Icons.audiotrack, size: 80, color: Colors.white),
             const SizedBox(height: 20),
             Text(
               widget.title,
@@ -1269,11 +1980,7 @@ class _AudioViewerPageState extends State<AudioViewerPage> {
                   },
                 ),
                 IconButton(
-                  icon: Icon(
-                    Icons.skip_next,
-                    size: 40,
-                    color: Colors.white,
-                  ),
+                  icon: Icon(Icons.skip_next, size: 40, color: Colors.white),
                   onPressed: () {},
                 ),
               ],
@@ -1289,8 +1996,8 @@ class _AudioViewerPageState extends State<AudioViewerPage> {
     final hours = twoDigits(duration.inHours);
     final minutes = twoDigits(duration.inMinutes.remainder(60));
     final seconds = twoDigits(duration.inSeconds.remainder(60));
-    
-    return duration.inHours > 0 
+
+    return duration.inHours > 0
         ? '$hours:$minutes:$seconds'
         : '$minutes:$seconds';
   }
