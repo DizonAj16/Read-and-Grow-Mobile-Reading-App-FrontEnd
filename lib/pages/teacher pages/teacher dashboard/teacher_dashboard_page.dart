@@ -94,10 +94,19 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     try {
       // ✅ Try fetching from API first
       final profileResponse = await AuthService.getAuthProfile();
-      final teacherDetails = profileResponse['profile'] ?? profileResponse;
 
-      // ✅ Convert to Teacher model
-      final teacher = Teacher.fromJson(teacherDetails);
+      // Extract both user and profile data
+      final userData = profileResponse['user'] ?? {};
+      final profileData = profileResponse['profile'] ?? {};
+
+      // ✅ Convert to Teacher model - you'll need to update your Teacher model
+      // to accept both user and profile data, or merge them
+      final teacher = Teacher.fromJson({
+        ...userData,
+        ...profileData,
+        'user_id': userData['id'], // Preserve user ID
+        'teacher_id': profileData['id'], // Preserve teacher ID
+      });
 
       // ✅ Save to prefs for offline/fallback use
       await teacher.saveToPrefs();
@@ -271,8 +280,6 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     );
   }
 
-  
-
   /// Shows the student list modal bottom sheet
   Future<void> _showStudentListModal(BuildContext context) async {
     if (_allStudents.isEmpty) {
@@ -286,9 +293,9 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
       builder:
           (context) => DraggableScrollableSheet(
             expand: false,
-            initialChildSize: 0.85,
-            minChildSize: 0.5,
-            maxChildSize: 0.95,
+            initialChildSize: 0.99, // Increased from 0.85
+            minChildSize: 0.6, // Slightly higher minimum
+            maxChildSize: 1,
             builder:
                 (context, scrollController) => Container(
                   decoration: BoxDecoration(
@@ -515,10 +522,29 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
   /// Builds the welcome message section with teacher info
   Widget _buildWelcomeMessage() {
     return FutureBuilder<Teacher>(
-      future: _teacherFuture, // API-only
+      future: _teacherFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                  Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+              ),
+            ),
+          );
         }
 
         if (snapshot.hasError) {
@@ -526,36 +552,61 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
         }
 
         final teacher = snapshot.data ?? Teacher.empty();
+
+        // Extract data with fallbacks
         final username = teacher.username ?? teacher.name;
+        final userId = teacher.userId ?? teacher.id;
+        final teacherId = teacher.teacherId;
+
         final initials =
             teacher.name.isNotEmpty
-                ? teacher.name.trim().split(' ').first[0].toUpperCase()
+                ? teacher.name
+                    .trim()
+                    .split(' ')
+                    .map((word) => word[0])
+                    .take(2)
+                    .join()
+                    .toUpperCase()
                 : 'T';
+
         final hasProfile = teacher.profilePicture?.isNotEmpty ?? false;
 
+        // Build the welcome container with IDs displayed
+        Widget welcomeWidget = _buildWelcomeContainer(
+          username,
+          initials,
+          null,
+          userId: userId,
+          teacherId: teacherId,
+        );
+
         if (!hasProfile) {
-          return _buildWelcomeContainer(username, initials, null);
+          return welcomeWidget;
         }
 
-        // Fetch base_url from SharedPreferences
+        // Fetch base_url from SharedPreferences for the avatar
         return FutureBuilder<SharedPreferences>(
           future: SharedPreferences.getInstance(),
           builder: (context, prefsSnapshot) {
             if (!prefsSnapshot.hasData) {
-              return _buildWelcomeContainer(username, initials, null);
+              return welcomeWidget;
             }
 
             String baseUrl = prefsSnapshot.data!.getString('base_url') ?? '';
-            // Remove "/api" if present
             baseUrl = baseUrl.replaceAll(RegExp(r'/api/?$'), '');
 
             final avatarUrl =
                 "$baseUrl/${teacher.profilePicture!.replaceFirst(RegExp(r'^/'), '')}?t=${DateTime.now().millisecondsSinceEpoch}";
 
-            // ✅ Debug print
             debugPrint("Avatar URL with base: $avatarUrl");
 
-            return _buildWelcomeContainer(username, initials, avatarUrl);
+            return _buildWelcomeContainer(
+              username,
+              initials,
+              avatarUrl,
+              userId: userId,
+              teacherId: teacherId,
+            );
           },
         );
       },
@@ -566,74 +617,186 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
   Widget _buildWelcomeContainer(
     String username,
     String initials,
-    String? avatarUrl,
-  ) {
-    final hasAvatar = avatarUrl != null && avatarUrl.isNotEmpty;
+    String? avatarUrl, {
+    int? userId,
+    int? teacherId,
+  }) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.4),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Theme.of(context).colorScheme.primary.withOpacity(0.15),
+            Theme.of(context).colorScheme.secondary.withOpacity(0.15),
+          ],
         ),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3)),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+            spreadRadius: 2,
+          ),
         ],
+        border: Border.all(
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+          width: 1,
+        ),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: Theme.of(
-              context,
-            ).colorScheme.primary.withOpacity(0.1),
+          // Avatar section with decorative ring
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                width: 3,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
             child:
-                hasAvatar
+                avatarUrl != null
                     ? ClipOval(
-                      child: FadeInImage.assetNetwork(
-                        placeholder:
-                            'assets/placeholder/avatar_placeholder.jpg',
-                        image: avatarUrl,
+                      child: FadeInImage(
+                        placeholder: AssetImage(
+                          'assets/placeholder/avatar_placeholder.jpg',
+                        ), // Add this asset
+                        image: NetworkImage(avatarUrl),
+                        imageErrorBuilder: (context, error, stackTrace) {
+                          debugPrint('Failed to load avatar image: $error');
+                          return CircleAvatar(
+                            radius: 32,
+                            backgroundColor:
+                                Theme.of(context).colorScheme.primary,
+                            child: Text(
+                              initials,
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          );
+                        },
                         fit: BoxFit.cover,
-                        width: 100,
-                        height: 100,
-                        imageErrorBuilder:
-                            (_, __, ___) => _buildAvatarFallback(initials),
-                        fadeInDuration: const Duration(milliseconds: 300),
+                        width: 64,
+                        height: 64,
+                        fadeInDuration: const Duration(milliseconds: 500),
                         fadeInCurve: Curves.easeInOut,
+                        placeholderFit: BoxFit.cover,
                       ),
                     )
-                    : _buildAvatarFallback(initials),
+                    : CircleAvatar(
+                      radius: 32,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      child: Text(
+                        initials,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
           ),
-          const SizedBox(width: 16),
+
+          const SizedBox(width: 20),
+
+          // Welcome text and IDs
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Welcome Teacher,",
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w400,
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withOpacity(0.7),
+                  'Welcome Teacher,',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[700],
+                    letterSpacing: 0.5,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
-                  "$username 👋",
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  username,
+                  style: TextStyle(
+                    fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    fontSize: 26,
                     color: Theme.of(context).colorScheme.primary,
-                    letterSpacing: 1.1,
+                    height: 1.2,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+
+                // ID badges
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 6,
+                  children: [
+                    if (userId != null)
+                      _buildIdBadge(
+                        context,
+                        'User ID: $userId',
+                        Icons.person_outline,
+                      ),
+                    if (teacherId != null)
+                      _buildIdBadge(
+                        context,
+                        'Teacher ID: $teacherId',
+                        Icons.school_outlined,
+                      ),
+                  ],
                 ),
               ],
+            ),
+          ),
+
+          // Decorative icon
+          Icon(
+            Icons.waving_hand,
+            color: Theme.of(context).colorScheme.primary,
+            size: 28,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Helper widget for ID badges
+  Widget _buildIdBadge(BuildContext context, String text, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: Theme.of(context).colorScheme.primary,
             ),
           ),
         ],
@@ -641,33 +804,34 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     );
   }
 
-  /// Builds fallback avatar with initials
-  Widget _buildAvatarFallback(String initials) {
-    return Center(
-      child: Text(
-        initials,
-        style: TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-          color: Theme.of(context).colorScheme.primary,
-        ),
-      ),
-    );
-  }
-
-  /// Builds error widget with message
+  /// Error widget with better styling
   Widget _buildErrorWidget(String message) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24),
-      child: Text(
-        message,
-        style: Theme.of(
-          context,
-        ).textTheme.bodyMedium?.copyWith(color: Colors.redAccent),
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.red.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.red.withOpacity(0.3), width: 1),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline, color: Colors.red[600], size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: Colors.red[700],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   /// Builds statistics cards section
   Widget _buildStatisticsCards() {
     return FutureBuilder<List<Student>>(
@@ -678,6 +842,8 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
         }
 
         final studentCount = snapshot.hasData ? snapshot.data!.length : 0;
+        final theme = Theme.of(context);
+        final colorScheme = theme.colorScheme;
 
         return SizedBox(
           height: 180,
@@ -687,8 +853,11 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
               TeacherDashboardHorizontalCard(
                 title: "Students",
                 value: studentCount.toString(),
-                gradientColors: [Colors.blue, Colors.lightBlueAccent],
-                icon: Icons.people,
+                gradientColors: [
+                  colorScheme.primary,
+                  colorScheme.primaryContainer,
+                ],
+                icon: Icons.people_outline,
                 onPressed: () => _showStudentListModal(context),
               ),
               const SizedBox(width: 16),
@@ -699,20 +868,43 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
                     return TeacherDashboardHorizontalCard(
                       title: "My Classes",
                       value: "0",
-                      gradientColors: [Colors.purple, Colors.deepPurpleAccent],
-                      icon: Icons.school,
+                      gradientColors: [
+                        colorScheme.primary,
+                        colorScheme.primaryContainer,
+                      ],
+                      icon: Icons.class_outlined,
                     );
                   }
                   final myClassCount = snapshot.data ?? 0;
                   return TeacherDashboardHorizontalCard(
                     title: "My Classes",
                     value: myClassCount.toString(),
-                    gradientColors: [Colors.purple, Colors.deepPurpleAccent],
-                    icon: Icons.school,
+                    gradientColors: [
+                      colorScheme.primary,
+                      colorScheme.primaryContainer,
+                    ],
+                    icon: Icons.class_outlined,
                   );
                 },
               ),
               const SizedBox(width: 16),
+              // Add more cards with theme colors if needed
+              TeacherDashboardHorizontalCard(
+                title: "Attendance",
+                value: "98%",
+                gradientColors: [
+                  colorScheme.primary,
+                  colorScheme.primaryContainer,
+                ],
+                icon: Icons.assignment_turned_in_outlined,
+              ),
+              const SizedBox(width: 16),
+              TeacherDashboardHorizontalCard(
+                title: "Assignments",
+                value: "12",
+                gradientColors: [colorScheme.errorContainer, colorScheme.error],
+                icon: Icons.assignment_outlined,
+              ),
             ],
           ),
         );

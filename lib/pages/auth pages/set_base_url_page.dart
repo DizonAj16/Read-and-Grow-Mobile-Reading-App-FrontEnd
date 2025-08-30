@@ -149,7 +149,7 @@ class _SetBaseUrlPageState extends State<SetBaseUrlPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Image.asset(
+                    Lottie.asset(
                       'assets/animation/loading_rainbow.json',
                       height: 90,
                       width: 90,

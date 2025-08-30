@@ -1,8 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Teacher {
-  final int? id;
-  final int? userId;
+  final int? id; // teacher_id from profile
+  final int? userId; // user_id from user object
   final String name;
   final String? position;
   final String? email;
@@ -62,26 +62,52 @@ class Teacher {
     );
   }
 
-  /// Create a Teacher object from JSON or Map
+  /// Create a Teacher object from JSON or Map - handles both API response formats
   factory Teacher.fromJson(Map<String, dynamic> json) {
-    return Teacher(
-      id: _parseInt(json['id'] ?? json['teacher_id']),
-      userId: _parseInt(json['user_id']),
-      name: json['teacher_name'] ?? 'Teacher',
-      position: json['teacher_position'],
-      email: json['teacher_email'],
-      username: json['username'],
-      profilePicture: json['profile_picture'],
-      createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'])
-          : null,
-      updatedAt: json['updated_at'] != null
-          ? DateTime.tryParse(json['updated_at'])
-          : null,
-    );
+    // Check if this is the nested API response structure
+    final hasUserProfileStructure = json.containsKey('user') && json.containsKey('profile');
+    
+    if (hasUserProfileStructure) {
+      // Handle the nested API response structure
+      final userData = json['user'] ?? {};
+      final profileData = json['profile'] ?? {};
+      
+      return Teacher(
+        id: _parseInt(profileData['id']),
+        userId: _parseInt(userData['id']),
+        name: profileData['teacher_name'] ?? 'Teacher',
+        position: profileData['teacher_position'],
+        email: profileData['teacher_email'],
+        username: userData['username'] ?? profileData['username'],
+        profilePicture: profileData['profile_picture'],
+        createdAt: profileData['created_at'] != null
+            ? DateTime.tryParse(profileData['created_at'])
+            : null,
+        updatedAt: profileData['updated_at'] != null
+            ? DateTime.tryParse(profileData['updated_at'])
+            : null,
+      );
+    } else {
+      // Handle flat structure (already merged or from prefs)
+      return Teacher(
+        id: _parseInt(json['id'] ?? json['teacher_id']),
+        userId: _parseInt(json['user_id']),
+        name: json['teacher_name'] ?? 'Teacher',
+        position: json['teacher_position'],
+        email: json['teacher_email'],
+        username: json['username'],
+        profilePicture: json['profile_picture'],
+        createdAt: json['created_at'] != null
+            ? DateTime.tryParse(json['created_at'])
+            : null,
+        updatedAt: json['updated_at'] != null
+            ? DateTime.tryParse(json['updated_at'])
+            : null,
+      );
+    }
   }
 
-  /// Convert to JSON
+  /// Convert to JSON for storage (flattened structure)
   Map<String, dynamic> toJson() => {
         'teacher_id': id,
         'user_id': userId,
@@ -133,4 +159,7 @@ class Teacher {
     if (value is int) return value;
     return int.tryParse(value.toString());
   }
+
+  /// Getter for teacher ID (alias for id)
+  int? get teacherId => id;
 }

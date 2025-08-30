@@ -55,14 +55,144 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
     return '';
   }
 
+  // Replace the existing _pickAndUploadBackground method with this version
   Future<void> _pickAndUploadBackground() async {
+    // First show confirmation dialog before picking file
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(20),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Theme.of(dialogContext).colorScheme.surface,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.25),
+                  blurRadius: 25,
+                  offset: const Offset(0, 12),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Title with icon
+                Icon(
+                  Icons.image_rounded,
+                  color: Theme.of(dialogContext).colorScheme.primary,
+                  size: 40,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "Upload New Background",
+                  style: Theme.of(
+                    dialogContext,
+                  ).textTheme.headlineSmall?.copyWith(
+                    color: Theme.of(dialogContext).colorScheme.onSurface,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "Would you like to upload a new class background image?",
+                  textAlign: TextAlign.center,
+                  style: Theme.of(dialogContext).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(
+                      dialogContext,
+                    ).colorScheme.onSurface.withOpacity(0.7),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // Buttons with icons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.pop(dialogContext, false),
+                        icon: Icon(
+                          Icons.cancel_rounded,
+                          size: 20,
+                          color: Theme.of(
+                            dialogContext,
+                          ).colorScheme.onSurface.withOpacity(0.8),
+                        ),
+                        label: Text(
+                          "Cancel",
+                          style: TextStyle(
+                            color:
+                                Theme.of(dialogContext).colorScheme.onSurface,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          side: BorderSide(
+                            color: Theme.of(
+                              dialogContext,
+                            ).colorScheme.outline.withOpacity(0.5),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.pop(dialogContext, true),
+                        icon: Icon(
+                          Icons.check_circle_rounded,
+                          size: 20,
+                          color: Theme.of(dialogContext).colorScheme.onPrimary,
+                        ),
+                        label: Text(
+                          "Yes",
+                          style: TextStyle(
+                            color:
+                                Theme.of(dialogContext).colorScheme.onPrimary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              Theme.of(dialogContext).colorScheme.primary,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (confirmed != true) {
+      return; // User cancelled
+    }
+
+    // Now pick the image file
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     if (pickedFile == null) return;
 
+    // Show the image preview dialog
     setState(() => _previewBackground = pickedFile.path);
 
-    final confirm = await showDialog<bool>(
+    final confirmUpdate = await showDialog<bool>(
       context: context,
       builder:
           (ctx) => Dialog(
@@ -127,7 +257,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
                         File(pickedFile.path),
                         fit: BoxFit.cover,
                         width: MediaQuery.of(context).size.width * 0.7,
-                        height: 220, // Increased height for larger image
+                        height: 220,
                       ),
                     ),
                   ),
@@ -221,11 +351,12 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
           ),
     );
 
-    if (confirm != true) {
+    if (confirmUpdate != true) {
       setState(() => _previewBackground = null);
       return;
     }
 
+    // Continue with the upload process...
     setState(() => _isUploading = true);
 
     try {

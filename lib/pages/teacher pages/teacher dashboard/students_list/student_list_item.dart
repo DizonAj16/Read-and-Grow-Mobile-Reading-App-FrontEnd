@@ -38,17 +38,18 @@ class StudentListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
+      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 0),
       decoration: _buildContainerDecoration(context),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(
-          vertical: 12,
-          horizontal: 18,
+          vertical: 10,
+          horizontal: 14,
         ),
         leading: _buildStudentAvatar(context),
         title: _buildStudentName(context),
         subtitle: _buildStudentTags(context),
         trailing: _buildPopupMenu(context),
+        dense: true, // Added to make the list tile more compact
       ),
     );
   }
@@ -61,18 +62,18 @@ class StudentListItem extends StatelessWidget {
   BoxDecoration _buildContainerDecoration(BuildContext context) {
     return BoxDecoration(
       color: Theme.of(context).colorScheme.surface,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(12),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.08),
-          blurRadius: 8,
+          color: Colors.black.withOpacity(0.06),
+          blurRadius: 6,
           spreadRadius: 1,
-          offset: const Offset(0, 4),
+          offset: const Offset(0, 3),
         ),
       ],
       border: Border.all(
-        color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-        width: 1.5,
+        color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+        width: 1.0,
       ),
       gradient: LinearGradient(
         begin: Alignment.topLeft,
@@ -92,14 +93,14 @@ class StudentListItem extends StatelessWidget {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
       child: CircleAvatar(
-        radius: 30,
+        radius: 24, // Slightly smaller avatar
         backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
         child:
             imageUrl != null && imageUrl!.isNotEmpty
@@ -116,12 +117,12 @@ class StudentListItem extends StatelessWidget {
         placeholder: 'assets/placeholder/avatar_placeholder.jpg',
         image: imageUrl!,
         imageErrorBuilder: (_, __, ___) => _buildAvatarFallback(context),
-        fadeInDuration: const Duration(milliseconds: 400),
+        fadeInDuration: const Duration(milliseconds: 300),
         fadeInCurve: Curves.easeOut,
         placeholderFit: BoxFit.cover,
         fit: BoxFit.cover,
-        width: 60,
-        height: 60,
+        width: 48,
+        height: 48,
         placeholderScale: 1.0,
         imageScale: 1.0,
       ),
@@ -131,19 +132,19 @@ class StudentListItem extends StatelessWidget {
   /// Builds the fallback avatar with student initials
   Widget _buildAvatarFallback(BuildContext context) {
     return CircleAvatar(
-      radius: 28,
+      radius: 22,
       backgroundColor: Theme.of(context).colorScheme.primary,
       child: Text(
         student.avatarLetter,
         style: TextStyle(
           color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 22,
+          fontWeight: FontWeight.w600, // Slightly less bold
+          fontSize: 16, // Smaller font size
           shadows: [
             Shadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 2,
-              offset: const Offset(1, 1),
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 1,
+              offset: const Offset(0.5, 0.5),
             ),
           ],
         ),
@@ -151,15 +152,15 @@ class StudentListItem extends StatelessWidget {
     );
   }
 
-  /// Builds the student name text with styling
+  /// Builds the student name text with smaller styling
   Widget _buildStudentName(BuildContext context) {
     return Text(
       student.studentName,
       style: Theme.of(context).textTheme.titleMedium?.copyWith(
         fontWeight: FontWeight.w600,
-        fontSize: 17,
+        fontSize: 14, // Smaller font size
         color: Theme.of(context).colorScheme.onSurface,
-        letterSpacing: -0.2,
+        letterSpacing: -0.1,
       ),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
@@ -169,37 +170,40 @@ class StudentListItem extends StatelessWidget {
   /// Builds the student tags (section and grade)
   Widget _buildStudentTags(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.only(top: 4),
       child: Wrap(
-        spacing: 8,
-        runSpacing: 4,
+        spacing: 6,
+        runSpacing: 3,
         children: [
+          if (student.studentGrade != null && student.studentGrade!.isNotEmpty)
+            _buildGradeTag(context),
           if (student.studentSection != null &&
               student.studentSection!.isNotEmpty)
             _buildSectionTag(context),
-          if (student.studentGrade != null && student.studentGrade!.isNotEmpty)
-            _buildGradeTag(context),
         ],
       ),
     );
   }
 
-  /// Builds the section tag with styling
+  /// Builds the section tag with smaller styling
   Widget _buildSectionTag(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 4,
+      ), // Smaller padding
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(12),
+        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10), // Slightly smaller radius
         border: Border.all(
-          color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-          width: 1,
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+          width: 0.8,
         ),
       ),
       child: Text(
-        "Section: ${student.studentSection}",
+        "Sec: ${student.studentSection}", // Shorter label
         style: TextStyle(
-          fontSize: 12,
+          fontSize: 10, // Smaller font size
           fontWeight: FontWeight.w500,
           color: Theme.of(context).colorScheme.primary,
         ),
@@ -207,24 +211,27 @@ class StudentListItem extends StatelessWidget {
     );
   }
 
-  /// Builds the grade tag with styling
+  /// Builds the grade tag with smaller styling
   Widget _buildGradeTag(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 4,
+      ), // Smaller padding
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.secondary.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(12),
+        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10), // Slightly smaller radius
         border: Border.all(
-          color: Theme.of(context).colorScheme.secondary.withOpacity(0.2),
-          width: 1,
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+          width: 0.8,
         ),
       ),
       child: Text(
-        "Grade: ${student.studentGrade}",
+        "Gr: ${student.studentGrade}", // Shorter label
         style: TextStyle(
-          fontSize: 12,
+          fontSize: 10, // Smaller font size
           fontWeight: FontWeight.w500,
-          color: Theme.of(context).colorScheme.secondary,
+          color: Theme.of(context).colorScheme.primary,
         ),
       ),
     );
@@ -239,10 +246,11 @@ class StudentListItem extends StatelessWidget {
     return PopupMenuButton<String>(
       icon: Icon(
         Icons.more_vert_rounded,
-        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+        size: 20, // Smaller icon
+        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
       ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      elevation: 3,
       onSelected: (value) => _handleMenuSelection(value),
       itemBuilder: (context) => _buildMenuItems(context),
     );
@@ -263,24 +271,25 @@ class StudentListItem extends StatelessWidget {
     }
   }
 
-  /// Builds the menu items with icons and styling
+  /// Builds the menu items with smaller icons and text
   List<PopupMenuItem<String>> _buildMenuItems(BuildContext context) {
     return [
       PopupMenuItem(
         value: 'view',
-        height: 40,
+        height: 34, // Smaller height
         child: Row(
           children: [
             Icon(
               Icons.visibility_outlined,
               color: Theme.of(context).colorScheme.primary,
-              size: 20,
+              size: 18, // Smaller icon
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10), // Smaller spacing
             Text(
-              'View Details',
+              'View',
               style: TextStyle(
-                fontSize: 14,
+                // Shorter label
+                fontSize: 12, // Smaller font size
                 color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
@@ -289,19 +298,20 @@ class StudentListItem extends StatelessWidget {
       ),
       PopupMenuItem(
         value: 'edit',
-        height: 40,
+        height: 34, // Smaller height
         child: Row(
           children: [
             Icon(
               Icons.edit_outlined,
               color: Theme.of(context).colorScheme.secondary,
-              size: 20,
+              size: 18, // Smaller icon
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10), // Smaller spacing
             Text(
-              'Edit Student',
+              'Edit',
               style: TextStyle(
-                fontSize: 14,
+                // Shorter label
+                fontSize: 12, // Smaller font size
                 color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
@@ -310,19 +320,19 @@ class StudentListItem extends StatelessWidget {
       ),
       PopupMenuItem(
         value: 'delete',
-        height: 40,
+        height: 34, // Smaller height
         child: Row(
           children: [
             Icon(
               Icons.delete_outline_rounded,
               color: Theme.of(context).colorScheme.error,
-              size: 20,
+              size: 18, // Smaller icon
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10), // Smaller spacing
             Text(
               'Delete',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 12, // Smaller font size
                 color: Theme.of(context).colorScheme.error,
               ),
             ),

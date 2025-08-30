@@ -59,6 +59,7 @@ dependencies:
   video_player: ^2.10.0
   photo_view: ^0.15.0
   chewie: ^1.12.1
+  path_provider: ^2.1.5
 
 
 dev_dependencies:
