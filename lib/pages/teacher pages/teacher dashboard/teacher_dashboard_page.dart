@@ -888,23 +888,6 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
                 },
               ),
               const SizedBox(width: 16),
-              // Add more cards with theme colors if needed
-              TeacherDashboardHorizontalCard(
-                title: "Attendance",
-                value: "98%",
-                gradientColors: [
-                  colorScheme.primary,
-                  colorScheme.primaryContainer,
-                ],
-                icon: Icons.assignment_turned_in_outlined,
-              ),
-              const SizedBox(width: 16),
-              TeacherDashboardHorizontalCard(
-                title: "Assignments",
-                value: "12",
-                gradientColors: [colorScheme.errorContainer, colorScheme.error],
-                icon: Icons.assignment_outlined,
-              ),
             ],
           ),
         );
