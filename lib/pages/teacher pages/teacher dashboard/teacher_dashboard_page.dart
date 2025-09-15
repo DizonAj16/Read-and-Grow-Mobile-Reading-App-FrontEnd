@@ -1,4 +1,4 @@
-import 'package:deped_reading_app_laravel/api/auth_service.dart';
+import 'package:deped_reading_app_laravel/api/supabase_auth_service.dart';
 import 'package:deped_reading_app_laravel/api/classroom_service.dart';
 import 'package:deped_reading_app_laravel/api/prefs_service.dart';
 import 'package:deped_reading_app_laravel/api/user_service.dart';
@@ -92,46 +92,50 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
   /// Loads teacher data with fallback mechanism (API → Local Storage)
   Future<void> _loadTeacherData() async {
     try {
-      // ✅ Try fetching from API first
-      final profileResponse = await AuthService.getAuthProfile();
+      // ✅ Try fetching from Supabase first
+      final profileResponse = await SupabaseAuthService.getAuthProfile();
 
-      // Extract both user and profile data
-      final userData = profileResponse['user'] ?? {};
-      final profileData = profileResponse['profile'] ?? {};
+      // Extract both user and profile data safely
+      final userData = profileResponse?['user'] ?? {};
+      final profileData = profileResponse?['profile'] ?? {};
 
-      // ✅ Convert to Teacher model - you'll need to update your Teacher model
-      // to accept both user and profile data, or merge them
+      // ✅ Merge into Teacher model
       final teacher = Teacher.fromJson({
         ...userData,
         ...profileData,
-        'user_id': userData['id'], // Preserve user ID
+        'user_id': userData['id'],      // Preserve user ID
         'teacher_id': profileData['id'], // Preserve teacher ID
       });
 
-      // ✅ Save to prefs for offline/fallback use
+      // ✅ Save to prefs for offline use
       await teacher.saveToPrefs();
 
-      setState(() {
-        _teacherFuture = Future.value(teacher);
-      });
+      if (mounted) {
+        setState(() {
+          _teacherFuture = Future.value(teacher);
+        });
+      }
     } catch (e) {
-      debugPrint("⚠️ API failed, loading from prefs instead: $e");
+      debugPrint("⚠️ API failed, loading teacher from prefs instead: $e");
 
       try {
         // ✅ Fallback to prefs
         final teacher = await Teacher.fromPrefs();
-        setState(() {
-          _teacherFuture = Future.value(teacher);
-        });
+        if (mounted) {
+          setState(() {
+            _teacherFuture = Future.value(teacher);
+          });
+        }
       } catch (prefsError) {
         debugPrint("❌ Failed to load teacher from prefs: $prefsError");
 
-        // ✅ Handle case where both API & prefs fail
-        setState(() {
-          _teacherFuture = Future.error(
-            "Unable to load teacher data. Please check connection and try again.",
-          );
-        });
+        if (mounted) {
+          setState(() {
+            _teacherFuture = Future.error(
+              "Unable to load teacher data. Please check connection and try again.",
+            );
+          });
+        }
       }
     }
   }

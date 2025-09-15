@@ -1,2 +1,0 @@
-C:/Read-and-Grow-Mobile-Reading-App-FrontEnd-Algeo/android/app/.cxx/Debug/164w715z/armeabi-v7a/CMakeFiles/edit_cache.dir
-C:/Read-and-Grow-Mobile-Reading-App-FrontEnd-Algeo/android/app/.cxx/Debug/164w715z/armeabi-v7a/CMakeFiles/rebuild_cache.dir

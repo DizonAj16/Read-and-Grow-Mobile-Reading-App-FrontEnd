@@ -1,4 +1,4 @@
-import 'package:deped_reading_app_laravel/api/auth_service.dart';
+import 'package:deped_reading_app_laravel/api/supabase_auth_service.dart';
 import 'package:deped_reading_app_laravel/models/teacher_model.dart';
 import 'package:flutter/material.dart';
 import 'pupil_submissions_and_report_page.dart';
@@ -32,32 +32,64 @@ class _TeacherPageState extends State<TeacherPage> {
 
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token') ?? '';
 
-    final response = await AuthService.logout(token);
+    try {
+      await SupabaseAuthService.logout(); // ✅ Use Supabase service
 
-    if (response.statusCode == 200) {
       await Teacher.clearPrefs();
       await prefs.remove('teacher_classes');
       await prefs.remove('students_data');
 
       _showLoadingDialog(context);
-
       await Future.delayed(const Duration(seconds: 1));
 
       if (mounted) {
         Navigator.of(context).pop();
         Navigator.of(context).pushAndRemoveUntil(
           PageTransition(page: const LandingPage()),
-          (route) => false,
+              (route) => false,
         );
       }
-    } else {
+    } catch (e) {
       _showErrorDialog(
         context,
         'Logout Failed',
         'Unable to logout. Please try again.',
       );
+      debugPrint("Logout error: $e");
+    }
+  }
+
+  Future<void> _loadTeacherData() async {
+    try {
+      final profileResponse = await SupabaseAuthService.getAuthProfile(); // ✅
+
+      final teacherDetails = profileResponse?['profile'] ?? profileResponse ?? {};
+      final teacher = Teacher.fromJson(teacherDetails);
+
+      await teacher.saveToPrefs();
+
+      final prefs = await SharedPreferences.getInstance();
+      String baseUrl = prefs.getString('base_url') ?? '';
+      baseUrl = baseUrl.replaceAll(RegExp(r'/api/?$'), '');
+
+      String? profilePicture;
+      if (teacher.profilePicture != null && teacher.profilePicture!.isNotEmpty) {
+        profilePicture = _buildProfilePictureUrl(
+          baseUrl,
+          teacher.profilePicture!,
+        );
+      }
+
+      if (mounted) {
+        setState(() {
+          _teacherName = teacher.name;
+          _profilePicture = profilePicture;
+        });
+      }
+    } catch (e) {
+      debugPrint("Failed to load teacher from API: $e");
+      await _loadTeacherFromPrefs();
     }
   }
 
@@ -76,38 +108,6 @@ class _TeacherPageState extends State<TeacherPage> {
       });
       Navigator.pop(context);
       _navigatorKey.currentState?.pushReplacementNamed(route);
-    }
-  }
-
-  Future<void> _loadTeacherData() async {
-    try {
-      final profileResponse = await AuthService.getAuthProfile();
-      final teacherDetails = profileResponse['profile'] ?? profileResponse;
-      final teacher = Teacher.fromJson(teacherDetails);
-      await teacher.saveToPrefs();
-
-      final prefs = await SharedPreferences.getInstance();
-      String baseUrl = prefs.getString('base_url') ?? '';
-      baseUrl = baseUrl.replaceAll(RegExp(r'/api/?$'), '');
-
-      String? profilePicture;
-      if (teacher.profilePicture != null &&
-          teacher.profilePicture!.isNotEmpty) {
-        profilePicture = _buildProfilePictureUrl(
-          baseUrl,
-          teacher.profilePicture!,
-        );
-      }
-
-      if (mounted) {
-        setState(() {
-          _teacherName = teacher.name;
-          _profilePicture = profilePicture;
-        });
-      }
-    } catch (e) {
-      debugPrint("Failed to load teacher from API: $e");
-      await _loadTeacherFromPrefs();
     }
   }
 

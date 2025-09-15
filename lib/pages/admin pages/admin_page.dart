@@ -1,11 +1,10 @@
-import 'package:deped_reading_app_laravel/api/auth_service.dart';
 import 'package:deped_reading_app_laravel/pages/admin%20pages/admin%20dashboard/admin_dashboard_page.dart';
 import 'package:deped_reading_app_laravel/pages/admin%20pages/admin_profile_page.dart';
 import 'package:deped_reading_app_laravel/pages/auth%20pages/landing_page.dart';
 import 'package:deped_reading_app_laravel/widgets/navigation/page_transition.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
@@ -19,32 +18,34 @@ class _AdminPageState extends State<AdminPage> {
   int _currentIndex = 0;
 
   Future<void> _logout(BuildContext context) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token') ?? '';
+    try {
+      // Supabase handles the logout
+      await Supabase.instance.client.auth.signOut();
 
-    final response = await AuthService.logout(token);
-
-    if (response.statusCode == 200) {
-      // Only remove token and user-related data, not all preferences
-      await prefs.remove('token');
+      // Clear local prefs (only admin-related)
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('user_id');
+      await prefs.remove('role');
       await prefs.remove('admin_name');
       await prefs.remove('admin_email');
-      // ...add/remove other admin-specific keys as needed...
 
+      // Show progress dialog
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (context) => const _LoggingOutDialog(),
       );
+
       await Future.delayed(const Duration(seconds: 1));
+
       if (mounted) {
         Navigator.of(context).pop(); // Close loading dialog
         Navigator.of(context).pushAndRemoveUntil(
-          PageTransition(page: LandingPage()),
-          (route) => false,
+          PageTransition(page: const LandingPage()),
+              (route) => false,
         );
       }
-    } else {
+    } catch (e) {
       showDialog(
         context: context,
         builder: (context) => const _LogoutFailedDialog(),
@@ -58,7 +59,7 @@ class _AdminPageState extends State<AdminPage> {
     });
     _pageController.animateToPage(
       index,
-      duration: Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
   }
@@ -69,10 +70,10 @@ class _AdminPageState extends State<AdminPage> {
       appBar: AppBar(
         title: Text(
           _currentIndex == 0 ? "Admin Dashboard" : "Admin Profile",
-          style: TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.white),
         ),
         backgroundColor: Theme.of(context).colorScheme.primary,
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: PageView(
         controller: _pageController,
@@ -82,14 +83,14 @@ class _AdminPageState extends State<AdminPage> {
           });
         },
         children: [
-          AdminDashboardPage(),
+          const AdminDashboardPage(),
           AdminProfilePage(onLogout: () => _logout(context)),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onTabTapped,
-        items: [
+        items: const [
           BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Dashboard"),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
         ],

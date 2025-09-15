@@ -1,4 +1,4 @@
-import 'package:deped_reading_app_laravel/api/auth_service.dart';
+import 'package:deped_reading_app_laravel/api/supabase_auth_service.dart';
 import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:deped_reading_app_laravel/pages/auth%20pages/landing_page.dart';
 import 'package:deped_reading_app_laravel/widgets/helpers/tts_helper.dart';
@@ -60,16 +60,16 @@ class _StudentPageState extends State<StudentPage> {
 
   /// Logs out the student with comprehensive cleanup
   Future<void> _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token') ?? '';
+    try {
+      await SupabaseAuthService.logout(); // ✅ no need to pass token manually
 
-    final response = await AuthService.logout(token);
-
-    if (response.statusCode == 200) {
+      final prefs = await SharedPreferences.getInstance();
       await _clearUserData(prefs);
+
       await _showLogoutSuccess(context);
       _navigateToLandingPage();
-    } else {
+    } catch (e) {
+      debugPrint("Logout failed: $e");
       _showLogoutError(context);
     }
   }
@@ -264,14 +264,14 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
   /// Tries API first, then falls back to local storage if API fails
   Future<void> _loadStudentData() async {
     try {
-      // ✅ Try fetching from API first
-      final profileResponse = await AuthService.getAuthProfile();
-      final studentProfile = profileResponse['profile'] ?? profileResponse;
+      // ✅ Fetch from SupabaseAuthService
+      final profileResponse = await SupabaseAuthService.getAuthProfile();
+      final studentProfile = profileResponse?['profile'] ?? {};
 
       // Create Student object from API response
       final Student student = Student.fromJson(studentProfile);
 
-      // ✅ Save to prefs using the model's saveToPrefs method
+      // ✅ Save to prefs
       await student.saveToPrefs();
 
       // ✅ Build full profile picture URL
@@ -292,10 +292,7 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
       debugPrint("⚠️ API failed, loading student from prefs instead: $e");
 
       try {
-        // ✅ Fallback to prefs using the model's fromPrefs method
         final Student student = await Student.fromPrefs();
-
-        // ✅ Build full profile picture URL
         final String? fullProfileUrl = await _buildProfilePictureUrl(
           student.profilePicture,
         );
@@ -307,13 +304,10 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
           });
         }
 
-        debugPrint(
-          "✅ Loaded student profile from prefs: ${student.studentName}",
-        );
+        debugPrint("✅ Loaded student profile from prefs: ${student.studentName}");
       } catch (prefsError) {
         debugPrint("❌ Failed to load student from prefs: $prefsError");
 
-        // ✅ Handle case where both API & prefs fail
         if (mounted) {
           setState(() {
             _student = Student(

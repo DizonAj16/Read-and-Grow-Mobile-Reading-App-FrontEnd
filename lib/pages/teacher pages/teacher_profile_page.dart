@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
-import 'package:deped_reading_app_laravel/api/auth_service.dart';
+import 'package:deped_reading_app_laravel/api/supabase_auth_service.dart';
 import 'package:deped_reading_app_laravel/api/user_service.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
@@ -35,20 +35,31 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
     final startTime = DateTime.now();
 
     try {
-      final profileResponse = await AuthService.getAuthProfile();
-      final teacherDetails = profileResponse['profile'] ?? profileResponse;
-      final teacher = Teacher.fromJson(teacherDetails);
+      // ✅ Call SupabaseAuthService instead of AuthService
+      final profileResponse = await SupabaseAuthService.getAuthProfile();
+
+      // ✅ Cast maps safely
+      final Map<String, dynamic> userData =
+          (profileResponse?['user'] as Map?)?.cast<String, dynamic>() ?? {};
+      final Map<String, dynamic> profileData =
+          (profileResponse?['profile'] as Map?)?.cast<String, dynamic>() ?? {};
+
+      // ✅ Merge into one JSON for Teacher model
+      final teacherJson = {
+        ...userData,
+        ...profileData,
+        'user_id': userData['id'], // Supabase user id
+        'teacher_id': profileData['id'], // teacher table id
+      };
+
+      final teacher = Teacher.fromJson(teacherJson);
       await teacher.saveToPrefs();
 
-      final prefs = await SharedPreferences.getInstance();
-      final savedBaseUrl =
-          prefs.getString('base_url') ?? 'http://10.0.2.2:8000/api';
-      final uri = Uri.parse(savedBaseUrl);
-      baseUrl = '${uri.scheme}://${uri.authority}';
+      if (mounted) {
+        setState(() => _teacher = teacher);
+      }
 
-      setState(() => _teacher = teacher);
-
-      // Ensure minimum 2 second loading
+      // ✅ Ensure minimum 2 second loading
       final elapsed = DateTime.now().difference(startTime);
       final remaining = const Duration(seconds: 2) - elapsed;
       if (remaining > Duration.zero) await Future.delayed(remaining);
@@ -59,7 +70,9 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
 
       try {
         final teacher = await Teacher.fromPrefs();
-        setState(() => _teacher = teacher);
+        if (mounted) {
+          setState(() => _teacher = teacher);
+        }
 
         final elapsed = DateTime.now().difference(startTime);
         final remaining = const Duration(seconds: 2) - elapsed;

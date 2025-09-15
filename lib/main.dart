@@ -2,8 +2,13 @@ import 'package:deped_reading_app_laravel/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'pages/auth pages/set_base_url_page.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'pages/auth pages/landing_page.dart';
+
+const supabaseUrl = 'https://zrcynmiiduwrtlcyzvzi.supabase.co';
+const supabaseAnonKey =
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpyY3lubWlpZHV3cnRsY3l6dnppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcyNDExMzIsImV4cCI6MjA3MjgxNzEzMn0.NPDpQKXC5h7qiSTPsIIty8qdNn1DnSHptIkagWlmTHM';
 
 ThemeData buildLightTheme(BuildContext context) {
   return ThemeData.light().copyWith(
@@ -107,20 +112,20 @@ ThemeData buildDarkTheme(BuildContext context) {
 
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.remove('base_url');
-  runApp(MyApp());
+
+  // ✅ Initialize Supabase once
+  await Supabase.initialize(
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey,
+  );
+
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
-  Future<bool> _hasBaseUrl() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('base_url') != null;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -132,21 +137,7 @@ class MyApp extends StatelessWidget {
           theme: buildLightTheme(context),
           darkTheme: buildDarkTheme(context),
           themeMode: currentTheme,
-          home: FutureBuilder<bool>(
-            future: _hasBaseUrl(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                );
-              }
-              if (snapshot.data == true) {
-                return const LandingPage();
-              } else {
-                return const SetBaseUrlPage();
-              }
-            },
-          ),
+          home: const LandingPage(), // 👈 always go to landing now
         );
       },
     );

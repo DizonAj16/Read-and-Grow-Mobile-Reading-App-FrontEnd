@@ -1,4 +1,4 @@
-import 'package:deped_reading_app_laravel/api/auth_service.dart';
+import 'package:deped_reading_app_laravel/api/supabase_auth_service.dart';
 import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
@@ -41,9 +41,10 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      final response = await AuthService.getAuthProfile();
-      final studentJson = response['student'] as Map<String, dynamic>;
-      final student = Student.fromJson(studentJson);
+      final response = await SupabaseAuthService.getAuthProfile();
+      // Adjust this depending on what your profile query returns
+      final profileJson = (response?['profile'] ?? {}) as Map<String, dynamic>;
+      final student = Student.fromJson(profileJson);
       await student.saveToPrefs();
 
       if (student.username != null && student.username!.isNotEmpty) {

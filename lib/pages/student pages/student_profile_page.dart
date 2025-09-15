@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:ui';
-import 'package:deped_reading_app_laravel/api/auth_service.dart';
+import 'package:deped_reading_app_laravel/api/supabase_auth_service.dart';
 import 'package:deped_reading_app_laravel/api/user_service.dart';
 import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:flutter/material.dart';
@@ -39,31 +39,30 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
     Student student;
 
     try {
-      // Try fetching from API
-      final profileData =
-          await AuthService.getAuthProfile(); // your existing function
+      // ✅ Fetch from Supabase
+      final profileData = await SupabaseAuthService.getAuthProfile();
       debugPrint('📡 API profileData: $profileData');
 
-      student = Student.fromJson(profileData['student']);
+      final studentJson = profileData?['profile'] ?? {};
+      student = Student.fromJson(studentJson);
       debugPrint('✅ Student from API: ${student.toJson()}');
 
-      await student.saveToPrefs(); // save to SharedPreferences
+      await student.saveToPrefs();
     } catch (e) {
-      debugPrint('⚠️ Error fetching from API: $e');
-      // Fallback to saved data
+      debugPrint('⚠️ Error fetching from Supabase: $e');
+
+      // ✅ Fallback to SharedPreferences
       student = await Student.fromPrefs();
       debugPrint('📦 Student from SharedPreferences: ${student.toJson()}');
     }
 
-    // Normalize profile picture path if needed
+    // ✅ Normalize profile picture URL if needed
     if (student.profilePicture != null &&
         !student.profilePicture!.startsWith('http')) {
       student = student.copyWith(
         profilePicture: '$_baseUrl/${student.profilePicture}',
       );
-      debugPrint(
-        '🖼️ Normalized profile picture URL: ${student.profilePicture}',
-      );
+      debugPrint('🖼️ Normalized profile picture URL: ${student.profilePicture}');
     }
 
     return student;

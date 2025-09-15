@@ -1,4 +1,4 @@
-import 'package:deped_reading_app_laravel/api/auth_service.dart';
+import 'package:deped_reading_app_laravel/api/supabase_auth_service.dart';
 import 'package:deped_reading_app_laravel/pages/admin%20pages/admin_page.dart';
 import 'package:deped_reading_app_laravel/pages/student%20pages/student_page.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher_page.dart';
@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../widgets/appbar/theme_toggle_button.dart';
 import 'auth buttons widgets/login_button.dart';
 import 'form fields widgets/password_text_field.dart';
@@ -26,12 +27,6 @@ class _LoginPageState extends State<LoginPage> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   bool _autoValidate = false;
 
-  /// Handles the login process:
-  /// - Validates the form.
-  /// - Shows a loading dialog.
-  /// - Calls the API for login.
-  /// - Handles response, stores token/role, and navigates to dashboard.
-  /// - Shows appropriate dialogs for errors or success.
   Future<void> login() async {
     if (!_formKey.currentState!.validate()) {
       setState(() {
@@ -43,76 +38,41 @@ class _LoginPageState extends State<LoginPage> {
     _showLoadingDialog("Logging in...");
 
     try {
-      final response = await AuthService.login({
-        'login': usernameController.text,
-        'password': passwordController.text,
-      });
-
-      final decoded = jsonDecode(response.body);
-      final data = decoded['data'] ?? {};
-      await Future.delayed(const Duration(seconds: 2));
-      Navigator.of(context).pop();
-
-      if (response.statusCode == 200 && data.isNotEmpty) {
-        // Store auth data
-        final prefs = await SharedPreferences.getInstance();
-        final token = data['token'] ?? '';
-        await prefs.setString('token', token);
-
-        final role = data['user']?['role']?.toString() ?? '';
-        await prefs.setString('role', role);
-
-        if (data['user']?['id'] != null) {
-          await prefs.setString('user_id', data['user']['id'].toString());
-        }
-
-        // 🚫 Temporarily disable profile fetching
-        /*
-      _showLoadingDialog("Loading profile...");
-      try {
-        final profile = await AuthService.getAuthProfile();
-        Navigator.of(context).pop();
-
-        final profileData = profile;
-        if (role == 'teacher') {
-          final teacherData = profileData['teacher'] ?? profileData;
-          print("📌 Teacher Profile Data: $teacherData"); // debug log
-          await UserService.storeTeacherDetails(teacherData);
-        } else if (role == 'student') {
-          final studentData = profileData['student'] ?? profileData;
-          print("📌 Student Profile Data: $studentData"); // debug log
-          await UserService.storeStudentDetails(studentData);
-        }
-
-        await _showSuccessAndProceedDialogs(role);
-      } catch (e) {
-        Navigator.of(context).pop();
-        _showErrorDialog(
-          title: 'Profile Error',
-          message: 'Logged in but failed to load profile. Please try again.',
-        );
-        debugPrint('Profile error: $e');
-      }
-      */
-
-        // ✅ Directly go to success flow without profile
-        await _showSuccessAndProceedDialogs(role);
-      } else {
-        final errorMessage = decoded['message'] ?? 'Login failed';
-        _showErrorDialog(title: 'Login Failed', message: errorMessage);
-      }
-    } catch (e) {
-      Navigator.of(context).pop();
-      _showErrorDialog(
-        title: 'Error',
-        message: 'An error occurred. Please try again.',
+      final result = await SupabaseAuthService.login(
+        usernameController.text.trim(),
+        passwordController.text.trim(),
       );
+
+      Navigator.of(context).pop(); // close loading dialog
+
+      // Extract user info and role from result
+      final userMap = result['user'];
+      final role = result['role'] ?? 'student';
+
+      // Save locally user_id and role
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_id', userMap['id']);
+      await prefs.setString('role', role);
+
+      // You can still check session if needed:
+      final session = Supabase.instance.client.auth.currentSession;
+      if (session == null) {
+        // Handle unexpected case: session is null
+      } else {
+        // Optionally you can store accessToken if you need to use it manually:
+        // await prefs.setString('access_token', session.accessToken);
+        // await prefs.setString('refresh_token', session.refreshToken);
+      }
+
+      await _showSuccessAndProceedDialogs(role);
+
+    } catch (e) {
+      Navigator.of(context).pop(); // close loading dialog on error
+      _showErrorDialog(title: 'Login Failed', message: e.toString());
       debugPrint('Login error: $e');
     }
   }
 
-  /// Displays a loading dialog with a custom message.
-  /// Used during async operations like login.
   void _showLoadingDialog(String message) {
     showDialog(
       context: context,
