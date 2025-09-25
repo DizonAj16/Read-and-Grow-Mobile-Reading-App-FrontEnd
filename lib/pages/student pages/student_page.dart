@@ -311,7 +311,7 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
         if (mounted) {
           setState(() {
             _student = Student(
-              id: 0,
+              id: '',
               studentName: "Student",
               studentLrn: null,
               studentGrade: null,

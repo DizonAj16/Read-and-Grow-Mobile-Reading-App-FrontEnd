@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:deped_reading_app_laravel/api/classroom_service.dart';
 
 class DeleteClassBottomModal extends StatelessWidget {
-  final int classId;
+  final String classId;
   final VoidCallback onClassDeleted;
 
   const DeleteClassBottomModal({

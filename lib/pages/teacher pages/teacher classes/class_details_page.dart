@@ -360,13 +360,14 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
     setState(() => _isUploading = true);
 
     try {
-      final response = await ClassroomService.uploadClassBackground(
-        classId: int.parse(widget.classDetails['id'].toString()),
+
+    final response = await ClassroomService.uploadClassBackground(
+        classId: (widget.classDetails['id'].toString()),
         filePath: pickedFile.path,
       );
 
-      if (response.statusCode == 200) {
-        final responseBody = await response.stream.bytesToString();
+      if (response != null && response.statusCode == 200) {
+        final responseBody = response.body;
         final data = jsonDecode(responseBody);
 
         setState(() {
@@ -636,10 +637,10 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
           children: [
             ClassInfoPage(classDetails: widget.classDetails),
             StudentsManagementPage(
-              classId: int.parse(widget.classDetails['id'].toString()),
+              classId: widget.classDetails['id'].toString(),
             ),
             StudentsProgressPage(
-              classId: int.parse(widget.classDetails['id'].toString()),
+              classId: widget.classDetails['id'].toString(),
             ),
             MaterialsPage(
               classId: int.parse(widget.classDetails['id'].toString()),

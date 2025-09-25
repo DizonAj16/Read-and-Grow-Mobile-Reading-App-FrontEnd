@@ -5,7 +5,7 @@ import 'tabs/materials_page.dart';
 import 'tabs/teacher_info_page.dart';
 
 class ClassDetailsPage extends StatefulWidget {
-  final int classId;
+  final String classId;
   final String className;
   final String backgroundImage;
   final String teacherName;

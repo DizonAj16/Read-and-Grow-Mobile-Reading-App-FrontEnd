@@ -5,7 +5,7 @@ import 'package:shimmer/shimmer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class StudentsProgressPage extends StatefulWidget {
-  final int classId;
+  final String classId;
 
   const StudentsProgressPage({super.key, required this.classId});
 

@@ -72,14 +72,26 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
         return;
       }
 
+
+      final user = authResponse.user;
+      final userId = user!.id; // Auth UUID
+      await supabase.from('users').insert({
+        'id':  userId,
+        'username': teacherUsernameController.text,
+        'password': teacherPasswordController.text,
+        'role': 'teacher',
+      });
+
+
       // ✅ Insert teacher profile into `teachers` table
       await supabase.from('teachers').insert({
         'user_id': authResponse.user!.id,
-        'name': teacherNameController.text.trim(),
+        'teacher_name': teacherNameController.text.trim(),
         'username': teacherUsernameController.text.trim(),
-        'email': teacherEmailController.text.trim(),
-        'position': teacherPositionController.text.trim(),
+        'teacher_email': teacherEmailController.text.trim(),
+        'teacher_position': teacherPositionController.text.trim(),
       });
+
 
       Navigator.of(context).pop(); // close loading
       await _showSuccessAndProceedDialogs("Registration successful!");

@@ -16,7 +16,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MaterialsPage extends StatefulWidget {
-  final int classId;
+  final String classId;
   const MaterialsPage({super.key, required this.classId});
 
   @override

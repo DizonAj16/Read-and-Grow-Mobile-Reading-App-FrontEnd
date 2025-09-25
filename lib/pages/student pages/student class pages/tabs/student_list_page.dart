@@ -8,7 +8,7 @@ import 'package:lottie/lottie.dart';
 import 'package:flutter_custom_clippers/flutter_custom_clippers.dart';
 
 class StudentListPage extends StatefulWidget {
-  final int classId;
+  final String classId;
   const StudentListPage({super.key, required this.classId});
 
   @override

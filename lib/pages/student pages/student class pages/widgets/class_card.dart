@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../class_details_page.dart';
 
 class ClassCard extends StatelessWidget {
-  final int classId;
+  final String classId;
   final String className;
   final String sectionName;
   final String teacherName;

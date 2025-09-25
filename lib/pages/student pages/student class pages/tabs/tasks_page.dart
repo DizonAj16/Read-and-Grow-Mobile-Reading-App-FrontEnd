@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
 class StudentTasksPage extends StatelessWidget {
-  final int classId;
+  final String classId;
 
   const StudentTasksPage({super.key, required this.classId});
 

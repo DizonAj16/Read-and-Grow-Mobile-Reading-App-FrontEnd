@@ -338,7 +338,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
   // ===========================================================================
 
   /// Navigates to the class details page for a given class ID
-  void _viewClassDetails(BuildContext context, int classId) async {
+  void _viewClassDetails(BuildContext context, String classId) async {
     try {
       final details = await ClassroomService.getClassDetails(classId);
       if (!context.mounted) return;
@@ -374,7 +374,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
   }
 
   /// Deletes a class after confirmation
-  void _deleteClass(BuildContext context, int classId) {
+  void _deleteClass(BuildContext context, String classId) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,

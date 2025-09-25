@@ -1,13 +1,13 @@
 import 'dart:convert';
 
 class Classroom {
-  int? id;
+  String? id;
   final String className;
   final String gradeLevel;
   final String section;
   final String schoolYear;
   final int studentCount;
-  final int teacherId;
+  final String teacherId;
 
   final String? teacherName;
   final String? teacherEmail;      // ✅ NEW
@@ -32,13 +32,13 @@ class Classroom {
 
   factory Classroom.fromJson(Map<String, dynamic> json) {
     return Classroom(
-      id: json['id'] ?? 0,
+      id: json['id'] ?? '',
       className: json['class_name'] ?? 'Unnamed',
       gradeLevel: json['grade_level']?.toString() ?? 'N/A',
       section: json['section'] ?? '',
       schoolYear: json['school_year']?.toString() ?? 'N/A',
       studentCount: json['student_count'] ?? 0,
-      teacherId: json['teacher_id'] ?? 0,
+      teacherId: json['teacher_id'] ?? '',
       teacherName: json['teacher_name'] ?? 'Unknown',
       teacherEmail: json['teacher_email'],          // ✅
       teacherPosition: json['teacher_position'],    // ✅

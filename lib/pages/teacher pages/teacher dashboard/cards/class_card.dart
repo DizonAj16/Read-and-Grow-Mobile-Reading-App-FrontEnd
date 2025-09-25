@@ -5,7 +5,7 @@ class TeacherDashboardClassCard extends StatelessWidget {
   final String section;
   final int studentCount;
   final String teacherName;
-  final int classId;
+  final String classId;
 
   final VoidCallback onView;
   final VoidCallback onEdit;

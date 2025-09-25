@@ -1,8 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Student {
-  final int id; // student_id
-  final int? userId; // user_id from users table
+  final String id; // student_id
+  final String? userId; // user_id from users table
   final String studentName;
   final String? studentLrn;
   final String? studentGrade;
@@ -10,7 +10,7 @@ class Student {
   final String? username;
   final String avatarLetter;
   final String? profilePicture;
-  final int? classRoomId;
+  final String? classRoomId;
 
   /// ✅ NEW: Track completed tasks (0 to 13)
   final int completedTasks;
@@ -33,8 +33,8 @@ class Student {
 
   /// ✅ NEW: copyWith method (now includes completedTasks)
   Student copyWith({
-    int? id,
-    int? userId,
+    String? id,
+    String? userId,
     String? studentName,
     String? studentLrn,
     String? studentGrade,
@@ -42,7 +42,7 @@ class Student {
     String? username,
     String? avatarLetter,
     String? profilePicture,
-    int? classRoomId,
+    String? classRoomId,
     int? completedTasks,
   }) {
     return Student(
@@ -111,8 +111,8 @@ class Student {
     final name = prefs.getString('student_name') ?? '';
 
     return Student(
-      id: int.tryParse(prefs.getString('student_id') ?? '') ?? 0,
-      userId: int.tryParse(prefs.getString('user_id') ?? ''),
+      id: prefs.getString('student_id') ?? '',
+      userId: prefs.getString('user_id') ?? '',
       studentName: name,
       studentLrn: prefs.getString('student_lrn'),
       studentGrade: prefs.getString('student_grade'),
@@ -120,7 +120,7 @@ class Student {
       username: prefs.getString('username'),
       avatarLetter: name.isNotEmpty ? name[0].toUpperCase() : 'S',
       profilePicture: prefs.getString('profile_picture'),
-      classRoomId: int.tryParse(prefs.getString('class_room_id') ?? ''),
+      classRoomId: prefs.getString('class_room_id') ?? '',
       completedTasks:
           int.tryParse(prefs.getString('completed_tasks') ?? '') ?? 0,
     );

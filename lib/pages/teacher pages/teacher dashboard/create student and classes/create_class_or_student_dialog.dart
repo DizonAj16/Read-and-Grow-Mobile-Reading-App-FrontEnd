@@ -124,12 +124,7 @@ class _CreateClassOrStudentDialogState
     final startTime = DateTime.now();
 
     try {
-      final response = await ClassroomService.createClass({
-        'class_name': classNameController.text.trim(),
-        'section': classSectionController.text.trim(),
-        'grade_level': gradeLevelController.text.trim(),
-        'school_year': schoolYearController.text.trim(),
-      });
+      final response = await ClassroomService.createClassV2();
 
       final elapsed = DateTime.now().difference(startTime).inMilliseconds;
       if (elapsed < 2000) {
@@ -137,25 +132,7 @@ class _CreateClassOrStudentDialogState
       }
 
       dynamic data;
-      try {
-        data = jsonDecode(response.body);
-      } catch (_) {
-        _handleError(
-          title: 'Server Error',
-          message: 'Invalid server response format.',
-        );
-        return;
-      }
 
-      if (response.statusCode == 201) {
-        await _handleSuccess('Class created!');
-        widget.onClassAdded?.call();
-      } else {
-        _handleError(
-          title: 'Create Class Failed',
-          message: data['message'] ?? 'An error occurred.',
-        );
-      }
     } catch (e) {
       _handleError(
         title: 'Error',

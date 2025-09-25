@@ -58,7 +58,7 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
 
       // 1️⃣ Sign up user in Supabase Auth
       final authResponse = await supabase.auth.signUp(
-        email: "${studentUsernameController.text}@student.app", // fake email
+        email: "${studentUsernameController.text}@gmail.com", // fake email
         password: studentPasswordController.text,
       );
 
@@ -71,15 +71,28 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
         return;
       }
 
-      // 2️⃣ Insert student profile in `students` table
+      final user = authResponse.user;
+      final userId = user!.id; // Auth UUID
+
+// Insert into 'users' table
+      await supabase.from('users').insert({
+        'id': userId,
+        'username': studentUsernameController.text,
+        'password': studentPasswordController.text,
+        'role': 'student',
+      });
+
+// Insert into 'students' table
       await supabase.from('students').insert({
-        'user_id': authResponse.user!.id,
+        // 'id' will be auto-generated
+        'user_id': userId, // FK to users.id
+        'username': studentUsernameController.text,
         'student_name': studentNameController.text,
         'student_lrn': studentLRNController.text,
         'student_grade': gradeController.text,
         'student_section': sectionController.text,
-        'username': studentUsernameController.text,
       });
+
 
       // ✅ Success
       if (mounted) {
