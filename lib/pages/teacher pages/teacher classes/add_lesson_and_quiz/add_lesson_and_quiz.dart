@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../api/supabase_api_service.dart';
 import '../../../../models/quiz_questions.dart';
@@ -87,7 +90,7 @@ class _AddLessonWithQuizScreenState extends State<AddLessonWithQuizScreen> {
         context,
         MaterialPageRoute(
           builder: (context) => QuizPreviewScreen(
-            questions: _questions, title: 'hehe',
+            questions: _questions, title: '',
           ),
         ),
       );
@@ -202,13 +205,17 @@ class _AddLessonWithQuizScreenState extends State<AddLessonWithQuizScreen> {
                             onChanged: (val) => q.correctAnswer = val,
                           ),
                         // Matching text ↔ image
+                        // Matching text ↔ image
                         if (q.type == QuestionType.matching)
                           Column(
                             children: [
                               ...List.generate(q.matchingPairs?.length ?? 0, (i) {
                                 final pair = q.matchingPairs![i];
+                                final rightUrl = pair.rightItemUrl ?? '';
+
                                 return Row(
                                   children: [
+                                    // Left text
                                     Expanded(
                                       child: TextField(
                                         decoration: const InputDecoration(labelText: 'Left Item (Text)'),
@@ -217,11 +224,50 @@ class _AddLessonWithQuizScreenState extends State<AddLessonWithQuizScreen> {
                                       ),
                                     ),
                                     const SizedBox(width: 8),
+                                    // Right image picker + network preview
                                     Expanded(
-                                      child: TextField(
-                                        decoration: const InputDecoration(labelText: 'Right Item (Image URL)'),
-                                        onChanged: (val) => pair.rightItemUrl = val,
-                                        controller: TextEditingController(text: pair.rightItemUrl),
+                                      child: GestureDetector(
+                                        onTap: () async {
+                                          // Pick image and upload
+                                          final picker = ImagePicker();
+                                          final pickedFile = await picker.pickImage(
+                                            source: ImageSource.gallery,
+                                            imageQuality: 80,
+                                          );
+
+                                          if (pickedFile != null) {
+                                            File file = File(pickedFile.path);
+                                            String? uploadedUrl = await ApiService.uploadFile(file);
+
+                                            if (uploadedUrl != null) {
+                                              setState(() {
+                                                pair.rightItemUrl = uploadedUrl; // Save URL from Supabase
+                                              });
+                                            }
+                                          }
+                                        },
+                                        child: Container(
+                                          height: 60,
+                                          decoration: BoxDecoration(
+                                            border: Border.all(color: Colors.grey),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: (pair.rightItemUrl ?? '').isEmpty
+                                              ? const Center(child: Text('Tap to pick image'))
+                                              : Image.network(
+                                            pair.rightItemUrl!,
+                                            fit: BoxFit.cover,
+                                            loadingBuilder: (context, child, progress) {
+                                              if (progress == null) return child;
+                                              return const Center(child: CircularProgressIndicator());
+                                            },
+                                            errorBuilder: (context, error, stackTrace) {
+                                              return const Center(
+                                                child: Icon(Icons.error, color: Colors.red),
+                                              );
+                                            },
+                                          ),
+                                        ),
                                       ),
                                     ),
                                     IconButton(
@@ -240,6 +286,7 @@ class _AddLessonWithQuizScreenState extends State<AddLessonWithQuizScreen> {
                               ),
                             ],
                           ),
+
                       ],
                     ),
                   ),

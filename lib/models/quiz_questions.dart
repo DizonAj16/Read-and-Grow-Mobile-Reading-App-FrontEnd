@@ -1,3 +1,5 @@
+import 'dart:io';
+
 enum QuestionType { multipleChoice, fillInTheBlank, dragAndDrop, matching, trueFalse }
 
 class QuizQuestion {
@@ -20,13 +22,15 @@ class QuizQuestion {
 }
 
 class MatchingPair {
-  String leftItem;       // text to drag
-  String rightItemUrl;   // image to drop onto
-  String? userSelected;  // track student selection
+  String leftItem;        // text to drag
+  File? rightItemFile;    // uploaded image file
+  String? rightItemUrl;   // URL after uploading to storage
+  String? userSelected;   // track student selection
 
   MatchingPair({
     required this.leftItem,
-    required this.rightItemUrl,
+    this.rightItemFile,
+    this.rightItemUrl,
     this.userSelected,
   });
 }

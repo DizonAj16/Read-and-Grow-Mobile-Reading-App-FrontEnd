@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shimmer/shimmer.dart';
 
+import '../add_lesson_and_quiz/add_lesson_and_quiz.dart';
+import '../add_lesson_screen.dart';
+import '../add_quiz_screen.dart';
+
 class ClassInfoPage extends StatefulWidget {
   final Map<String, dynamic> classDetails;
 
@@ -31,12 +35,97 @@ class _ClassInfoPageState extends State<ClassInfoPage> {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      body:
-          _isLoading
-              ? _buildShimmerLoading()
-              : _buildContent(theme, colorScheme),
+      body: _isLoading
+          ? _buildShimmerLoading()
+          : _buildContent(theme, colorScheme),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          showModalBottomSheet(
+            context: context,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            builder: (context) => Wrap(
+              children: [
+                ListTile(
+                  leading: Icon(Icons.book),
+                  title: Text('Add Lesson'),
+                  onTap: () {
+                    Navigator.pop(context); // Close the bottom sheet
+                    _onAddLesson();
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.quiz),
+                  title: Text('Add Quiz'),
+                  onTap: () {
+                    Navigator.pop(context); // Close the bottom sheet
+                    _onAddQuiz();
+                  },
+                ),
+              ],
+            ),
+          );
+        },
+        child: Icon(Icons.add),
+      ),
+
     );
   }
+
+// Show modal bottom sheet with options
+  void _showAddOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.book),
+              title: const Text("Add Lesson"),
+              onTap: () {
+                Navigator.pop(context);
+                _onAddLesson();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.quiz),
+              title: const Text("Add Quiz"),
+              onTap: () {
+                Navigator.pop(context);
+                _onAddQuiz();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _onAddLesson() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddLessonScreen(
+          readingLevelId: widget.classDetails['id'], // Or appropriate class/level id
+        ),
+      ),
+    );
+  }
+
+  void _onAddQuiz() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddLessonWithQuizScreen(readingLevelId: '147d07bf-47d8-4990-9129-5a9f18f269a4',
+        ),
+      ),
+    );
+  }
+
 
   Widget _buildContent(ThemeData theme, ColorScheme colorScheme) {
     final List<_ClassInfoItem> infoItems = [

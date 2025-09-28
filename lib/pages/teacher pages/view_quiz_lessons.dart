@@ -291,8 +291,8 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
                                       child: Column(
                                         children: [
                                           Expanded(
-                                            child: pair.rightItemUrl.isNotEmpty
-                                                ? Image.network(pair.rightItemUrl, fit: BoxFit.contain)
+                                            child: (pair.rightItemUrl != null && pair.rightItemUrl!.isNotEmpty)
+                                                ? Image.network(pair.rightItemUrl!, fit: BoxFit.contain)
                                                 : const SizedBox(),
                                           ),
                                           Text(pair.userSelected ?? 'Drop text here'),

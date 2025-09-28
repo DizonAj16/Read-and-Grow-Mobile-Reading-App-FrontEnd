@@ -74,7 +74,7 @@ class _CreateClassOrStudentDialogState
     try {
       final response = await UserService.registerStudent({
         'student_username': studentUsernameController.text,
-        'user_id': 'a3ca96c7-28c0-4236-a0f1-06adf7e1135c',
+        'user_id': '',
         'student_password': studentPasswordController.text,
         'student_name': studentNameController.text,
         'student_lrn': studentLrnController.text,
@@ -112,7 +112,13 @@ class _CreateClassOrStudentDialogState
     final startTime = DateTime.now();
 
     try {
-      final response = await ClassroomService.createClassV2();
+      final response = await ClassroomService.createClassV2(
+        className: classNameController.text,
+        gradeLevel: gradeLevelController.text,
+        section: classSectionController.text,
+        schoolYear: schoolYearController.text,
+        classroomCode: "AUTO_GENERATED_CODE",
+      );
 
       final elapsed = DateTime.now().difference(startTime).inMilliseconds;
       if (elapsed < 2000) {

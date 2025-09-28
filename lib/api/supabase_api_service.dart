@@ -1,10 +1,41 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/quiz_questions.dart';
+import 'package:mime/mime.dart';
+
 
 class ApiService {
   static const String supabaseUrl = 'https://zrcynmiiduwrtlcyzvzi.supabase.co/rest/v1';
   static const String supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpyY3lubWlpZHV3cnRsY3l6dnppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcyNDExMzIsImV4cCI6MjA3MjgxNzEzMn0.NPDpQKXC5h7qiSTPsIIty8qdNn1DnSHptIkagWlmTHM'; // truncated
+
+
+  static final SupabaseClient supabase = SupabaseClient('https://zrcynmiiduwrtlcyzvzi.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpyY3lubWlpZHV3cnRsY3l6dnppIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzI0MTEzMiwiZXhwIjoyMDcyODE3MTMyfQ.2Bm8PCz6NS4uH4dRRSbcY9Ad7VLmCY7BitWSZjAjaB8');
+  static Future<String?> uploadFile(File file) async {
+    try {
+      // Only the file name, no leading slash
+      String fileName =
+          'file_${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
+
+      // Upload to the 'document' bucket
+      final response = await supabase.storage.from('document').upload(fileName, file);
+
+      if (response == null) {
+        print('❌ Failed to upload file: $fileName');
+        return null;
+      }
+
+      // Get public URL
+      final fileUrl = supabase.storage.from('document').getPublicUrl(fileName);
+      print('✅ Uploaded: $fileUrl');
+      return fileUrl;
+    } catch (e) {
+      print('⚠️ Error uploading file: $e');
+      return null;
+    }
+  }
 
 
   /// Converts Dart enum to snake_case for Supabase enum
@@ -141,107 +172,123 @@ class ApiService {
     required String title,
     required List<QuizQuestion> questions,
   }) async {
-    final quizResponse = await http.post(
-      Uri.parse('$supabaseUrl/quizzes'),
-      headers: {
-        'apikey': supabaseKey,
-        'Authorization': 'Bearer $supabaseKey',
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation',
-      },
-      body: jsonEncode({
-        'task_id': taskId,
-        'title': title,
-      }),
-    );
-
-    if (quizResponse.statusCode != 201) {
-      print('Error creating quiz: ${quizResponse.body}');
-      return null;
-    }
-
-    final quizId = jsonDecode(quizResponse.body)[0]['id'];
-
-    for (var i = 0; i < questions.length; i++) {
-      final q = questions[i];
-
-      final questionResponse = await http.post(
-        Uri.parse('$supabaseUrl/quiz_questions'),
+    try {
+      // 1️⃣ Create the quiz
+      final quizResponse = await http.post(
+        Uri.parse('$supabaseUrl/quizzes'),
         headers: {
           'apikey': supabaseKey,
           'Authorization': 'Bearer $supabaseKey',
           'Content-Type': 'application/json',
           'Prefer': 'return=representation',
         },
-        body: jsonEncode({
-          'quiz_id': quizId,
-          'question_text': q.questionText,
-          'question_type': questionTypeToSnakeCase(q.type),
-          'sort_order': i,
-        }),
+        body: jsonEncode({'task_id': taskId, 'title': title}),
       );
 
-      if (questionResponse.statusCode != 201) {
-        print('Error adding question: ${questionResponse.body}');
-        continue;
+      print('Quiz response status: ${quizResponse.statusCode}');
+      print('Quiz response body: ${quizResponse.body}');
+
+      if (quizResponse.statusCode != 201) {
+        print('❌ Error creating quiz: ${quizResponse.statusCode} ${quizResponse.body}');
+        return null;
       }
 
-      final questionId = jsonDecode(questionResponse.body)[0]['id'];
+      final quizData = jsonDecode(quizResponse.body);
+      final quizId = quizData[0]['id'];
+      print('✅ Quiz created with ID: $quizId');
 
-      if (q.type == QuestionType.multipleChoice && q.options != null) {
-        for (var option in q.options!) {
-          await http.post(
-            Uri.parse('$supabaseUrl/question_options'),
+      // 2️⃣ Add questions
+      for (var i = 0; i < questions.length; i++) {
+        final q = questions[i];
+        try {
+          final questionResponse = await http.post(
+            Uri.parse('$supabaseUrl/quiz_questions'),
             headers: {
               'apikey': supabaseKey,
               'Authorization': 'Bearer $supabaseKey',
               'Content-Type': 'application/json',
+              'Prefer': 'return=representation',
             },
             body: jsonEncode({
-              'question_id': questionId,
-              'option_text': option,
-              'is_correct': option == q.correctAnswer,
+              'quiz_id': quizId,
+              'question_text': q.questionText,
+              'question_type': questionTypeToSnakeCase(q.type),
+              'sort_order': i,
             }),
           );
+
+          if (questionResponse.statusCode != 201) {
+            print('❌ Error adding question ${i + 1}: ${questionResponse.body}');
+            continue;
+          }
+
+          final questionId = jsonDecode(questionResponse.body)[0]['id'];
+          print('✅ Question ${i + 1} added with ID: $questionId');
+
+          // 3️⃣ Add options for multiple choice
+          if (q.type == QuestionType.multipleChoice && q.options != null) {
+            for (var option in q.options!) {
+              await http.post(
+                Uri.parse('$supabaseUrl/question_options'),
+                headers: {
+                  'apikey': supabaseKey,
+                  'Authorization': 'Bearer $supabaseKey',
+                  'Content-Type': 'application/json',
+                },
+                body: jsonEncode({
+                  'question_id': questionId,
+                  'option_text': option,
+                  'is_correct': option == q.correctAnswer,
+                }),
+              );
+            }
+          }
+
+          // 4️⃣ Add matching pairs or drag & drop items
+          if ((q.type == QuestionType.dragAndDrop || q.type == QuestionType.matching) &&
+              q.matchingPairs != null) {
+            for (var pair in q.matchingPairs!) {
+              await http.post(
+                Uri.parse('$supabaseUrl/matching_pairs'),
+                headers: {
+                  'apikey': supabaseKey,
+                  'Authorization': 'Bearer $supabaseKey',
+                  'Content-Type': 'application/json',
+                },
+                body: jsonEncode({
+                  'question_id': questionId,
+                  'left_item': pair.leftItem,
+                  'right_item_url': pair.rightItemUrl,
+                }),
+              );
+            }
+          }
+
+          // 5️⃣ Add fill-in-the-blank answers
+          if (q.type == QuestionType.fillInTheBlank && q.correctAnswer != null) {
+            await http.post(
+              Uri.parse('$supabaseUrl/fill_in_the_blank_answers'),
+              headers: {
+                'apikey': supabaseKey,
+                'Authorization': 'Bearer $supabaseKey',
+                'Content-Type': 'application/json',
+              },
+              body: jsonEncode({
+                'question_id': questionId,
+                'correct_answer': q.correctAnswer,
+              }),
+            );
+          }
+        } catch (e) {
+          print('⚠️ Failed to add question ${i + 1}: $e');
         }
       }
 
-      if ((q.type == QuestionType.dragAndDrop || q.type == QuestionType.matching) &&
-          q.matchingPairs != null) {
-        for (var pair in q.matchingPairs!) {
-          await http.post(
-            Uri.parse('$supabaseUrl/matching_pairs'),
-            headers: {
-              'apikey': supabaseKey,
-              'Authorization': 'Bearer $supabaseKey',
-              'Content-Type': 'application/json',
-            },
-            body: jsonEncode({
-              'question_id': questionId,
-              'left_item': pair.leftItem,
-              'right_item_url': pair.rightItemUrl,
-            }),
-          );
-        }
-      }
-
-      if (q.type == QuestionType.fillInTheBlank && q.correctAnswer != null) {
-        await http.post(
-          Uri.parse('$supabaseUrl/fill_in_the_blank_answers'),
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': 'Bearer $supabaseKey',
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode({
-            'question_id': questionId,
-            'correct_answer': q.correctAnswer,
-          }),
-        );
-      }
+      return {'quiz_id': quizId};
+    } catch (e) {
+      print('❌ Failed to create quiz: $e');
+      return null;
     }
-
-    return {'quiz_id': quizId};
   }
 
   // ========================

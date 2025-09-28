@@ -31,27 +31,45 @@ class ClassroomService {
   //   );
   // }
 
-  static Future<Map<String, dynamic>?> createClassV2() async {
+  static Future<Map<String, dynamic>?> createClassV2({
+    required String className,
+    required String gradeLevel,
+    required String section,
+    required String schoolYear,
+    required String classroomCode,
+  }) async {
     final supabase = Supabase.instance.client;
 
     try {
-      final response = await supabase.from('class_rooms').insert({
-        'grade_level': 'Grade 2',
-        'teacher_id': '71b3d273-aaf9-421b-9350-a2695cfb7cf4',
-        'class_name': 'Math 101',
-        'grade_level': '2',
-        'section': 'A',
-        'school_year': '2022',
-        'classroom_code': '2',
-      }).select().single();
-
-      if (response != null) {
-        // Return the inserted record as a Map
-        return response;
-      } else {
-        // Insert succeeded but no data returned (rare)
+      // Get the currently logged-in user
+      final currentUser = supabase.auth.currentUser;
+      if (currentUser == null) {
+        print('No logged-in teacher found');
         return null;
       }
+
+      // Optional: fetch the teacher_id from your teachers table using the user_id
+      final teacher = await supabase
+          .from('teachers')
+          .select('id')
+          .eq('user_id', currentUser.id)
+          .single();
+
+      if (teacher == null || teacher['id'] == null) {
+        print('Teacher record not found');
+        return null;
+      }
+
+      final response = await supabase.from('class_rooms').insert({
+        'teacher_id': teacher['id'],
+        'class_name': className,
+        'grade_level': gradeLevel,
+        'section': section,
+        'school_year': schoolYear,
+        'classroom_code': classroomCode,
+      }).select().single();
+
+      return response;
     } catch (e) {
       print('Error inserting class_room: $e');
       return null;
