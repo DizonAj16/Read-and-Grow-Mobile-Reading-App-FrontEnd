@@ -78,11 +78,10 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
 
       final confirmed = await showDialog<bool>(
         context: context,
-        builder:
-            (context) => ConfirmationDialog(
-              imagePath: pickedFile.path,
-              title: "Confirm Upload",
-            ),
+        builder: (context) => ConfirmationDialog(
+          imagePath: pickedFile.path,
+          title: "Confirm Upload",
+        ),
       );
 
       if (confirmed != true) {
@@ -93,7 +92,7 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
       setState(() => _isUploading = true);
       final uploadStartTime = DateTime.now();
 
-      final response = await UserService.uploadProfilePicture(
+      final uploadedUrl = await UserService.uploadProfilePicture(
         userId: student.userId.toString(),
         role: 'student',
         filePath: pickedFile.path,
@@ -105,14 +104,9 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
         await Future.delayed(remainingDelay);
       }
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(await response.stream.bytesToString());
-        final newProfileUrl =
-            data['profile_picture']?.startsWith('http')
-                ? data['profile_picture']
-                : '$_baseUrl/${data['profile_picture']}';
-
-        final updatedStudent = student.copyWith(profilePicture: newProfileUrl);
+      if (uploadedUrl != null) {
+        // ✅ Success — update student's profile
+        final updatedStudent = student.copyWith(profilePicture: uploadedUrl);
         await updatedStudent.saveToPrefs();
 
         setState(() {
@@ -122,14 +116,15 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
 
         ScaffoldMessenger.of(context).showSnackBar(UploadSuccessSnackBar());
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(UploadErrorSnackBar(response.statusCode));
+        // ❌ Upload failed
+        ScaffoldMessenger.of(context).showSnackBar(
+          UploadErrorSnackBar(500),
+        );
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: ${e.toString()}")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: ${e.toString()}")),
+      );
     } finally {
       setState(() => _isUploading = false);
     }

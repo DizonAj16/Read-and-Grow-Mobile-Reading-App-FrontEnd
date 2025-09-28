@@ -19,7 +19,7 @@ import 'package:http/http.dart' as http;
 enum ActionType { view, edit, delete, add, archive }
 
 class MaterialsPage extends StatefulWidget {
-  final int classId;
+  final String classId;
 
   const MaterialsPage({super.key, required this.classId});
 

@@ -18,7 +18,7 @@ class MaterialService {
 static Future<bool> uploadMaterialFile({
   required File file,
   required String materialTitle,
-  required int classroomId,
+  required String classroomId,
   String? materialType,
   String? description, // Added description parameter
 }) async {
@@ -67,7 +67,7 @@ static Future<bool> uploadMaterialFile({
   }
 }
 
-  static Future<List<MaterialModel>> getClassroomMaterials(int classId) async {
+  static Future<List<MaterialModel>> getClassroomMaterials(String classId) async {
     final prefs = await SharedPreferences.getInstance();
     final baseUrl = await _getBaseUrl();
     final token = prefs.getString('token') ?? '';

@@ -30,20 +30,21 @@ class Classroom {
     this.backgroundImage,
   });
 
-  factory Classroom.fromJson(Map<String, dynamic> json) {
+  factory Classroom.fromJson(Map<String, dynamic>? json) {
+    final data = json ?? {}; // ✅ prevent null crashes
     return Classroom(
-      id: json['id'] ?? '',
-      className: json['class_name'] ?? 'Unnamed',
-      gradeLevel: json['grade_level']?.toString() ?? 'N/A',
-      section: json['section'] ?? '',
-      schoolYear: json['school_year']?.toString() ?? 'N/A',
-      studentCount: json['student_count'] ?? 0,
-      teacherId: json['teacher_id'] ?? '',
-      teacherName: json['teacher_name'] ?? 'Unknown',
-      teacherEmail: json['teacher_email'],          // ✅
-      teacherPosition: json['teacher_position'],    // ✅
-      teacherAvatar: json['teacher_avatar'],        // ✅
-      backgroundImage: json['background_image'],
+      id: data['id'] ?? '',
+      className: data['class_name'] ?? 'Unnamed',
+      gradeLevel: data['grade_level']?.toString() ?? 'N/A',
+      section: data['section'] ?? '',
+      schoolYear: data['school_year']?.toString() ?? 'N/A',
+      studentCount: data['student_count'] ?? 0,
+      teacherId: data['teacher_id'] ?? '',
+      teacherName: data['teacher_name'] ?? 'Unknown',
+      teacherEmail: data['teacher_email'],
+      teacherPosition: data['teacher_position'],
+      teacherAvatar: data['teacher_avatar'],
+      backgroundImage: data['background_image'],
     );
   }
 
@@ -69,6 +70,6 @@ class Classroom {
 
   static List<Classroom> decodeList(String classesJson) =>
       (json.decode(classesJson) as List<dynamic>)
-          .map((item) => Classroom.fromJson(item))
+          .map((item) => Classroom.fromJson(item as Map<String, dynamic>?))
           .toList();
 }

@@ -74,41 +74,29 @@ class _CreateClassOrStudentDialogState
     try {
       final response = await UserService.registerStudent({
         'student_username': studentUsernameController.text,
+        'user_id': 'a3ca96c7-28c0-4236-a0f1-06adf7e1135c',
         'student_password': studentPasswordController.text,
-        'student_password_confirmation': confirmStudentPasswordController.text,
         'student_name': studentNameController.text,
         'student_lrn': studentLrnController.text,
         'student_grade': studentGradeController.text,
         'student_section': studentSectionController.text,
       });
 
-      dynamic data;
-      try {
-        data = jsonDecode(response.body);
-      } catch (e) {
-        _handleError(
-          title: 'Server Error',
-          message:
-              response.statusCode >= 500
-                  ? 'A server error occurred. Please try again later.'
-                  : 'Server error: Invalid response format.',
-        );
-        return;
-      }
-
-      if (response.statusCode == 201) {
-        await _handleSuccess(data['message'] ?? 'Student account created!');
+      if (response != null) {
+        // ✅ Success
+        await _handleSuccess("Student account created!");
         widget.onStudentAdded?.call();
       } else {
+        // ❌ Insert failed
         _handleError(
           title: 'Registration Failed',
-          message: data['message'] ?? 'Registration failed',
+          message: 'Student registration failed. Please try again.',
         );
       }
     } catch (e) {
       _handleError(
         title: 'Error',
-        message: 'An error occurred. Please try again.',
+        message: 'An error occurred: $e',
       );
     }
   }
@@ -215,7 +203,7 @@ class _CreateClassOrStudentDialogState
               ),
           const SizedBox(height: 8),
           Text(
-            selectedTab == 0 ? "Create New Class" : "Create Student Account",
+            selectedTab == 0 ? "Create New Class" : "Create Sdtudent Account",
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.bold,
               color: Theme.of(context).colorScheme.primary,

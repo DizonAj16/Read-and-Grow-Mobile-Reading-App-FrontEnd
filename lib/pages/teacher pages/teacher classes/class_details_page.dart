@@ -643,7 +643,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
               classId: widget.classDetails['id'].toString(),
             ),
             MaterialsPage(
-              classId: int.parse(widget.classDetails['id'].toString()),
+              classId: widget.classDetails['id'].toString(),
             ),
             TasksPage(), // <- New Tab
           ],

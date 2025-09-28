@@ -8,6 +8,8 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../widgets/appbar/theme_toggle_button.dart';
+import '../teacher pages/teacher classes/add_lesson_and_quiz/add_lesson_and_quiz.dart';
+import '../teacher pages/view_quiz_lessons.dart';
 import 'auth buttons widgets/login_button.dart';
 import 'form fields widgets/password_text_field.dart';
 import '../../widgets/navigation/page_transition.dart';

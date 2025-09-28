@@ -1,23 +1,22 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/classroom_model.dart';
 import '../models/student_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ClassroomService {
-  static Future<String> _getBaseUrl() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('base_url') ?? "http://10.0.2.2:8000/api";
-  }
+  // static Future<String> _getBaseUrl() async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   return prefs.getString('base_url') ?? "http://10.0.2.2:8000/api";
+  // }
 
-  static Map<String, String> _authHeaders(String token) =>
-      {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      };
+  // static Map<String, String> _authHeaders(String token) =>
+  //     {
+  //       'Authorization': 'Bearer $token',
+  //       'Accept': 'application/json',
+  //       'Content-Type': 'application/json',
+  //     };
 
   // static Future<http.Response> createClass(Map<String, dynamic> body) async {
   //   final prefs = await SharedPreferences.getInstance();
@@ -37,8 +36,8 @@ class ClassroomService {
 
     try {
       final response = await supabase.from('class_rooms').insert({
-        'grade_level_id': '79c1fe62-e993-4183-b191-e3b18b464963',
-        'teacher_id': 'ca5142cc-1ec6-4867-9762-6a7751d5620a',
+        'grade_level': 'Grade 2',
+        'teacher_id': '71b3d273-aaf9-421b-9350-a2695cfb7cf4',
         'class_name': 'Math 101',
         'grade_level': '2',
         'section': 'A',
@@ -97,30 +96,52 @@ class ClassroomService {
       return null;
     }
   }
+  //
+  // static Future<http.Response> deleteClass(String classId) async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   final token = prefs.getString('token');
+  //   if (token == null) throw Exception('No auth token found');
+  //
+  //   final url = Uri.parse('${await _getBaseUrl()}/classrooms/$classId');
+  //   return await http.delete(url, headers: _authHeaders(token));
+  // }
 
-  static Future<http.Response> deleteClass(String classId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
-    if (token == null) throw Exception('No auth token found');
 
-    final url = Uri.parse('${await _getBaseUrl()}/classrooms/$classId');
-    return await http.delete(url, headers: _authHeaders(token));
+  static Future<Map<String, dynamic>?> deleteClass(String classId) async {
+    final supabase = Supabase.instance.client;
+
+    try {
+      final response = await supabase
+          .from('class_rooms')
+          .delete()
+          .eq('id', classId)
+          .select()
+          .maybeSingle(); // use maybeSingle since delete might return nothing
+
+      return response;
+    } catch (e) {
+      print('Error deleting class: $e');
+      return null;
+    }
   }
 
   static Future<Map<String, dynamic>> getClassDetails(String classId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
-    if (token == null) throw Exception('No auth token found');
+    final supabase = Supabase.instance.client;
 
-    final url = Uri.parse('${await _getBaseUrl()}/classrooms/$classId');
-    final response = await http.get(url, headers: _authHeaders(token));
+    try {
+      final response = await supabase
+          .from('class_rooms')
+          .select()
+          .eq('id', classId)
+          .single(); // throws if not found
 
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception('Failed to load class details');
+      return response;
+    } catch (e) {
+      print('Error fetching class details: $e');
+      throw Exception('Failed to load class details: $e');
     }
   }
+
 
   // static Future<List<Classroom>> fetchTeacherClasses() async {
   //   final prefs = await SharedPreferences.getInstance();
@@ -141,59 +162,72 @@ class ClassroomService {
 
   /// TEACHER CLASSES
   static Future<List<Classroom>> fetchTeacherClasses() async {
-    try {
-      final supabase = Supabase.instance.client;
+    final supabase = Supabase.instance.client;
 
+    try {
       final response = await supabase.from('class_rooms').select();
 
-      // Supabase returns a List<dynamic>, so we just map it
+      if (response == null) {
+        return []; // ✅ make sure we always return a List<Classroom>
+      }
+
+      // Supabase returns List<dynamic>, so map directly into Classroom objects
       return (response as List<dynamic>)
           .map((json) => Classroom.fromJson(Map<String, dynamic>.from(json)))
           .toList();
     } catch (e) {
       print('Error fetching teacher classes: $e');
+      return []; // ✅ keep non-nullable return type
+    }
+  }
+
+
+  static Future<List<Classroom>> getStudentClasses() async {
+    final supabase = Supabase.instance.client;
+
+    try {
+      final user = supabase.auth.currentUser;
+      if (user == null) throw Exception("No logged in student");
+
+      final response = await supabase
+          .from('class_rooms')
+          .select()
+          .contains('students', [user.id]); // or use a join table
+
+      if (response == null) {
+        return [];
+      }
+
+      return (response as List<dynamic>)
+          .map((json) => Classroom.fromJson(Map<String, dynamic>.from(json)))
+          .toList();
+    } catch (e) {
+      print('Error fetching student classes: $e');
       return [];
     }
   }
 
-  static Future<List<Classroom>> getStudentClasses() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
-    if (token == null) throw Exception('No auth token found');
 
-    final url = Uri.parse('${await _getBaseUrl()}/students/my-classes');
-    final response = await http.get(url, headers: _authHeaders(token));
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      if (data['success'] == true && data['data'] != null) {
-        final List<dynamic> classes = data['data'];
-        return classes
-            .map((json) => Classroom.fromJson(Map<String, dynamic>.from(json)))
-            .toList();
-      } else {
-        return [];
-      }
-    } else {
-      throw Exception('Failed to fetch student classes');
-    }
-  }
-
-  static Future<http.Response> assignStudent({
+  static Future<Map<String, dynamic>?> assignStudent({
     required String studentId,
     required String classRoomId,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
-    if (token == null) throw Exception('No auth token found');
+    final supabase = Supabase.instance.client;
 
-    final url = Uri.parse('${await _getBaseUrl()}/classrooms/assign-student');
-    return http.post(
-      url,
-      headers: _authHeaders(token),
-      body: jsonEncode({'student_id': studentId, 'class_room_id': classRoomId}),
-    );
+    try {
+      // Assuming you have a join table `student_classes`
+      final response = await supabase.from('student_classes').insert({
+        'student_id': studentId,
+        'class_room_id': classRoomId,
+      }).select().single();
+
+      return response;
+    } catch (e) {
+      print('Error assigning student to class: $e');
+      return null;
+    }
   }
+
 
   static Future<http.Response> unassignStudent({required String studentId}) async {
     try {

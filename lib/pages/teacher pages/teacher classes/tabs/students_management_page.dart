@@ -122,7 +122,8 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
       classRoomId: widget.classId,
     );
 
-    if (res.statusCode == 200) {
+    if (res != null) {
+      // ✅ Success
       currentUnassignedPage = 0;
       currentAssignedPage = 0;
 
@@ -134,16 +135,11 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
 
       _showSnackBar("Student assigned successfully");
     } else {
-      String errorMessage = "Failed to assign student";
-      try {
-        final Map<String, dynamic> body = jsonDecode(res.body);
-        if (body.containsKey('message')) {
-          errorMessage = body['message'];
-        }
-      } catch (_) {}
-      _showSnackBar(errorMessage, isError: true);
+
+      _showSnackBar("Failed to assign student", isError: true);
     }
   }
+
 
   Future<void> _unassignStudent(Student student) async {
     final res = await ClassroomService.unassignStudent(studentId: student.id);

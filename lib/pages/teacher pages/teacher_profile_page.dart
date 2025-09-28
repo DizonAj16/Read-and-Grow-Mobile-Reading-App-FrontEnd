@@ -279,27 +279,25 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
         filePath: pickedFile.path,
       );
 
-      if (response.statusCode == 200) {
-        final responseBody = await response.stream.bytesToString();
-        final data = jsonDecode(responseBody);
-        debugPrint('✅ Uploaded Profile URL: ${data['profile_picture']}');
+      final uploadedUrl = await UserService.uploadProfilePicture(
+        userId: userId,
+        role: role,
+        filePath: pickedFile.path,
+      );
 
-        // 🔄 Refresh data from API
+      if (uploadedUrl != null) {
+        debugPrint('✅ Uploaded Profile URL: $uploadedUrl');
+
         setState(() {
           _teacherFuture = _loadTeacherData();
           _pickedImageFile = null;
         });
 
-        // Success SnackBar
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
-                Icon(
-                  Icons.check_circle,
-                  color: Colors.green.shade100,
-                  size: 24,
-                ),
+                Icon(Icons.check_circle, color: Colors.green.shade100, size: 24),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -323,7 +321,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
             elevation: 6,
           ),
         );
-      } else {
+      }  else {
         // Error SnackBar
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

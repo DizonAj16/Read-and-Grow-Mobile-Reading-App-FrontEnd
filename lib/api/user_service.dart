@@ -1,10 +1,13 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/student_model.dart';
 import '../models/teacher_model.dart';
 
 class UserService {
+
   static Future<String> _getBaseUrl() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('base_url') ?? "http://10.0.2.2:8000/api";
@@ -26,53 +29,57 @@ class UserService {
     await student.saveToPrefs();
   }
 
-  static Future<http.Response> registerStudent(
-    Map<String, dynamic> body,
-  ) async {
-    final url = Uri.parse('${await _getBaseUrl()}/register/student');
-    return await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: jsonEncode(body),
-    );
+  static Future<Map<String, dynamic>?> registerStudent(
+      Map<String, dynamic> body,) async {
+    final supabase = Supabase.instance.client;
+    try {
+      final response = await supabase
+          .from('students') // change to your actual table name
+          .insert(body)
+          .select()
+          .single();
+
+      return response;
+    } catch (e) {
+      print('Error registering student: $e');
+      return null;
+    }
   }
 
-  static Future<http.Response> registerTeacher(
-    Map<String, dynamic> body,
-  ) async {
-    final url = Uri.parse('${await _getBaseUrl()}/register/teacher');
-    return await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: jsonEncode(body),
-    );
+  static Future<Map<String, dynamic>?> registerTeacher(
+      Map<String, dynamic> body,) async {
+    final supabase = Supabase.instance.client;
+    try {
+      final response = await supabase
+          .from('teachers') // adjust to your actual table name
+          .insert(body)
+          .select()
+          .single();
+
+      return response;
+    } catch (e) {
+      print('Error registering teacher: $e');
+      return null;
+    }
   }
+
 
   static Future<List<Student>> fetchAllStudents() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
-    if (token == null) throw Exception('No auth token found');
+    final supabase = Supabase.instance.client;
+    try {
+      final response = await supabase
+          .from('students') // 👈 change if your table name is different
+          .select();
 
-    final response = await http.get(
-      Uri.parse('${await _getBaseUrl()}/teachers/students'),
-      headers: _authHeaders(token),
-    );
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return (data['students'] as List)
+      return (response as List)
           .map((json) => Student.fromJson(Map<String, dynamic>.from(json)))
           .toList();
-    } else {
+    } catch (e) {
+      print('Error fetching students: $e');
       throw Exception('Failed to load students');
     }
   }
+
 
   static Future<List<Teacher>> fetchAllTeachers() async {
     final prefs = await SharedPreferences.getInstance();
@@ -132,28 +139,43 @@ class UserService {
     );
   }
 
-  static Future<http.StreamedResponse> uploadProfilePicture({
+  static Future<String?> uploadProfilePicture({
     required String userId,
     required String role,
     required String filePath,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    final supabase = Supabase.instance.client;
 
-    // use one dynamic endpoint for both roles
-    final uri = Uri.parse('${await _getBaseUrl()}/profile/$role/upload');
-    final request = http.MultipartRequest('POST', uri);
+    try {
+      // Choose bucket based on role
+      final bucket = role == 'teacher' ? 'teacher-avatars' : 'student-avatars';
 
-    request.headers['Authorization'] = 'Bearer $token';
-    request.headers['Accept'] = 'application/json';
+      // File name: userId + timestamp to avoid overwriting
+      final fileName = '$userId-${DateTime
+          .now()
+          .millisecondsSinceEpoch}.png';
 
-    // ✅ Laravel expects `user_id`, not `teacher_id` or `student_id`
-    request.fields['user_id'] = userId;
+      // Upload file
+      final fileBytes = await File(filePath).readAsBytes();
+      await supabase.storage.from(bucket).uploadBinary(
+        fileName,
+        fileBytes,
+        fileOptions: const FileOptions(upsert: true),
+      );
 
-    request.files.add(
-      await http.MultipartFile.fromPath('profile_picture', filePath),
-    );
+      // Get public URL
+      final publicUrl = supabase.storage.from(bucket).getPublicUrl(fileName);
 
-    return await request.send();
+      // Update DB table with new profile picture
+      final table = role == 'teacher' ? 'teachers' : 'students';
+      await supabase.from(table).update({
+        'profile_picture': publicUrl,
+      }).eq('id', userId);
+
+      return publicUrl;
+    } catch (e) {
+     print("❌ Error uploading profile picture: $e");
+      return null;
+    }
   }
 }

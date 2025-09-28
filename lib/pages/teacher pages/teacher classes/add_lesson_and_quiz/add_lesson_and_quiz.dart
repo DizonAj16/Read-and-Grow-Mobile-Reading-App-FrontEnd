@@ -1,0 +1,259 @@
+import 'package:flutter/material.dart';
+
+import '../../../../api/supabase_api_service.dart';
+import '../../../../models/quiz_questions.dart';
+
+import 'package:flutter/material.dart';
+
+import '../../../../api/supabase_api_service.dart';
+import '../../../../models/quiz_questions.dart';
+import '../../quiz_preview_screen.dart';
+
+class AddLessonWithQuizScreen extends StatefulWidget {
+  final String readingLevelId; // The lesson's reading level
+  const AddLessonWithQuizScreen({super.key, required this.readingLevelId});
+
+  @override
+  State<AddLessonWithQuizScreen> createState() => _AddLessonWithQuizScreenState();
+}
+
+class _AddLessonWithQuizScreenState extends State<AddLessonWithQuizScreen> {
+  // Lesson controllers
+  final _lessonTitleController = TextEditingController();
+  final _lessonDescController = TextEditingController();
+  final _lessonTimeController = TextEditingController();
+  bool _unlocksNextLevel = false;
+
+  // Quiz controllers
+  final _quizTitleController = TextEditingController();
+  List<QuizQuestion> _questions = [];
+
+  bool _isLoading = false;
+
+  void _addQuestion() {
+    _questions.add(QuizQuestion(
+      questionText: '',
+      type: QuestionType.multipleChoice,
+      options: List.filled(4, ''),
+      matchingPairs: [],
+    ));
+    setState(() {});
+  }
+
+  void _addOption(QuizQuestion question) {
+    question.options?.add('');
+    setState(() {});
+  }
+
+  void _addMatchingPair(QuizQuestion question) {
+    question.matchingPairs ??= [];
+    question.matchingPairs!.add(MatchingPair(leftItem: '', rightItemUrl: ''));
+    setState(() {});
+  }
+
+  Future<void> _submitLessonAndQuiz() async {
+    if (_lessonTitleController.text.isEmpty || _quizTitleController.text.isEmpty) return;
+
+    setState(() => _isLoading = true);
+
+    // 1️⃣ Add lesson/task
+    final lesson = await ApiService.addLesson(
+      readingLevelId: widget.readingLevelId,
+      title: _lessonTitleController.text,
+      description: _lessonDescController.text,
+      timeLimitMinutes: int.tryParse(_lessonTimeController.text),
+      unlocksNextLevel: _unlocksNextLevel,
+    );
+
+    if (lesson == null) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to add lesson')));
+      return;
+    }
+
+    // 2️⃣ Add quiz interactively
+    final quiz = await ApiService.addQuiz(
+      taskId: lesson['id'],
+      title: _quizTitleController.text,
+      questions: _questions,
+    );
+
+    setState(() => _isLoading = false);
+
+    if (quiz != null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lesson & Quiz added!')));
+      // Navigate to Quiz Preview Screen with questions
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => QuizPreviewScreen(
+            questions: _questions, title: 'hehe',
+          ),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Add Lesson & Quiz')),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: ListView(
+          children: [
+            const Text('Lesson Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            TextField(controller: _lessonTitleController, decoration: const InputDecoration(labelText: 'Lesson Title')),
+            TextField(controller: _lessonDescController, decoration: const InputDecoration(labelText: 'Description')),
+            TextField(
+              controller: _lessonTimeController,
+              decoration: const InputDecoration(labelText: 'Time Limit (minutes)'),
+              keyboardType: TextInputType.number,
+            ),
+            SwitchListTile(
+              title: const Text('Unlocks Next Level'),
+              value: _unlocksNextLevel,
+              onChanged: (val) => setState(() => _unlocksNextLevel = val),
+            ),
+            const SizedBox(height: 20),
+            const Text('Quiz Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            TextField(controller: _quizTitleController, decoration: const InputDecoration(labelText: 'Quiz Title')),
+            const SizedBox(height: 10),
+            ElevatedButton(onPressed: _addQuestion, child: const Text('Add Question')),
+            const SizedBox(height: 10),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _questions.length,
+              itemBuilder: (context, index) {
+                final q = _questions[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextField(
+                          decoration: InputDecoration(labelText: 'Question ${index + 1}'),
+                          onChanged: (val) => q.questionText = val,
+                        ),
+                        DropdownButton<QuestionType>(
+                          value: q.type,
+                          items: QuestionType.values
+                              .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
+                              .toList(),
+                          onChanged: (val) => setState(() => q.type = val!),
+                        ),
+                        const SizedBox(height: 8),
+                        // Multiple choice
+                        if (q.type == QuestionType.multipleChoice)
+                          Column(
+                            children: [
+                              ...List.generate(q.options!.length, (i) {
+                                return Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextField(
+                                        decoration: InputDecoration(labelText: 'Option ${i + 1}'),
+                                        onChanged: (val) => q.options?[i] = val,
+                                      ),
+                                    ),
+                                    Radio<String>(
+                                      value: q.options![i],
+                                      groupValue: q.correctAnswer,
+                                      onChanged: (val) => setState(() => q.correctAnswer = val),
+                                    ),
+                                  ],
+                                );
+                              }),
+                              TextButton(onPressed: () => _addOption(q), child: const Text('Add Option')),
+                            ],
+                          ),
+                        // Drag and drop
+                        if (q.type == QuestionType.dragAndDrop)
+                          ReorderableListView(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            onReorder: (oldIndex, newIndex) {
+                              setState(() {
+                                if (newIndex > oldIndex) newIndex -= 1;
+                                final item = q.options?.removeAt(oldIndex);
+                                q.options?.insert(newIndex, item!);
+                              });
+                            },
+                            children: [
+                              for (int i = 0; i < q.options!.length; i++)
+                                ListTile(
+                                  key: ValueKey(q.options![i] + i.toString()),
+                                  title: TextField(
+                                    decoration: InputDecoration(labelText: 'Item ${i + 1}'),
+                                    onChanged: (val) => q.options?[i] = val,
+                                    controller: TextEditingController(text: q.options?[i]),
+                                  ),
+                                  trailing: const Icon(Icons.drag_handle),
+                                )
+                            ],
+                          ),
+                        // Fill in the blank
+                        if (q.type == QuestionType.fillInTheBlank)
+                          TextField(
+                            decoration: const InputDecoration(labelText: 'Correct Answer'),
+                            onChanged: (val) => q.correctAnswer = val,
+                          ),
+                        // Matching text ↔ image
+                        if (q.type == QuestionType.matching)
+                          Column(
+                            children: [
+                              ...List.generate(q.matchingPairs?.length ?? 0, (i) {
+                                final pair = q.matchingPairs![i];
+                                return Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextField(
+                                        decoration: const InputDecoration(labelText: 'Left Item (Text)'),
+                                        onChanged: (val) => pair.leftItem = val,
+                                        controller: TextEditingController(text: pair.leftItem),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: TextField(
+                                        decoration: const InputDecoration(labelText: 'Right Item (Image URL)'),
+                                        onChanged: (val) => pair.rightItemUrl = val,
+                                        controller: TextEditingController(text: pair.rightItemUrl),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete, color: Colors.red),
+                                      onPressed: () {
+                                        q.matchingPairs!.removeAt(i);
+                                        setState(() {});
+                                      },
+                                    )
+                                  ],
+                                );
+                              }),
+                              TextButton(
+                                onPressed: () => _addMatchingPair(q),
+                                child: const Text('Add Matching Pair'),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _isLoading ? null : _submitLessonAndQuiz,
+              child: _isLoading ? const CircularProgressIndicator() : const Text('Save Lesson & Quiz'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
