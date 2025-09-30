@@ -1,6 +1,6 @@
-import 'package:deped_reading_app_laravel/pages/student%20pages/student%20class%20pages/tabs/tasks_page.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../list_of_quiz_and_lessons.dart';
 import '../student_quiz_pages.dart';
 import 'tabs/student_list_page.dart';
 import 'tabs/materials_page.dart';
@@ -229,7 +229,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
         });
       },
       children: [
-        StudentQuizzesPage(studentId: user!.id),
+        ClassContentScreen(classRoomId: widget.classId,),
         MaterialsPage(classId: widget.classId),
         StudentListPage(classId: widget.classId),
         TeacherInfoPage(

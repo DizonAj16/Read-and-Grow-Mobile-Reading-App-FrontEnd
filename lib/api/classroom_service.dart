@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../models/classroom_model.dart';
+import '../models/quiz_questions.dart';
 import '../models/student_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -74,7 +75,10 @@ class ClassroomService {
       print('Error inserting class_room: $e');
       return null;
     }
-  }static Future<List<Map<String, dynamic>>> fetchStudentQuizzes(String studentId) async {
+  }
+
+
+  static Future<List<Map<String, dynamic>>> fetchStudentQuizzes(String studentId) async {
     final supabase = Supabase.instance.client;
 
     final response = await supabase
