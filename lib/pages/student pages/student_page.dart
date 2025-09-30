@@ -5,6 +5,7 @@ import 'package:deped_reading_app_laravel/widgets/helpers/tts_helper.dart';
 import 'package:deped_reading_app_laravel/widgets/helpers/tts_modal.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../widgets/navigation/page_transition.dart';
 import 'student class pages/student_class_page.dart';
 import 'student_dashboard_page.dart';
@@ -151,12 +152,109 @@ class _StudentPageState extends State<StudentPage> {
       appBar: _buildAppBar(context),
       body: _buildPageView(),
       bottomNavigationBar: _buildBottomNavigationBar(context),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showEnrollDialog,
+        icon: const Icon(Icons.meeting_room),
+        label: const Text("Join Class"),
+      ),
     );
   }
 
   // ===========================================================================
   // UI COMPONENT BUILDERS
   // ===========================================================================
+
+  Future<void> _showEnrollDialog() async {
+    final TextEditingController codeController = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Enter Classroom Code"),
+        content: TextField(
+          controller: codeController,
+          decoration: const InputDecoration(
+            labelText: "Classroom Code",
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final code = codeController.text.trim();
+              if (code.isNotEmpty) {
+                await _enrollStudentToClass(code);
+                Navigator.pop(context);
+              }
+            },
+            child: const Text("Join"),
+          ),
+        ],
+      ),
+    );
+  }
+  Future<void> _enrollStudentToClass(String classroomCode) async {
+    try {
+      final supabase = Supabase.instance.client;
+
+      // 1. Find the classroom
+      final classroomResponse = await supabase
+          .from('class_rooms')
+          .select('id')
+          .eq('classroom_code', classroomCode)
+          .maybeSingle();
+
+      if (classroomResponse == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("❌ Invalid classroom code")),
+        );
+        return;
+      }
+
+      final classId = classroomResponse['id'];
+
+      // 2. Get student_id properly (linked via users → students)
+      final user = supabase.auth.currentUser;
+      if (user == null) throw Exception("⚠️ No logged in user");
+
+      final studentResponse = await supabase
+          .from('students')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+      if (studentResponse == null) {
+        throw Exception("⚠️ No matching student profile found for this user");
+      }
+
+      final studentId = studentResponse['id'];
+
+      // 3. Insert enrollment (avoids duplicate conflicts)
+      await supabase.from('student_enrollments').upsert({
+        'student_id': studentId,
+        'class_room_id': classId,
+        'enrollment_date': DateTime.now().toIso8601String(),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("✅ Successfully enrolled!")),
+      );
+
+      // 🔄 Refresh your UI if needed
+      setState(() {});
+    } catch (e, stack) {
+      debugPrint("❌ Enrollment error: $e");
+      debugPrintStack(stackTrace: stack);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error enrolling: $e")),
+      );
+    }
+  }
+
 
   /// Builds the app bar with dynamic title
   PreferredSizeWidget _buildAppBar(BuildContext context) {

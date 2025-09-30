@@ -74,25 +74,55 @@ class ClassroomService {
       print('Error inserting class_room: $e');
       return null;
     }
-  }
-
-  static Future<List<Map<String, dynamic>>> fetchStudentQuizzes(String studentId) async {
-    // example Supabase query
+  }static Future<List<Map<String, dynamic>>> fetchStudentQuizzes(String studentId) async {
     final supabase = Supabase.instance.client;
+
     final response = await supabase
-        .from('quiz_assignments')
-        .select('id, quiz:quizzes(id, quiz_title, class_room:class_rooms(class_name))')
+        .from('student_enrollments')
+        .select('''
+        class_room_id,
+        class_room:class_rooms(
+          class_name,
+          assignments(
+            id,
+            task:tasks(
+              id,
+              title,
+              quizzes(id, title)
+            )
+          )
+        )
+      ''')
         .eq('student_id', studentId);
 
-    return (response as List)
-        .map((e) => {
-      'assignment_id': e['id'],
-      'quiz_id': e['quiz']['id'],
-      'quiz_title': e['quiz']['quiz_title'],
-      'class_name': e['quiz']['class_room']['class_name'],
-    })
-        .toList();
+    // Map into a flat list of quizzes
+    List<Map<String, dynamic>> results = [];
+
+    for (var enrollment in response) {
+      final classRoom = enrollment['class_room'];
+      final className = classRoom['class_name'];
+      final assignments = classRoom['assignments'] ?? [];
+
+      for (var assignment in assignments) {
+        final task = assignment['task'];
+        if (task == null) continue;
+
+        final quizzes = task['quizzes'] ?? [];
+        for (var quiz in quizzes) {
+          results.add({
+            'assignment_id': assignment['id'],
+            'quiz_id': quiz['id'],
+            'quiz_title': quiz['title'],
+            'class_name': className,
+            'task_title': task['title'],
+          });
+        }
+      }
+    }
+
+    return results;
   }
+
   // static Future<http.Response> updateClass({
   //   required int classId,
   //   required Map<String, dynamic> body,
@@ -214,8 +244,6 @@ class ClassroomService {
       return []; // ✅ keep non-nullable return type
     }
   }
-
-
   static Future<List<Classroom>> getStudentClasses() async {
     final supabase = Supabase.instance.client;
 
@@ -223,17 +251,41 @@ class ClassroomService {
       final user = supabase.auth.currentUser;
       if (user == null) throw Exception("No logged in student");
 
-      final response = await supabase
-          .from('class_rooms')
-          .select()
-          .contains('students', [user.id]); // or use a join table
+      // Una hanapin muna yung student_id gamit ang user_id
+      final student = await supabase
+          .from('students')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
 
-      if (response == null) {
-        return [];
-      }
+      final studentId = student['id'];
+
+      // Kunin lahat ng class_rooms kung saan enrolled si student
+      final response = await supabase
+          .from('student_enrollments')
+          .select('''
+          class_room_id,
+          class_rooms (
+            id,
+            class_name,
+            section,
+            assignments (
+              id,
+              task_id,
+              due_date,
+              instructions,
+              tasks (
+                id,
+                title,
+                description
+              )
+            )
+          )
+        ''')
+          .eq('student_id', studentId);
 
       return (response as List<dynamic>)
-          .map((json) => Classroom.fromJson(Map<String, dynamic>.from(json)))
+          .map((json) => Classroom.fromJson(Map<String, dynamic>.from(json['class_rooms'])))
           .toList();
     } catch (e) {
       print('Error fetching student classes: $e');

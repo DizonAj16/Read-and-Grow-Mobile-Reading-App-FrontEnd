@@ -51,20 +51,23 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
     final supabase = Supabase.instance.client;
 
     try {
-      // 🔹 Fetch quiz info (including optional time_limit column in seconds)
+      // 🔹 Fetch quiz info (title + time limit only)
       final quizRes = await supabase
           .from('quizzes')
-          .select('quiz_title, questions, time_limit')
+          .select('title')
           .eq('id', widget.quizId)
           .single();
 
-      quizTitle = quizRes['quiz_title'] ?? "Quiz";
-      timeLimit = quizRes['time_limit']; // e.g., 600 seconds = 10 mins
-      remainingSeconds = timeLimit ?? 0;
+      quizTitle = quizRes['title'] ?? "Quiz";
 
-      // 🔹 Map DB questions into QuizQuestion model
-      final List<dynamic> qList = quizRes['questions'] ?? [];
-      questions = qList.map((q) => QuizQuestion.fromMap(q)).toList();
+
+      // 🔹 Fetch related questions from quiz_questions
+      final qRes = await supabase
+          .from('quiz_questions')
+          .select()
+          .eq('quiz_id', widget.quizId);
+
+      questions = qRes.map<QuizQuestion>((q) => QuizQuestion.fromMap(q)).toList();
 
       // 🔹 Start countdown if time limit exists
       if (timeLimit != null && timeLimit! > 0) {
@@ -80,7 +83,7 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
 
       setState(() => loading = false);
     } catch (e) {
-      debugPrint("Error loading quiz: $e");
+      debugPrint("❌ Error loading quiz: $e");
       setState(() => loading = false);
     }
   }
