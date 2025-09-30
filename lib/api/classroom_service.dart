@@ -76,7 +76,23 @@ class ClassroomService {
     }
   }
 
+  static Future<List<Map<String, dynamic>>> fetchStudentQuizzes(String studentId) async {
+    // example Supabase query
+    final supabase = Supabase.instance.client;
+    final response = await supabase
+        .from('quiz_assignments')
+        .select('id, quiz:quizzes(id, quiz_title, class_room:class_rooms(class_name))')
+        .eq('student_id', studentId);
 
+    return (response as List)
+        .map((e) => {
+      'assignment_id': e['id'],
+      'quiz_id': e['quiz']['id'],
+      'quiz_title': e['quiz']['quiz_title'],
+      'class_name': e['quiz']['class_room']['class_name'],
+    })
+        .toList();
+  }
   // static Future<http.Response> updateClass({
   //   required int classId,
   //   required Map<String, dynamic> body,
