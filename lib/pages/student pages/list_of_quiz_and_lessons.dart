@@ -15,18 +15,35 @@ class ClassContentScreen extends StatelessWidget {
     final response = await supabase
         .from('assignments')
         .select('''
+        id,
+        task_id,
+        tasks (
           id,
-          task_id,
-          tasks (
+          title,
+          description,
+          quizzes (
             id,
             title,
-            description,
-            quizzes (
+            quiz_questions (
               id,
-              title
+              question_text,
+              question_type,
+              sort_order,
+              time_limit_seconds,
+              question_options (
+                id,
+                option_text,
+                is_correct
+              ),
+              matching_pairs!matching_pairs_question_id_fkey (
+                id,
+                left_item,
+                right_item_url
+              )
             )
           )
-        ''')
+        )
+      ''')
         .eq('class_room_id', classRoomId);
 
     if (response.isEmpty) return [];
@@ -42,27 +59,28 @@ class ClassContentScreen extends StatelessWidget {
       };
     }).toList();
   }
+
   Future<List<QuizQuestion>> _fetchQuizQuestions(String quizId) async {
     final supabase = Supabase.instance.client;
 
     final response = await supabase
         .from('quiz_questions')
         .select('''
+      id,
+      question_text,
+      question_type,
+      sort_order,
+      question_options (
         id,
-        question_text,
-        question_type,
-        sort_order,
-        question_options (
-          id,
-          option_text,
-          is_correct
-        ),
-        matching_pairs (
-          id,
-          left_item,
-          right_item_url
-        )
-      ''')
+        option_text,
+        is_correct
+      ),
+      matching_pairs!matching_pairs_question_id_fkey (
+        id,
+        left_item,
+        right_item_url
+      )
+    ''')
         .eq('quiz_id', quizId)
         .order('sort_order', ascending: true);
 
@@ -130,8 +148,7 @@ class ClassContentScreen extends StatelessWidget {
     }).toList();
   }
 
-
-    @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -200,24 +217,26 @@ class ClassContentScreen extends StatelessWidget {
                       else
                         ...quizzes.map(
                               (quiz) => ListTile(
-                            leading: const Icon(Icons.quiz, color: Colors.green),
+                            leading:
+                            const Icon(Icons.quiz, color: Colors.green),
                             title: Text(quiz['title']),
-                                onTap: () async {
-                                  final questions = await _fetchQuizQuestions(quiz['id']);
+                            onTap: () async {
+                              final questions =
+                              await _fetchQuizQuestions(quiz['id']);
 
-                                  if (context.mounted) {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => QuizPreviewScreen(
-                                          title: quiz['title'],
-                                          questions: questions,
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                },
-                              ),
+                              if (context.mounted) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => QuizPreviewScreen(
+                                      title: quiz['title'],
+                                      questions: questions,
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                          ),
                         ),
                     ],
                   ),
