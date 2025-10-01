@@ -51,25 +51,29 @@ class ApiService {
         return 'drag_and_drop';
       case QuestionType.matching:
         return 'matching';
+      case QuestionType.audio:
+        return 'audio';
     }
   }
 
   // ========================
   // GET LESSONS
   // ========================
-  static Future<List<Map<String, dynamic>>?> getLessons() async {
+  static Future<List<Map<String, dynamic>>> getLessons() async {
     final response = await http.get(
-      Uri.parse('$supabaseUrl/tasks?select=*'),
+      Uri.parse('$supabaseUrl/tasks?select=id,title'),
       headers: {
         'apikey': supabaseKey,
         'Authorization': 'Bearer $supabaseKey',
       },
     );
+
     if (response.statusCode == 200) {
-      return List<Map<String, dynamic>>.from(jsonDecode(response.body));
+      final data = jsonDecode(response.body) as List<dynamic>;
+      return data.map((e) => Map<String, dynamic>.from(e)).toList();
     } else {
       print('Error fetching lessons: ${response.body}');
-      return null;
+      return []; // return empty list instead of null
     }
   }
 
@@ -185,9 +189,6 @@ class ApiService {
         body: jsonEncode({'task_id': taskId, 'title': title}),
       );
 
-      print('Quiz response status: ${quizResponse.statusCode}');
-      print('Quiz response body: ${quizResponse.body}');
-
       if (quizResponse.statusCode != 201) {
         print('❌ Error creating quiz: ${quizResponse.statusCode} ${quizResponse.body}');
         return null;
@@ -225,9 +226,13 @@ class ApiService {
           final questionId = jsonDecode(questionResponse.body)[0]['id'];
           print('✅ Question ${i + 1} added with ID: $questionId');
 
-          // 3️⃣ Add options for multiple choice
+          // 3️⃣ Multiple Choice Options
           if (q.type == QuestionType.multipleChoice && q.options != null) {
+            bool hasCorrect = false;
             for (var option in q.options!) {
+              final isCorrect = option == q.correctAnswer;
+              if (isCorrect) hasCorrect = true;
+
               await http.post(
                 Uri.parse('$supabaseUrl/question_options'),
                 headers: {
@@ -238,13 +243,17 @@ class ApiService {
                 body: jsonEncode({
                   'question_id': questionId,
                   'option_text': option,
-                  'is_correct': option == q.correctAnswer,
+                  'is_correct': isCorrect,
                 }),
               );
             }
+
+            if (!hasCorrect) {
+              print('⚠️ Warning: MCQ ${i + 1} has no correct answer selected!');
+            }
           }
 
-          // 4️⃣ Add matching pairs or drag & drop items
+          // 4️⃣ Matching / Drag & Drop
           if ((q.type == QuestionType.dragAndDrop || q.type == QuestionType.matching) &&
               q.matchingPairs != null) {
             for (var pair in q.matchingPairs!) {
@@ -264,7 +273,7 @@ class ApiService {
             }
           }
 
-          // 5️⃣ Add fill-in-the-blank answers
+          // 5️⃣ Fill in the Blank
           if (q.type == QuestionType.fillInTheBlank && q.correctAnswer != null) {
             await http.post(
               Uri.parse('$supabaseUrl/fill_in_the_blank_answers'),
@@ -295,12 +304,20 @@ class ApiService {
   // ADD LESSON
   // ========================
   static Future<Map<String, dynamic>?> addLesson({
-    required String readingLevelId,
+    String? readingLevelId, // nullable now
     required String title,
     String? description,
     int? timeLimitMinutes,
     bool unlocksNextLevel = false,
   }) async {
+    final body = {
+      if (readingLevelId != null) 'reading_level_id': readingLevelId,
+      'title': title,
+      'description': description,
+      'time_limit_minutes': timeLimitMinutes,
+      'unlocks_next_level': unlocksNextLevel,
+    };
+
     final response = await http.post(
       Uri.parse('$supabaseUrl/tasks'),
       headers: {
@@ -309,13 +326,7 @@ class ApiService {
         'Content-Type': 'application/json',
         'Prefer': 'return=representation',
       },
-      body: jsonEncode({
-        'reading_level_id': readingLevelId,
-        'title': title,
-        'description': description,
-        'time_limit_minutes': timeLimitMinutes,
-        'unlocks_next_level': unlocksNextLevel,
-      }),
+      body: jsonEncode(body),
     );
 
     if (response.statusCode == 201) {

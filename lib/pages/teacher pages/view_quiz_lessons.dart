@@ -1,6 +1,7 @@
+import 'package:deped_reading_app_laravel/api/supabase_api_service.dart';
+import 'package:deped_reading_app_laravel/helper/QuizHelper.dart';
+import 'package:deped_reading_app_laravel/models/quiz_questions.dart';
 import 'package:flutter/material.dart';
-import '../../../../api/supabase_api_service.dart';
-import '../../../../models/quiz_questions.dart';
 
 class LessonQuizListScreen extends StatefulWidget {
   const LessonQuizListScreen({super.key});
@@ -79,7 +80,12 @@ class _LessonQuizListScreenState extends State<LessonQuizListScreen>
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => QuizPreviewScreen(quizId: lesson['quiz_id']),
+                      builder: (_) => QuizPreviewScreen(
+                        quizId: lesson['quiz_id'],
+                        userRole: 'student', // replace with your actual logged-in role
+                        loggedInUserId: '123', // replace with your actual user id
+                        taskId: lesson['id'].toString(),
+                      ),
                     ),
                   );
                 }
@@ -107,7 +113,12 @@ class _LessonQuizListScreenState extends State<LessonQuizListScreen>
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => QuizPreviewScreen(quizId: quiz['id']),
+                    builder: (_) => QuizPreviewScreen(
+                      quizId: quiz['id'],
+                      userRole: 'student', // replace with actual role
+                      loggedInUserId: '123', // replace with actual user ID
+                      taskId: quiz['id'].toString(),
+                    ),
                   ),
                 );
               },
@@ -124,7 +135,17 @@ class _LessonQuizListScreenState extends State<LessonQuizListScreen>
 // ===========================================
 class QuizPreviewScreen extends StatefulWidget {
   final String quizId;
-  const QuizPreviewScreen({super.key, required this.quizId});
+  final String userRole;
+  final String loggedInUserId;
+  final String taskId;
+
+  const QuizPreviewScreen({
+    super.key,
+    required this.quizId,
+    required this.userRole,
+    required this.loggedInUserId,
+    required this.taskId,
+  });
 
   @override
   State<QuizPreviewScreen> createState() => _QuizPreviewScreenState();
@@ -134,6 +155,7 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
   List<QuizQuestion> _questions = [];
   int _currentIndex = 0;
   bool _isLoading = true;
+  QuizHelper? _quizHelper;
 
   @override
   void initState() {
@@ -143,20 +165,57 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
 
   Future<void> _loadQuiz() async {
     setState(() => _isLoading = true);
+
     try {
-      final fetchedQuestions = await ApiService.getQuizQuestions(widget.quizId) ?? [];
-      _questions = fetchedQuestions.map((q) {
-        q.options ??= [];
-        q.matchingPairs ??= [];
-        q.userAnswer = q.userAnswer ?? '';
-        return q;
-      }).toList();
+      // Fetch quiz questions from API / Supabase
+      final questionsData = await ApiService.getQuizQuestions(widget.quizId) ?? [];
+
+      // Ensure we're mapping only if we have Map data
+      if (questionsData.isNotEmpty && questionsData.first is Map<String, dynamic>) {
+        _questions = questionsData
+            .map<QuizQuestion>((e) => QuizQuestion.fromMap(e as Map<String, dynamic>))
+            .toList();
+      } else if (questionsData.isNotEmpty && questionsData.first is QuizQuestion) {
+        _questions = List<QuizQuestion>.from(questionsData);
+      } else {
+        _questions = [];
+      }
+
+      // Initialize QuizHelper if user is a student
+      if (_questions.isNotEmpty && widget.userRole == 'student') {
+        _quizHelper = QuizHelper(
+          studentId: widget.loggedInUserId,
+          taskId: widget.taskId,
+          questions: _questions,
+          supabase: ApiService.supabase,
+        );
+
+        // Optional: start timer for first question if needed
+        final firstQuestion = _questions[_currentIndex];
+        if (firstQuestion.timeLimitSeconds != null) {
+          _quizHelper!.startTimer(
+            firstQuestion.timeLimitSeconds!,
+            _submitQuiz,
+                () => setState(() {}),
+          );
+        }
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load quiz: $e')),
+        SnackBar(content: Text('Error loading quiz: $e')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _submitQuiz() async {
+    if (_quizHelper != null) {
+      await _quizHelper!.submitQuiz();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Quiz submitted! Score: ${_quizHelper!.score}')),
       );
     }
-    setState(() => _isLoading = false);
   }
 
   void _nextQuestion() {
@@ -175,7 +234,7 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
     final q = _questions[_currentIndex];
 
     return Scaffold(
-      appBar: AppBar(title: Text('Quiz Preview')),
+      appBar: AppBar(title: const Text('Quiz Preview')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -204,114 +263,6 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
                 }),
               ),
 
-            // DRAG & DROP
-            if (q.type == QuestionType.dragAndDrop && q.options!.isNotEmpty)
-              Expanded(
-                child: ReorderableListView(
-                  onReorder: (oldIndex, newIndex) {
-                    setState(() {
-                      if (newIndex > oldIndex) newIndex -= 1;
-                      final item = q.options?.removeAt(oldIndex);
-                      q.options?.insert(newIndex, item!);
-                    });
-                  },
-                  children: [
-                    for (int i = 0; i < q.options!.length; i++)
-                      ListTile(
-                        key: ValueKey(q.options![i] + i.toString()),
-                        title: Text(q.options![i]),
-                        trailing: const Icon(Icons.drag_handle),
-                      )
-                  ],
-                ),
-              ),
-
-            // MATCHING
-            if (q.type == QuestionType.matching && q.matchingPairs!.isNotEmpty)
-              Expanded(
-                child: Column(
-                  children: [
-                    const Text(
-                      'Drag the text to madddtch the images',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 10),
-                    Expanded(
-                      child: Row(
-                        children: [
-                          // Left column: draggable items
-                          Expanded(
-                            child: ListView(
-                              children: q.matchingPairs!
-                                  .where((pair) => pair.userSelected == null) // <-- only show unmatched items
-                                  .map(
-                                    (pair) => Draggable<String>(
-                                  data: pair.leftItem,
-                                  feedback: Material(
-                                    child: Container(
-                                      padding: const EdgeInsets.all(8),
-                                      color: Colors.blue,
-                                      child: Text(pair.leftItem, style: const TextStyle(color: Colors.white)),
-                                    ),
-                                  ),
-                                  childWhenDragging: Container(
-                                    padding: const EdgeInsets.all(8),
-                                    color: Colors.grey[300],
-                                    child: Text(pair.leftItem),
-                                  ),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(8),
-                                    margin: const EdgeInsets.symmetric(vertical: 4),
-                                    color: Colors.blue[100],
-                                    child: Text(pair.leftItem),
-                                  ),
-                                ),
-                              )
-                                  .toList(),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          // Right column: drop targets (images)
-                          Expanded(
-                            child: ListView(
-                              children: q.matchingPairs!
-                                  .map(
-                                    (pair) => DragTarget<String>(
-                                  onAccept: (received) {
-                                    setState(() {
-                                      pair.userSelected = received;
-                                    });
-                                  },
-                                  builder: (context, candidateData, rejectedData) {
-                                    return Container(
-                                      margin: const EdgeInsets.symmetric(vertical: 8),
-                                      padding: const EdgeInsets.all(8),
-                                      height: 100,
-                                      color: Colors.green[100],
-                                      child: Column(
-                                        children: [
-                                          Expanded(
-                                            child: (pair.rightItemUrl != null && pair.rightItemUrl!.isNotEmpty)
-                                                ? Image.network(pair.rightItemUrl!, fit: BoxFit.contain)
-                                                : const SizedBox(),
-                                          ),
-                                          Text(pair.userSelected ?? 'Drop text here'),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                ),
-                              )
-                                  .toList(),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
             // FILL IN THE BLANK
             if (q.type == QuestionType.fillInTheBlank)
               TextField(
@@ -327,6 +278,8 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
                   ElevatedButton(onPressed: _prevQuestion, child: const Text('Previous')),
                 if (_currentIndex < _questions.length - 1)
                   ElevatedButton(onPressed: _nextQuestion, child: const Text('Next')),
+                if (_currentIndex == _questions.length - 1)
+                  ElevatedButton(onPressed: _submitQuiz, child: const Text('Submit')),
               ],
             )
           ],

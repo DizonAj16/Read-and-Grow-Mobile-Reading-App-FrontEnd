@@ -1,15 +1,10 @@
-import 'dart:convert';
-import 'package:deped_reading_app_laravel/api/classroom_service.dart';
-import 'package:deped_reading_app_laravel/api/user_service.dart';
-import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'package:deped_reading_app_laravel/helper/QuizHelper.dart';
 import '../../../models/quiz_questions.dart';
 import '../teacher pages/quiz_preview_screen.dart';
-
 
 class StudentQuizPage extends StatefulWidget {
   final String quizId;
@@ -30,10 +25,8 @@ class StudentQuizPage extends StatefulWidget {
 class _StudentQuizPageState extends State<StudentQuizPage> {
   bool loading = true;
   List<QuizQuestion> questions = [];
-  String quizTitle = "";
-  int? timeLimit; // seconds
-  int remainingSeconds = 0;
-  Timer? timer;
+  String quizTitle = "Quiz";
+  QuizHelper? quizHelper;
 
   @override
   void initState() {
@@ -41,92 +34,77 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
     _loadQuiz();
   }
 
-  @override
-  void dispose() {
-    timer?.cancel();
-    super.dispose();
-  }
-
   Future<void> _loadQuiz() async {
     final supabase = Supabase.instance.client;
 
     try {
-      // 🔹 Fetch quiz info (title + time limit only)
+      debugPrint("📡 Fetching quiz title for quizId: ${widget.quizId}");
       final quizRes = await supabase
           .from('quizzes')
           .select('title')
           .eq('id', widget.quizId)
           .single();
 
-      quizTitle = quizRes['title'] ?? "Quiz";
-
-
-      // 🔹 Fetch related questions from quiz_questions
-      final qRes = await supabase
-          .from('quiz_questions')
-          .select()
-          .eq('quiz_id', widget.quizId);
-
-      questions = qRes.map<QuizQuestion>((q) => QuizQuestion.fromMap(q)).toList();
-
-      // 🔹 Start countdown if time limit exists
-      if (timeLimit != null && timeLimit! > 0) {
-        timer = Timer.periodic(const Duration(seconds: 1), (t) {
-          if (remainingSeconds > 0) {
-            setState(() => remainingSeconds--);
-          } else {
-            t.cancel();
-            _submitQuiz(auto: true);
-          }
-        });
+      if (quizRes == null || quizRes.isEmpty) {
+        debugPrint("⚠️ No quiz found with ID: ${widget.quizId}");
+        return;
       }
 
-      setState(() => loading = false);
-    } catch (e) {
+      quizTitle = quizRes['title'] ?? "Quiz";
+      debugPrint("✅ Quiz title loaded: $quizTitle");
+
+      debugPrint("📡 Fetching questions for quizId: ${widget.quizId}");
+      final qRes = await supabase
+          .from('quiz_questions')
+          .select('*, question_options(*), matching_pairs!matching_pairs_question_id_fkey(*)')
+          .eq('quiz_id', widget.quizId)
+          .order('sort_order', ascending: true);
+
+      debugPrint("📥 Raw questions response: $qRes");
+
+      questions = qRes.map<QuizQuestion>((q) => QuizQuestion.fromMap(q)).toList();
+      debugPrint("✅ Parsed ${questions.length} questions");
+
+      quizHelper = QuizHelper(
+        studentId: widget.studentId,
+        taskId: widget.assignmentId,
+        questions: questions,
+        supabase: supabase,
+      );
+
+      // Timer check
+      if (questions.isNotEmpty && questions.first.timeLimitSeconds != null) {
+        debugPrint("⏱ Starting timer for ${questions.first.timeLimitSeconds} seconds");
+        quizHelper!.startTimer(
+          questions.first.timeLimitSeconds!,
+              () => _submitQuiz(auto: true),
+              () => setState(() {}),
+        );
+      } else {
+        debugPrint("⏱ No timer found for first question.");
+      }
+
+    } catch (e, stack) {
       debugPrint("❌ Error loading quiz: $e");
+      debugPrint(stack.toString());
+    }
+
+    if (mounted) {
       setState(() => loading = false);
     }
   }
 
   Future<void> _submitQuiz({bool auto = false}) async {
-    timer?.cancel();
-
-    int score = 0;
-
-    for (var q in questions) {
-      if (q.type == QuestionType.multipleChoice ||
-          q.type == QuestionType.fillInTheBlank) {
-        if (q.userAnswer?.trim().toLowerCase() ==
-            q.correctAnswer?.trim().toLowerCase()) {
-          score++;
-        }
-      } else if (q.type == QuestionType.dragAndDrop) {
-        if (q.options?.join(",") == q.correctAnswer) score++;
-      } else if (q.type == QuestionType.matching) {
-        final allCorrect = q.matchingPairs!.every((p) =>
-        p.userSelected?.trim().toLowerCase() ==
-            p.correctAnswer?.trim().toLowerCase());
-        if (allCorrect) score++;
-      }
-    }
-
-    final supabase = Supabase.instance.client;
-
-    await supabase.from('quiz_submissions').insert({
-      'assignment_id': widget.assignmentId,
-      'student_id': widget.studentId,
-      'quiz_id': widget.quizId,
-      'score': score,
-      'submitted_at': DateTime.now().toIso8601String(),
-    });
+    await quizHelper?.submitQuiz();
 
     if (!mounted) return;
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
         title: Text(auto ? "Time's Up!" : "Quiz Submitted"),
-        content: Text("Your score: $score / ${questions.length}"),
+        content: Text("Your score: ${quizHelper?.score ?? 0} / ${questions.length}"),
         actions: [
           TextButton(
             onPressed: () => Navigator.popUntil(context, (route) => route.isFirst),
@@ -155,20 +133,26 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
       appBar: AppBar(
         title: Text(quizTitle),
         actions: [
-          if (timeLimit != null)
+          if (quizHelper?.timeRemaining != null && quizHelper!.timeRemaining > 0)
             Padding(
               padding: const EdgeInsets.all(12),
               child: Center(
                 child: Text(
-                  _formatTime(remainingSeconds),
+                  _formatTime(quizHelper!.timeRemaining),
                   style: const TextStyle(
-                      fontWeight: FontWeight.bold, color: Colors.red),
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  ),
                 ),
               ),
             ),
         ],
       ),
-      body: QuizPreviewScreen(title: quizTitle, questions: questions),
+      body: QuizPreviewScreen(
+        title: quizTitle,
+        questions: questions,
+        isPreview: false,
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _submitQuiz(),
         label: const Text("Submit Quiz"),

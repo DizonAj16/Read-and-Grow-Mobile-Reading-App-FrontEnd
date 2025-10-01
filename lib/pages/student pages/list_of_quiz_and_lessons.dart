@@ -1,13 +1,24 @@
+import 'package:deped_reading_app_laravel/pages/student%20pages/student_quiz_pages.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../models/quiz_questions.dart';
-import '../teacher pages/quiz_preview_screen.dart';
-
-class ClassContentScreen extends StatelessWidget {
+class ClassContentScreen extends StatefulWidget {
   final String classRoomId;
 
   const ClassContentScreen({super.key, required this.classRoomId});
+
+  @override
+  State<ClassContentScreen> createState() => _ClassContentScreenState();
+}
+
+class _ClassContentScreenState extends State<ClassContentScreen> {
+  late Future<List<Map<String, dynamic>>> _lessonsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _lessonsFuture = _fetchLessons();
+  }
 
   Future<List<Map<String, dynamic>>> _fetchLessons() async {
     final supabase = Supabase.instance.client;
@@ -15,41 +26,23 @@ class ClassContentScreen extends StatelessWidget {
     final response = await supabase
         .from('assignments')
         .select('''
-        id,
-        task_id,
-        tasks (
           id,
-          title,
-          description,
-          quizzes (
+          task_id,
+          tasks (
             id,
             title,
-            quiz_questions (
+            description,
+            quizzes (
               id,
-              question_text,
-              question_type,
-              sort_order,
-              time_limit_seconds,
-              question_options (
-                id,
-                option_text,
-                is_correct
-              ),
-              matching_pairs!matching_pairs_question_id_fkey (
-                id,
-                left_item,
-                right_item_url
-              )
+              title
             )
           )
-        )
-      ''')
-        .eq('class_room_id', classRoomId);
+        ''')
+        .eq('class_room_id', widget.classRoomId);
 
     if (response.isEmpty) return [];
 
-    // Transform into lesson list
-    return response.map((assignment) {
+    return response.map<Map<String, dynamic>>((assignment) {
       final task = assignment['tasks'];
       return {
         "id": task['id'],
@@ -60,144 +53,49 @@ class ClassContentScreen extends StatelessWidget {
     }).toList();
   }
 
-  Future<List<QuizQuestion>> _fetchQuizQuestions(String quizId) async {
-    final supabase = Supabase.instance.client;
-
-    final response = await supabase
-        .from('quiz_questions')
-        .select('''
-      id,
-      question_text,
-      question_type,
-      sort_order,
-      question_options (
-        id,
-        option_text,
-        is_correct
-      ),
-      matching_pairs!matching_pairs_question_id_fkey (
-        id,
-        left_item,
-        right_item_url
-      )
-    ''')
-        .eq('quiz_id', quizId)
-        .order('sort_order', ascending: true);
-
-    return response.map<QuizQuestion>((q) {
-      final type = q['question_type'] as String;
-
-      // ✅ Matching pairs from dedicated table
-      if (type == 'matching') {
-        final pairs = (q['matching_pairs'] as List<dynamic>? ?? [])
-            .map((pair) => MatchingPair(
-          leftItem: pair['left_item'] as String,
-          rightItemUrl: pair['right_item_url'] as String?,
-          userSelected: '',
-        ))
-            .toList();
-
-        return QuizQuestion(
-          id: q['id'],
-          questionText: q['question_text'],
-          type: QuestionType.matching,
-          matchingPairs: pairs,
-        );
-      }
-
-      // ✅ True/False
-      if (type == 'true_false') {
-        return QuizQuestion(
-          id: q['id'],
-          questionText: q['question_text'],
-          type: QuestionType.trueFalse,
-          options: ['True', 'False'],
-          correctAnswer: (q['question_options'] as List<dynamic>?)
-              ?.firstWhere((opt) => opt['is_correct'] == true,
-              orElse: () => {'option_text': null})['option_text'] ??
-              null,
-        );
-      }
-
-      // ✅ Fill-in-the-blank
-      if (type == 'fill_in_the_blank') {
-        return QuizQuestion(
-          id: q['id'],
-          questionText: q['question_text'],
-          type: QuestionType.fillInTheBlank,
-          correctAnswer: (q['question_options'] as List<dynamic>?)
-              ?.firstWhere((opt) => opt['is_correct'] == true,
-              orElse: () => {'option_text': null})['option_text'] ??
-              null,
-        );
-      }
-
-      // ✅ Multiple choice (default)
-      return QuizQuestion(
-        id: q['id'],
-        questionText: q['question_text'],
-        type: QuestionType.multipleChoice,
-        options: (q['question_options'] as List<dynamic>?)
-            ?.map((opt) => opt['option_text'] as String)
-            .toList() ??
-            [],
-        correctAnswer: (q['question_options'] as List<dynamic>?)
-            ?.firstWhere((opt) => opt['is_correct'] == true,
-            orElse: () => {'option_text': null})['option_text'],
-      );
-    }).toList();
+  Future<void> _refreshLessons() async {
+    final newLessons = await _fetchLessons();
+    setState(() {
+      _lessonsFuture = Future.value(newLessons);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Lessons & Quizzes"),
-      ),
-      body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: Supabase.instance.client
-            .from('assignments')
-            .stream(primaryKey: ['id'])
-            .eq('class_room_id', classRoomId)
-            .asyncMap((_) => _fetchLessons()), // refresh lessons each time
+      appBar: AppBar(title: const Text("Lessons & Quizzes")),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _lessonsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
+
           if (snapshot.hasError) {
-            return Center(
-              child: Text("Error: ${snapshot.error}"),
-            );
+            return Center(child: Text("Error: ${snapshot.error}"));
           }
 
           final lessons = snapshot.data ?? [];
 
           if (lessons.isEmpty) {
-            return const Center(
-              child: Text("No lessons or quizzes assigned yet."),
-            );
+            return const Center(child: Text("No lessons or quizzes assigned yet."));
           }
 
           return RefreshIndicator(
-            onRefresh: () async {
-              await _fetchLessons(); // manual refresh on pull-down
-            },
+            onRefresh: _refreshLessons,
             child: ListView.builder(
               itemCount: lessons.length,
               itemBuilder: (context, index) {
                 final lesson = lessons[index];
-                final quizzes =
-                (lesson['quizzes'] as List<dynamic>).cast<Map<String, dynamic>>();
+                final quizzes = (lesson['quizzes'] as List)
+                    .cast<Map<String, dynamic>>();
 
                 return Card(
                   margin: const EdgeInsets.all(12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
                   child: ExpansionTile(
                     leading: const Icon(Icons.menu_book, color: Colors.blue),
                     title: Text(
-                      lesson['title'],
+                      lesson['title'] ?? 'Untitled',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -215,29 +113,24 @@ class ClassContentScreen extends StatelessWidget {
                           child: Text("No quizzes for this lesson."),
                         )
                       else
-                        ...quizzes.map(
-                              (quiz) => ListTile(
-                            leading:
-                            const Icon(Icons.quiz, color: Colors.green),
-                            title: Text(quiz['title']),
-                            onTap: () async {
-                              final questions =
-                              await _fetchQuizQuestions(quiz['id']);
-
-                              if (context.mounted) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => QuizPreviewScreen(
-                                      title: quiz['title'],
-                                      questions: questions,
-                                    ),
-                                  ),
-                                );
-                              }
-                            },
-                          ),
-                        ),
+                        ...quizzes.map((quiz) => ListTile(
+                          leading:
+                          const Icon(Icons.quiz, color: Colors.green),
+                          title: Text(quiz['title']),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => StudentQuizPage(
+                                  quizId: quiz['id'],
+                                  assignmentId: lesson['id'],
+                                  studentId: Supabase
+                                      .instance.client.auth.currentUser!.id,
+                                ),
+                              ),
+                            );
+                          },
+                        )),
                     ],
                   ),
                 );

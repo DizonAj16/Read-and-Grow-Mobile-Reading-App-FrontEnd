@@ -110,7 +110,8 @@ class _ClassInfoPageState extends State<ClassInfoPage> {
       context,
       MaterialPageRoute(
         builder: (context) => AddLessonScreen(
-          readingLevelId: widget.classDetails['id'], // Or appropriate class/level id
+          readingLevelId: null,
+          classRoomId: widget.classDetails['id'], // 👈 pass class id here
         ),
       ),
     );
@@ -120,12 +121,13 @@ class _ClassInfoPageState extends State<ClassInfoPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AddLessonWithQuizScreen(readingLevelId: '147d07bf-47d8-4990-9129-5a9f18f269a4',
+        builder: (context) => AddLessonWithQuizScreen(
+          readingLevelId: widget.classDetails['reading_level_id'], // can be null
+          classDetails: widget.classDetails,
         ),
       ),
     );
   }
-
 
   Widget _buildContent(ThemeData theme, ColorScheme colorScheme) {
     final List<_ClassInfoItem> infoItems = [

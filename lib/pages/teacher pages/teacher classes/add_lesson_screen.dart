@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../api/supabase_api_service.dart';
 import 'add_quiz_screen.dart';
 import 'dart:io';
-
-import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:image_picker/image_picker.dart';
-
-import '../../../../api/supabase_api_service.dart';
-import 'add_quiz_screen.dart';
 
 class AddLessonScreen extends StatefulWidget {
-  final String readingLevelId;
+  final String? readingLevelId;
+  final String classRoomId; // 👈 only keep the class id
 
-  const AddLessonScreen({super.key, required this.readingLevelId});
+  const AddLessonScreen({
+    super.key,
+    this.readingLevelId,
+    required this.classRoomId,
+  });
 
   @override
   State<AddLessonScreen> createState() => _AddLessonScreenState();
@@ -31,7 +31,6 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
   String? _uploadedFileType; // image, pdf, video, audio
 
   Future<void> _pickFile() async {
-    // Pick any file type
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'mp4', 'mp3', 'wav', 'jpg', 'jpeg', 'png'],
@@ -41,7 +40,7 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
       File file = File(result.files.single.path!);
       String fileExtension = file.path.split('.').last.toLowerCase();
 
-      String? uploadedUrl = await ApiService.uploadFile(file); // Implement your upload
+      String? uploadedUrl = await ApiService.uploadFile(file);
 
       setState(() {
         _uploadedFileUrl = uploadedUrl;
@@ -71,20 +70,69 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
       unlocksNextLevel: _unlocksNextLevel,
     );
 
+    if (lesson == null) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Failed to add lesson')));
+      return;
+    }
+
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    final teacher = await Supabase.instance.client
+        .from('teachers')
+        .select('id')
+        .eq('user_id', userId!)
+        .maybeSingle();
+
+    if (teacher == null) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Teacher record not found')),
+      );
+      return;
+    }
+
+    final teacherId = teacher['id'];
+
+    await Supabase.instance.client.from('assignments').insert({
+      'class_room_id': widget.classRoomId,
+      'task_id': lesson['id'],
+      'teacher_id': teacherId,
+    });
+
     setState(() => _isLoading = false);
 
-    if (lesson != null) {
-      Navigator.push(
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Lesson added successfully!')));
+
+    // Ask if they want to add a quiz
+    final shouldAddQuiz = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Quiz?'),
+        content: const Text('Do you want to add a quiz to this lesson?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('No'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Yes'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldAddQuiz == true) {
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => AddQuizScreen(
-            lessonId: lesson['id'],
-          ),
+          builder: (context) => AddQuizScreen(lessonId: lesson['id']),
         ),
       );
     } else {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Failed to add lesson')));
+      Navigator.pop(context, lesson);
     }
   }
 
@@ -131,8 +179,14 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
         padding: const EdgeInsets.all(16),
         child: ListView(
           children: [
-            TextField(controller: _lessonTitleController, decoration: const InputDecoration(labelText: 'Lesson Title')),
-            TextField(controller: _lessonDescController, decoration: const InputDecoration(labelText: 'Description')),
+            TextField(
+              controller: _lessonTitleController,
+              decoration: const InputDecoration(labelText: 'Lesson Title'),
+            ),
+            TextField(
+              controller: _lessonDescController,
+              decoration: const InputDecoration(labelText: 'Description'),
+            ),
             TextField(
               controller: _lessonTimeController,
               decoration: const InputDecoration(labelText: 'Time Limit (minutes)'),
@@ -153,7 +207,9 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _isLoading ? null : _submitLesson,
-              child: _isLoading ? const CircularProgressIndicator() : const Text('Save Lesson'),
+              child: _isLoading
+                  ? const CircularProgressIndicator()
+                  : const Text('Save Lesson'),
             ),
           ],
         ),

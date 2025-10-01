@@ -7,30 +7,6 @@ import '../models/student_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ClassroomService {
-  // static Future<String> _getBaseUrl() async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   return prefs.getString('base_url') ?? "http://10.0.2.2:8000/api";
-  // }
-
-  // static Map<String, String> _authHeaders(String token) =>
-  //     {
-  //       'Authorization': 'Bearer $token',
-  //       'Accept': 'application/json',
-  //       'Content-Type': 'application/json',
-  //     };
-
-  // static Future<http.Response> createClass(Map<String, dynamic> body) async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   final token = prefs.getString('token');
-  //   if (token == null) throw Exception('No auth token found');
-  //
-  //   final url = Uri.parse('${await _getBaseUrl()}/classrooms');
-  //   return await http.post(
-  //     url,
-  //     headers: _authHeaders(token),
-  //     body: jsonEncode(body),
-  //   );
-  // }
 
   static Future<Map<String, dynamic>?> createClassV2({
     required String className,
@@ -42,14 +18,12 @@ class ClassroomService {
     final supabase = Supabase.instance.client;
 
     try {
-      // Get the currently logged-in user
       final currentUser = supabase.auth.currentUser;
       if (currentUser == null) {
         print('No logged-in teacher found');
         return null;
       }
 
-      // Optional: fetch the teacher_id from your teachers table using the user_id
       final teacher = await supabase
           .from('teachers')
           .select('id')
@@ -127,22 +101,6 @@ class ClassroomService {
     return results;
   }
 
-  // static Future<http.Response> updateClass({
-  //   required int classId,
-  //   required Map<String, dynamic> body,
-  // }) async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   final token = prefs.getString('token');
-  //   if (token == null) throw Exception('No auth token found');
-  //
-  //   final url = Uri.parse('${await _getBaseUrl()}/classrooms/$classId');
-  //   return await http.put(
-  //     url,
-  //     headers: _authHeaders(token),
-  //     body: jsonEncode(body),
-  //   );
-  // }
-
   static Future<Map<String, dynamic>?> updateClass({
     required String classId,
 
@@ -164,16 +122,6 @@ class ClassroomService {
       return null;
     }
   }
-  //
-  // static Future<http.Response> deleteClass(String classId) async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   final token = prefs.getString('token');
-  //   if (token == null) throw Exception('No auth token found');
-  //
-  //   final url = Uri.parse('${await _getBaseUrl()}/classrooms/$classId');
-  //   return await http.delete(url, headers: _authHeaders(token));
-  // }
-
 
   static Future<Map<String, dynamic>?> deleteClass(String classId) async {
     final supabase = Supabase.instance.client;
@@ -184,7 +132,7 @@ class ClassroomService {
           .delete()
           .eq('id', classId)
           .select()
-          .maybeSingle(); // use maybeSingle since delete might return nothing
+          .maybeSingle();
 
       return response;
     } catch (e) {
@@ -199,34 +147,30 @@ class ClassroomService {
     try {
       final response = await supabase
           .from('class_rooms')
-          .select()
+          .select('*, student_enrollments(*), teacher:teachers(teacher_name)')
           .eq('id', classId)
-          .single(); // throws if not found
+          .maybeSingle();
 
-      return response;
+      if (response == null) return {};
+
+      final classDetails = Map<String, dynamic>.from(response as Map);
+
+      // Count students
+      final studentCount =
+          (classDetails['student_enrollments'] as List<dynamic>?)?.length ?? 0;
+      classDetails['student_count'] = studentCount;
+
+      // Flatten teacher_name for UI
+      final teacher = classDetails['teacher'];
+      classDetails['teacher_name'] =
+      teacher != null ? teacher['teacher_name'] ?? 'N/A' : 'N/A';
+
+      return classDetails;
     } catch (e) {
       print('Error fetching class details: $e');
-      throw Exception('Failed to load class details: $e');
+      return {};
     }
   }
-
-
-  // static Future<List<Classroom>> fetchTeacherClasses() async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   final token = prefs.getString('token');
-  //   if (token == null) throw Exception('No auth token found');
-  //
-  //   final url = Uri.parse('${await _getBaseUrl()}/classrooms');
-  //   final response = await http.get(url, headers: _authHeaders(token));
-  //
-  //   if (response.statusCode == 200) {
-  //     final List<dynamic> data = jsonDecode(response.body);
-  //     return data.map((json) => Classroom.fromJson(json)).toList();
-  //   } else {
-  //     throw Exception('Failed to fetch classes');
-  //   }
-  // }
-  //
 
   /// TEACHER CLASSES
   static Future<List<Classroom>> fetchTeacherClasses() async {
@@ -236,16 +180,15 @@ class ClassroomService {
       final response = await supabase.from('class_rooms').select();
 
       if (response == null) {
-        return []; // ✅ make sure we always return a List<Classroom>
+        return [];
       }
 
-      // Supabase returns List<dynamic>, so map directly into Classroom objects
       return (response as List<dynamic>)
           .map((json) => Classroom.fromJson(Map<String, dynamic>.from(json)))
           .toList();
     } catch (e) {
       print('Error fetching teacher classes: $e');
-      return []; // ✅ keep non-nullable return type
+      return [];
     }
   }
   static Future<List<Classroom>> getStudentClasses() async {
@@ -255,7 +198,6 @@ class ClassroomService {
       final user = supabase.auth.currentUser;
       if (user == null) throw Exception("No logged in student");
 
-      // Una hanapin muna yung student_id gamit ang user_id
       final student = await supabase
           .from('students')
           .select('id')
@@ -264,7 +206,6 @@ class ClassroomService {
 
       final studentId = student['id'];
 
-      // Kunin lahat ng class_rooms kung saan enrolled si student
       final response = await supabase
           .from('student_enrollments')
           .select('''
@@ -305,7 +246,6 @@ class ClassroomService {
     final supabase = Supabase.instance.client;
 
     try {
-      // Assuming you have a join table `student_classes`
       final response = await supabase.from('student_classes').insert({
         'student_id': studentId,
         'class_room_id': classRoomId,
@@ -323,7 +263,6 @@ class ClassroomService {
     try {
       final supabase = Supabase.instance.client;
 
-      // Set the student's class_id to null to "unassign"
       final updates = await supabase
           .from('students')
           .update({'class_id': null})
@@ -337,7 +276,6 @@ class ClassroomService {
         );
       }
 
-      // Return success response
       return http.Response(
         '{"message": "Student unassigned successfully"}',
         200,
@@ -358,7 +296,6 @@ class ClassroomService {
     try {
       final supabase = Supabase.instance.client;
 
-      // Query all students where class_id matches
       final response = await supabase
           .from('students')
           .select()
@@ -379,7 +316,6 @@ class ClassroomService {
     try {
       final supabase = Supabase.instance.client;
 
-      // Query all students where class_id is NULL (unassigned)
       final response = await supabase
           .from('students')
           .select()
@@ -395,11 +331,10 @@ class ClassroomService {
     }
   }
 
-  static Future<Map<String, dynamic>> joinClass(String classCode) async {  // doneeeeee
+  static Future<Map<String, dynamic>> joinClass(String classCode) async {
     final supabase = Supabase.instance.client;
 
     try {
-      // Find class by classroom_code
       final classData = await supabase
           .from('class_rooms')
           .select()
@@ -413,7 +348,6 @@ class ClassroomService {
         };
       }
 
-      // Get current user
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) {
         return {
@@ -422,7 +356,6 @@ class ClassroomService {
         };
       }
 
-      // Insert into student_classes pivot table
       final inserted = await supabase.from('student_classes').insert({
         'student_id': userId,
         'class_id': classData['id'],
@@ -443,39 +376,32 @@ class ClassroomService {
   }
 
 
-  static Future<http.Response?> uploadClassBackground({  // doneeeeee
-    required String classId, // UUID string
+  static Future<http.Response?> uploadClassBackground({
+    required String classId,
     required String filePath,
   }) async {
     try {
       final supabase = Supabase.instance.client;
 
-      // Generate unique path
       final fileName =
           'class_backgrounds/$classId-${DateTime
           .now()
           .millisecondsSinceEpoch}.jpg';
 
-      // Read file as bytes
       final fileBytes = await File(filePath).readAsBytes();
-
-      // Upload to Supabase storage bucket
       await supabase.storage.from('class_backgrounds').uploadBinary(
         fileName,
         fileBytes,
         fileOptions: const FileOptions(upsert: true),
       );
 
-      // Get public URL of uploaded file
       final publicUrl =
       supabase.storage.from('class_backgrounds').getPublicUrl(fileName);
 
-      // Update class record with new background
       final response = await supabase.from('class_rooms').update({
         'background_url': publicUrl,
       }).eq('id', classId).select().single();
 
-      // Return a fake http.Response for compatibility
       return http.Response(
         jsonEncode({'background_image': publicUrl}),
         200,
