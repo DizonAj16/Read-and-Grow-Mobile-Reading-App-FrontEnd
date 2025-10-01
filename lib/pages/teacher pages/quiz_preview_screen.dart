@@ -123,21 +123,31 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
           ? Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: q.matchingPairs!.map((pair) {
-          return Row(
-            children: [
-              Expanded(child: Text(pair.leftItem)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: (pair.rightItemUrl != null &&
-                    pair.rightItemUrl!.isNotEmpty)
-                    ? Image.network(
-                  pair.rightItemUrl!,
-                  height: 60,
-                  fit: BoxFit.cover,
-                )
-                    : const SizedBox(),
-              ),
-            ],
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    pair.leftItem,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: (pair.rightItemUrl != null && pair.rightItemUrl!.isNotEmpty)
+                      ? Image.network(
+                    pair.rightItemUrl!,
+                    height: 80,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Text('Failed to load image');
+                    },
+                  )
+                      : const Text('No image'),
+                ),
+              ],
+            ),
           );
         }).toList(),
       )
@@ -146,82 +156,85 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
           const SizedBox(height: 8),
           const Text(
             'Drag the text to match the images',
-            style: TextStyle(fontWeight: FontWeight.bold),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: ListView(
-                  shrinkWrap: true,
-                  children: q.matchingPairs!
-                      .map((pair) => Draggable<String>(
-                    data: pair.leftItem,
-                    feedback: Material(
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        color: Colors.blue,
-                        child: Text(
-                          pair.leftItem,
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                      ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: q.matchingPairs!.map((pair) {
+              return Draggable<String>(
+                data: pair.leftItem,
+                feedback: Material(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    color: Colors.blue,
+                    child: Text(
+                      pair.leftItem,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                     ),
-                    childWhenDragging: Container(
-                      padding: const EdgeInsets.all(8),
-                      color: Colors.grey[300],
-                      child: Text(pair.leftItem),
-                    ),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      margin: const EdgeInsets.all(4),
-                      color: Colors.blue[100],
-                      child: Text(pair.leftItem),
-                    ),
-                  ))
-                      .toList(),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: ListView(
-                  shrinkWrap: true,
-                  children: q.matchingPairs!
-                      .map((pair) => DragTarget<String>(
-                    onAccept: (received) {
-                      setState(() {
-                        pair.userSelected = received;
-                      });
-                    },
-                    builder: (context, candidateData, rejectedData) {
-                      return Container(
-                        margin: const EdgeInsets.symmetric(vertical: 8),
-                        padding: const EdgeInsets.all(8),
-                        height: 100,
-                        color: Colors.green[100],
-                        child: Column(
-                          children: [
-                            Expanded(
-                              child: (pair.rightItemUrl != null &&
-                                  pair.rightItemUrl!.isNotEmpty)
-                                  ? Image.network(
-                                pair.rightItemUrl!,
-                                fit: BoxFit.contain,
-                              )
-                                  : const SizedBox(),
+                childWhenDragging: Container(
+                  padding: const EdgeInsets.all(12),
+                  color: Colors.grey[300],
+                  child: Text(pair.leftItem),
+                ),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  color: Colors.blue[100],
+                  child: Text(pair.leftItem, style: const TextStyle(fontWeight: FontWeight.w500)),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 16),
+          Column(
+            children: q.matchingPairs!.map((pair) {
+              return DragTarget<String>(
+                onAccept: (received) {
+                  setState(() {
+                    pair.userSelected = received;
+                  });
+                },
+                builder: (context, candidateData, rejectedData) {
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(12),
+                    color: Colors.green[100],
+                    child: Row(
+                      children: [
+                        if (pair.rightItemUrl != null && pair.rightItemUrl!.isNotEmpty)
+                          Image.network(
+                            pair.rightItemUrl!,
+                            height: 100,
+                            width: 100,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                height: 100,
+                                width: 100,
+                                color: Colors.grey[300],
+                                child: const Icon(Icons.error),
+                              );
+                            },
+                          ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Text(
+                            pair.userSelected!.isEmpty ? 'Drop text here' : pair.userSelected!,
+                            style: TextStyle(
+                              color: pair.userSelected!.isEmpty ? Colors.grey : Colors.black,
+                              fontWeight: pair.userSelected!.isEmpty ? FontWeight.normal : FontWeight.bold,
                             ),
-                            Text(pair.userSelected!.isEmpty
-                                ? 'Drop text here'
-                                : pair.userSelected!),
-                          ],
+                          ),
                         ),
-                      );
-                    },
-                  ))
-                      .toList(),
-                ),
-              ),
-            ],
+                      ],
+                    ),
+                  );
+                },
+              );
+            }).toList(),
           ),
         ],
       );

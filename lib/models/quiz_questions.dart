@@ -31,6 +31,29 @@ class QuizQuestion {
     String? userAnswer,
   }) : userAnswer = userAnswer ?? '';
 
+  /// Creates a copy of the QuizQuestion with updated fields
+  QuizQuestion copyWith({
+    String? id,
+    String? questionText,
+    QuestionType? type,
+    List<String>? options,
+    String? correctAnswer,
+    List<MatchingPair>? matchingPairs,
+    String? userAnswer,
+    int? timeLimitSeconds,
+  }) {
+    return QuizQuestion(
+      id: id ?? this.id,
+      questionText: questionText ?? this.questionText,
+      type: type ?? this.type,
+      options: options ?? this.options,
+      correctAnswer: correctAnswer ?? this.correctAnswer,
+      matchingPairs: matchingPairs ?? this.matchingPairs,
+      userAnswer: userAnswer ?? this.userAnswer,
+      timeLimitSeconds: timeLimitSeconds ?? this.timeLimitSeconds,
+    );
+  }
+
   /// Flexible parser from a Map (works with Supabase rows or JSON)
   factory QuizQuestion.fromMap(Map<String, dynamic> map) {
     final id = map['id']?.toString();
@@ -130,7 +153,7 @@ class QuizQuestion {
   Map<String, dynamic> toMap() => {
     'id': id,
     'question_text': questionText,
-    'question_type': type.name, // use enum name for DB enum
+    'question_type': type.name,
     'options': options,
     'correct_answer': correctAnswer,
     'matching_pairs': matchingPairs?.map((p) => p.toMap()).toList(),
@@ -156,12 +179,10 @@ class MatchingPair {
 
   factory MatchingPair.fromMap(Map<String, dynamic> map) {
     return MatchingPair(
-      leftItem: (map['leftItem'] ?? map['left'] ?? map['text'] ?? map['label'] ?? '').toString(),
-      rightItemUrl: (map['rightItemUrl'] ?? map['right'] ?? map['imageUrl'] ?? map['url'])?.toString(),
-      userSelected: map['userSelected']?.toString() ?? '',
-      correctAnswer: map['correct_answer']?.toString() ??
-          map['correctAnswer']?.toString() ??
-          map['answer']?.toString(),
+      leftItem: (map['left_item'] ?? map['leftItem'] ?? map['left'] ?? map['text'] ?? map['label'] ?? '').toString(),
+      rightItemUrl: (map['right_item_url'] ?? map['rightItemUrl'] ?? map['right'] ?? map['imageUrl'] ?? map['url'])?.toString(),
+      userSelected: map['userSelected']?.toString() ?? map['user_selected']?.toString() ?? '',
+      correctAnswer: map['correct_answer']?.toString() ?? map['correctAnswer']?.toString() ?? map['answer']?.toString(),
     );
   }
 
