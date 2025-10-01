@@ -38,7 +38,7 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
     final supabase = Supabase.instance.client;
 
     try {
-      debugPrint("📡 Fetching quiz title for quizId: ${widget.quizId}");
+      // Fetch quiz title
       final quizRes = await supabase
           .from('quizzes')
           .select('title')
@@ -51,20 +51,17 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
       }
 
       quizTitle = quizRes['title'] ?? "Quiz";
-      debugPrint("✅ Quiz title loaded: $quizTitle");
 
-      debugPrint("📡 Fetching questions for quizId: ${widget.quizId}");
+      // Fetch quiz questions
       final qRes = await supabase
           .from('quiz_questions')
           .select('*, question_options(*), matching_pairs!matching_pairs_question_id_fkey(*)')
           .eq('quiz_id', widget.quizId)
           .order('sort_order', ascending: true);
 
-      debugPrint("📥 Raw questions response: $qRes");
-
       questions = qRes.map<QuizQuestion>((q) => QuizQuestion.fromMap(q)).toList();
-      debugPrint("✅ Parsed ${questions.length} questions");
 
+      // Initialize QuizHelper
       quizHelper = QuizHelper(
         studentId: widget.studentId,
         taskId: widget.assignmentId,
@@ -72,17 +69,11 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
         supabase: supabase,
       );
 
-      // Timer check
-      if (questions.isNotEmpty && questions.first.timeLimitSeconds != null) {
-        debugPrint("⏱ Starting timer for ${questions.first.timeLimitSeconds} seconds");
-        quizHelper!.startTimer(
-          questions.first.timeLimitSeconds!,
-              () => _submitQuiz(auto: true),
-              () => setState(() {}),
-        );
-      } else {
-        debugPrint("⏱ No timer found for first question.");
-      }
+      // Start timer from database
+      quizHelper!.startTimerFromDatabase(
+            () => _submitQuiz(auto: true), // onTimeUp
+            () => setState(() {}),          // onTick
+      );
 
     } catch (e, stack) {
       debugPrint("❌ Error loading quiz: $e");
@@ -95,8 +86,123 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
   }
 
   Future<void> _submitQuiz({bool auto = false}) async {
-    await quizHelper?.submitQuiz();
+    if (quizHelper == null) return;
 
+    final supabase = quizHelper!.supabase;
+
+    // 1️⃣ Get the `assignment_id` using `task_id`
+    final assignmentRes = await supabase
+        .from('assignments')
+        .select('id')
+        .eq('task_id', quizHelper!.taskId) // Look for the assignment based on task_id
+        .single();
+
+    if (assignmentRes == null) {
+      // Handle the case where the assignment doesn't exist
+      print("No assignment found for task_id ${quizHelper!.taskId}");
+      return;
+    }
+
+    final assignmentId = assignmentRes['id'];
+
+    // 2️⃣ Get the `student_id` directly from `users` table (since you're not using a separate students table)
+    final studentRes = await supabase
+        .from('users')
+        .select('id')
+        .eq('role', 'student') // Ensure you're getting the student role
+        .eq('id', widget.studentId) // Pass the `user_id` here which acts as student ID
+        .single();
+
+    if (studentRes == null) {
+      // Handle the case where the user is not a student
+      print("No student found with user_id ${widget.studentId}");
+      return;
+    }
+
+    final studentId = studentRes['id']; // This is the 'user' ID for the student (used as student_id)
+
+    // 3️⃣ Calculate score for all question types
+    int correct = 0;
+    int wrong = 0;
+    final List<Map<String, dynamic>> activityDetails = [];
+
+    for (var q in quizHelper!.questions) {
+      bool isCorrect = false;
+
+      switch (q.type) {
+        case QuestionType.multipleChoice:
+        case QuestionType.fillInTheBlank:
+        // Fetch options for this question
+          final optionsRes = await supabase
+              .from('question_options')
+              .select('question_id, option_text, is_correct')
+              .filter('question_id', 'in', '(${q.id})'); // fixed `.in_()`
+
+          List opts = optionsRes as List? ?? [];
+
+          if (opts.isNotEmpty) {
+            final correctOption = opts.firstWhere(
+                  (o) => o['is_correct'] == true,
+              orElse: () => opts.first as Map<String, dynamic>, // Explicit cast
+            );
+
+            isCorrect = q.userAnswer.trim() == correctOption['option_text'].trim();
+          }
+          break;
+
+        case QuestionType.matching:
+          isCorrect = q.matchingPairs!.every((p) => p.userSelected == p.leftItem);
+          break;
+
+        case QuestionType.dragAndDrop:
+        // example logic
+          isCorrect = q.options!.asMap().entries.every((e) => e.key == e.value);
+          break;
+
+        default:
+          isCorrect = false;
+      }
+
+      if (isCorrect) correct++;
+      else wrong++;
+
+      activityDetails.add(q.toMap());
+    }
+
+    // 4️⃣ Update helper score
+    quizHelper!.score = correct;
+
+    // 5️⃣ Update student_task_progress
+    final progressUpdate = {
+      'student_id': studentId, // Using the user_id as student_id here
+      'task_id': quizHelper!.taskId,
+      'attempts_left': (3 - quizHelper!.currentAttempt),
+      'score': correct,
+      'max_score': quizHelper!.questions.length,
+      'activity_details': activityDetails,
+      'correct_answers': correct,
+      'wrong_answers': wrong,
+      'completed': correct == quizHelper!.questions.length,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+
+    await supabase.from('student_task_progress').upsert(progressUpdate);
+
+    // 6️⃣ Store individual submission attempt with correct `assignment_id`
+    await supabase.from('student_submissions').insert({
+      'assignment_id': assignmentId, // Use the retrieved assignment_id
+      'student_id': studentId, // Use the user_id (student_id) here
+      'attempt_number': quizHelper!.currentAttempt,
+      'score': correct,
+      'max_score': quizHelper!.questions.length,
+      'quiz_answers': activityDetails,
+      'submitted_at': DateTime.now().toIso8601String(),
+    });
+
+    // 7️⃣ Increment attempt counter
+    quizHelper!.currentAttempt++;
+
+    // 8️⃣ Show result dialog
     if (!mounted) return;
 
     showDialog(
@@ -104,7 +210,7 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
       barrierDismissible: false,
       builder: (_) => AlertDialog(
         title: Text(auto ? "Time's Up!" : "Quiz Submitted"),
-        content: Text("Your score: ${quizHelper?.score ?? 0} / ${questions.length}"),
+        content: Text("Your score: $correct / ${quizHelper!.questions.length}"),
         actions: [
           TextButton(
             onPressed: () => Navigator.popUntil(context, (route) => route.isFirst),
@@ -131,7 +237,8 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(quizTitle),
+        automaticallyImplyLeading: false,
+        title: null,
         actions: [
           if (quizHelper?.timeRemaining != null && quizHelper!.timeRemaining > 0)
             Padding(

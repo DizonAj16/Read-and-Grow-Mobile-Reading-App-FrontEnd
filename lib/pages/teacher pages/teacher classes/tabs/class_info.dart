@@ -16,50 +16,40 @@ class ClassInfoPage extends StatefulWidget {
 }
 
 class _ClassInfoPageState extends State<ClassInfoPage> {
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    // Simulate data loading
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
+    // Show shimmer only if classDetails is empty
+    final isLoading = widget.classDetails.isEmpty;
+
     return Scaffold(
-      body: _isLoading
+      body: isLoading
           ? _buildShimmerLoading()
           : _buildContent(theme, colorScheme),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           showModalBottomSheet(
             context: context,
-            shape: RoundedRectangleBorder(
+            shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
             ),
             builder: (context) => Wrap(
               children: [
                 ListTile(
-                  leading: Icon(Icons.book),
-                  title: Text('Add Lesson'),
+                  leading: const Icon(Icons.book),
+                  title: const Text('Add Lesson'),
                   onTap: () {
-                    Navigator.pop(context); // Close the bottom sheet
+                    Navigator.pop(context);
                     _onAddLesson();
                   },
                 ),
                 ListTile(
-                  leading: Icon(Icons.quiz),
-                  title: Text('Add Quiz'),
+                  leading: const Icon(Icons.quiz),
+                  title: const Text('Add Quiz'),
                   onTap: () {
-                    Navigator.pop(context); // Close the bottom sheet
+                    Navigator.pop(context);
                     _onAddQuiz();
                   },
                 ),
@@ -67,41 +57,8 @@ class _ClassInfoPageState extends State<ClassInfoPage> {
             ),
           );
         },
-        child: Icon(Icons.add),
+        child: const Icon(Icons.add),
       ),
-
-    );
-  }
-
-// Show modal bottom sheet with options
-  void _showAddOptions(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        return Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.book),
-              title: const Text("Add Lesson"),
-              onTap: () {
-                Navigator.pop(context);
-                _onAddLesson();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.quiz),
-              title: const Text("Add Quiz"),
-              onTap: () {
-                Navigator.pop(context);
-                _onAddQuiz();
-              },
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -111,7 +68,7 @@ class _ClassInfoPageState extends State<ClassInfoPage> {
       MaterialPageRoute(
         builder: (context) => AddLessonScreen(
           readingLevelId: null,
-          classRoomId: widget.classDetails['id'], // 👈 pass class id here
+          classRoomId: widget.classDetails['id'],
         ),
       ),
     );
@@ -122,7 +79,7 @@ class _ClassInfoPageState extends State<ClassInfoPage> {
       context,
       MaterialPageRoute(
         builder: (context) => AddLessonWithQuizScreen(
-          readingLevelId: widget.classDetails['reading_level_id'], // can be null
+          readingLevelId: widget.classDetails['reading_level_id'],
           classDetails: widget.classDetails,
         ),
       ),
@@ -186,10 +143,10 @@ class _ClassInfoPageState extends State<ClassInfoPage> {
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
               childAspectRatio: 1.2,
-              mainAxisExtent: 160, // Increased height for better spacing
+              mainAxisExtent: 160,
             ),
             delegate: SliverChildBuilderDelegate(
-              (context, index) => _InfoCard(item: infoItems[index]),
+                  (context, index) => _InfoCard(item: infoItems[index]),
               childCount: infoItems.length,
             ),
           ),
@@ -241,7 +198,7 @@ class _ClassInfoPageState extends State<ClassInfoPage> {
               mainAxisExtent: 160,
             ),
             delegate: SliverChildBuilderDelegate(
-              (context, index) => _ShimmerInfoCard(),
+                  (context, index) => _ShimmerInfoCard(),
               childCount: 7,
             ),
           ),
@@ -261,6 +218,7 @@ class _ClassInfoPageState extends State<ClassInfoPage> {
   }
 }
 
+// ----------------- Other supporting classes remain unchanged -----------------
 class _ShimmerInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -272,36 +230,6 @@ class _ShimmerInfoCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Container(width: 80, height: 16, color: Colors.white),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: Align(
-                alignment: Alignment.bottomLeft,
-                child: Container(
-                  width: double.infinity,
-                  height: 28,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -347,22 +275,21 @@ class _InfoCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap:
-            item.isCopyable && item.value != "N/A"
-                ? () {
-                  Clipboard.setData(ClipboardData(text: item.value));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text("Copied ${item.label} to clipboard"),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      duration: const Duration(seconds: 1),
-                    ),
-                  );
-                }
-                : null,
+        onTap: item.isCopyable && item.value != "N/A"
+            ? () {
+          Clipboard.setData(ClipboardData(text: item.value));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Copied ${item.label} to clipboard"),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              duration: const Duration(seconds: 1),
+            ),
+          );
+        }
+            : null,
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(

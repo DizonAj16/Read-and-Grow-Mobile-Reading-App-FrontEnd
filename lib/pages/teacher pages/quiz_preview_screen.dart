@@ -1,4 +1,5 @@
-import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/tabs/class_info.dart';
+import 'package:deped_reading_app_laravel/api/classroom_service.dart';
+import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/class_details_page.dart';
 import 'package:flutter/material.dart';
 import '../../../../models/quiz_questions.dart';
 
@@ -29,6 +30,7 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
   @override
   void initState() {
     super.initState();
+    // Initialize user answers
     for (var q in widget.questions) {
       q.userAnswer = q.userAnswer ?? '';
       q.matchingPairs ??= [];
@@ -38,7 +40,7 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
     }
   }
 
-  // Helper function to build the question based on its type
+  // Build question widget
   Widget _buildQuestionWidget(QuizQuestion q) {
     if (q.type == QuestionType.multipleChoice && q.options!.isNotEmpty) {
       return Column(
@@ -149,7 +151,6 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
           const SizedBox(height: 8),
           Row(
             children: [
-              // Draggable text
               Expanded(
                 child: ListView(
                   shrinkWrap: true,
@@ -182,8 +183,6 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
                 ),
               ),
               const SizedBox(width: 10),
-
-              // Drop targets
               Expanded(
                 child: ListView(
                   shrinkWrap: true,
@@ -228,7 +227,15 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
       );
     }
 
-    return SizedBox(); // In case no type matches
+    return const SizedBox();
+  }
+
+  // Refresh class details from API
+  Future<Map<String, dynamic>> _fetchUpdatedClassDetails() async {
+    if (widget.classDetails == null) return {};
+    final classId = widget.classDetails!['id'];
+    final updatedData = await ClassroomService.getClassDetails(classId);
+    return updatedData;
   }
 
   @override
@@ -236,30 +243,25 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
     return WillPopScope(
       onWillPop: () async {
         if (widget.isPreview && widget.classDetails != null) {
-          // Prevent teacher from going back to quiz form
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ClassInfoPage(
-                classDetails: widget.classDetails!,
+          final updatedData = await _fetchUpdatedClassDetails();
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ClassDetailsPage(classDetails: updatedData),
               ),
-            ),
-                (route) => false,
-          );
+            );
+          }
           return false;
-        } else {
-          // ✅ Student: normal back
-          return true;
         }
+        return true;
       },
       child: Scaffold(
         appBar: AppBar(
           title: Text(widget.isPreview
               ? 'Quiz Preview: ${widget.title}'
               : widget.title),
-          leading: widget.isPreview
-              ? null // teachers rely on Finish button
-              : const BackButton(), // students get normal back
+          leading: widget.isPreview ? null : const BackButton(),
         ),
         body: ListView(
           padding: const EdgeInsets.all(16),
@@ -279,30 +281,30 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
-                      _buildQuestionWidget(q), // Render the question here
+                      _buildQuestionWidget(q),
                     ],
                   ),
                 ),
               );
             }).toList(),
 
-            // ✅ Add Finish button for preview
             if (widget.isPreview && widget.classDetails != null)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 child: SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ClassInfoPage(
-                            classDetails: widget.classDetails!,
+                    onPressed: () async {
+                      final updatedData = await _fetchUpdatedClassDetails();
+                      if (mounted) {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                ClassDetailsPage(classDetails: updatedData),
                           ),
-                        ),
-                            (route) => false,
-                      );
+                        );
+                      }
                     },
                     child: const Text("Finish"),
                   ),

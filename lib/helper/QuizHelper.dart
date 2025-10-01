@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart'; // for VoidCallback
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/quiz_questions.dart';
 
@@ -22,8 +22,21 @@ class QuizHelper {
     this.maxAttempts = 3,
   });
 
-  void startTimer(int seconds, VoidCallback onTimeUp, VoidCallback onTick) {
-    timeRemaining = seconds;
+  /// Fetch time_limit_minutes from tasks table
+  Future<int> fetchTaskTimeLimit() async {
+    final task = await supabase
+        .from('tasks')
+        .select('time_limit_minutes')
+        .eq('id', taskId)
+        .maybeSingle();
+    return task?['time_limit_minutes'] ?? 0;
+  }
+
+  /// Start timer synced with database
+  Future<void> startTimerFromDatabase(
+      VoidCallback onTimeUp, VoidCallback onTick) async {
+    final minutes = await fetchTaskTimeLimit();
+    timeRemaining = minutes * 60;
     timer?.cancel();
     timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (timeRemaining <= 0) {
@@ -36,16 +49,22 @@ class QuizHelper {
     });
   }
 
+  /// Calculate score
   void calculateScore() {
     int tempScore = 0;
     for (var q in questions) {
       if (q.userAnswer.isNotEmpty && q.userAnswer == q.correctAnswer) {
         tempScore++;
+      } else if (q.type == QuestionType.matching) {
+        if (q.matchingPairs!.every((p) => p.userSelected == p.leftItem)) {
+          tempScore++;
+        }
       }
     }
     score = tempScore;
   }
 
+  /// Submit quiz
   Future<void> submitQuiz() async {
     calculateScore();
     if (currentAttempt > maxAttempts) return;
@@ -64,4 +83,8 @@ class QuizHelper {
     currentAttempt++;
   }
 
+  /// Cancel timer
+  void cancelTimer() {
+    timer?.cancel();
+  }
 }
