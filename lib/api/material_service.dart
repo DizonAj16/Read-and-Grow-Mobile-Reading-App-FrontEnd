@@ -1,179 +1,154 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-import '../models/material_model.dart'; // Updated model name
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/material_model.dart';
 
 class MaterialService {
-  static Future<String> _getBaseUrl() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('base_url') ?? "http://10.0.2.2:8000/api";
-  }
+  static final supabase = Supabase.instance.client;
 
-  static Map<String, String> _authHeaders(String token) => {
-    'Authorization': 'Bearer $token',
-    'Accept': 'application/json',
-  };
-
-static Future<bool> uploadMaterialFile({
-  required File file,
-  required String materialTitle,
-  required String classroomId,
-  String? materialType,
-  String? description, // Added description parameter
-}) async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final baseUrl = await _getBaseUrl();
-    final token = prefs.getString('token') ?? '';
-    final uri = Uri.parse('$baseUrl/teachers/materials');
-
-    final request = http.MultipartRequest('POST', uri);
-    request.headers.addAll(_authHeaders(token));
-
-    // Add the file
-    request.files.add(await http.MultipartFile.fromPath(
-      'material_file', 
-      file.path
-    ));
-    
-    // Add form fields
-    request.fields['material_title'] = materialTitle;
-    request.fields['class_room_id'] = classroomId.toString();
-    
-    // Add material type if provided
-    if (materialType != null) {
-      request.fields['material_type'] = materialType;
-    }
-    
-    // Add description if provided
-    if (description != null && description.isNotEmpty) {
-      request.fields['description'] = description;
-    }
-
-    final response = await request.send();
-
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      return true;
-    } else {
-      final respStr = await response.stream.bytesToString();
-      print("Upload failed: ${response.statusCode}");
-      print("Server response: $respStr");
-      return false;
-    }
-  } catch (e) {
-    print("Exception during upload: $e");
-    return false;
-  }
-}
-
-  static Future<List<MaterialModel>> getClassroomMaterials(String classId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final baseUrl = await _getBaseUrl();
-    final token = prefs.getString('token') ?? '';
-
-    final response = await http.get(
-      Uri.parse('$baseUrl/teachers/materials/$classId'),
-      headers: _authHeaders(token),
-    );
-
-    if (response.statusCode == 200) {
-      final List<dynamic> jsonData = jsonDecode(response.body);
-      return jsonData.map<MaterialModel>((item) {
-        final rawPath = item['material_file_url'] ?? item['material_file_path'] ?? '';
-        final correctedUrl = rawPath.startsWith('http') 
-          ? rawPath 
-          : '$baseUrl/storage/$rawPath';
-        
-        return MaterialModel.fromJson({
-          ...item,
-          'material_file_url': correctedUrl
-        });
-      }).toList();
-    } else {
-      throw Exception('Failed to fetch materials list: ${response.statusCode}');
-    }
-  }
-
-  static Future<List<MaterialModel>> fetchStudentMaterials() async {
-    final prefs = await SharedPreferences.getInstance();
-    final baseUrl = await _getBaseUrl();
-    final token = prefs.getString('token') ?? '';
-
-    final response = await http.get(
-      Uri.parse('$baseUrl/students/materials'), // Update this route if needed
-      headers: _authHeaders(token),
-    );
-
-    if (response.statusCode == 200) {
-      final List<dynamic> jsonData = jsonDecode(response.body);
-      return jsonData.map<MaterialModel>((item) {
-        final rawPath = item['material_file_url'] ?? item['material_file_path'] ?? '';
-        final correctedUrl = rawPath.startsWith('http') 
-          ? rawPath 
-          : '$baseUrl/storage/$rawPath';
-        
-        return MaterialModel.fromJson({
-          ...item,
-          'material_file_url': correctedUrl
-        });
-      }).toList();
-    } else {
-      throw Exception('Failed to fetch student materials: ${response.statusCode}');
-    }
-  }
-
-  static Future<bool> deleteMaterial(int materialId) async {
+  /// Upload a material file to Supabase Storage + insert metadata in `materials` table
+  static Future<bool> uploadMaterialFile({
+    required File file,
+    required String materialTitle,
+    required String classroomId,
+    String? materialType,
+    String? description,
+  }) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final baseUrl = await _getBaseUrl();
-      final token = prefs.getString('token') ?? '';
+      final user = supabase.auth.currentUser;
+      if (user == null) {
+        throw Exception("No logged in teacher");
+      }
 
-      final uri = Uri.parse('$baseUrl/teachers/materials/$materialId');
-      final response = await http.delete(
-        uri,
-        headers: _authHeaders(token),
+      final fileName =
+          "materials/$classroomId-${DateTime.now().millisecondsSinceEpoch}-${file.uri.pathSegments.last}";
+
+      // Upload file to Supabase Storage bucket
+      await supabase.storage.from('materials').uploadBinary(
+        fileName,
+        await file.readAsBytes(),
+        fileOptions: const FileOptions(upsert: true),
       );
 
-      if (response.statusCode == 200) {
-        return true;
-      } else {
-        print("Failed to delete material: ${response.statusCode}");
-        print("Server response: ${response.body}");
-        return false;
-      }
+      // Get public URL
+      final publicUrl = supabase.storage.from('materials').getPublicUrl(fileName);
+
+      // Insert metadata into Supabase table
+      await supabase.from('materials').insert({
+        'material_title': materialTitle,
+        'class_room_id': classroomId, // ✅ matches your schema
+        'material_type': materialType,
+        'description': description,
+        'material_file_url': publicUrl,
+        'uploaded_by': user.id,
+      });
+
+      return true;
     } catch (e) {
-      print("Exception during delete: $e");
+      print("Error uploading material: $e");
       return false;
     }
   }
 
-  // Optional: Get materials filtered by type
-  static Future<List<MaterialModel>> getMaterialsByType(int classId, String type) async {
-    final prefs = await SharedPreferences.getInstance();
-    final baseUrl = await _getBaseUrl();
-    final token = prefs.getString('token') ?? '';
+  /// Get all materials for a specific class
+  static Future<List<MaterialModel>> getClassroomMaterials(String classId) async {
+    try {
+      final response = await supabase
+          .from('materials')
+          .select()
+          .eq('class_room_id', classId);
 
-    final response = await http.get(
-      Uri.parse('$baseUrl/teachers/materials/$classId/type/$type'),
-      headers: _authHeaders(token),
-    );
+      print("📥 Raw response: $response"); // This will already be a List<dynamic>
+      if (response.isNotEmpty) {
+        print("📦 Parsed list length: ${response.length}");
+        print("🔑 First item keys: ${(response[0] as Map).keys}");
+      }
 
-    if (response.statusCode == 200) {
-      final List<dynamic> jsonData = jsonDecode(response.body);
-      return jsonData.map<MaterialModel>((item) {
-        final rawPath = item['material_file_url'] ?? item['material_file_path'] ?? '';
-        final correctedUrl = rawPath.startsWith('http') 
-          ? rawPath 
-          : '$baseUrl/storage/$rawPath';
-        
-        return MaterialModel.fromJson({
-          ...item,
-          'material_file_url': correctedUrl
-        });
-      }).toList();
-    } else {
-      throw Exception('Failed to fetch materials by type: ${response.statusCode}');
+      return (response as List<dynamic>)
+          .map((json) => MaterialModel.fromJson(Map<String, dynamic>.from(json)))
+          .toList();
+    } catch (e) {
+      print("Error fetching classroom materials: $e");
+      return [];
+    }
+  }
+
+  /// Get all materials accessible to a student (via student_enrollments)
+  static Future<List<MaterialModel>> fetchStudentMaterials() async {
+    try {
+      final user = supabase.auth.currentUser;
+      if (user == null) throw Exception("No logged in student");
+
+      // ✅ get enrolled classes from student_enrollments
+      final enrollments = await supabase
+          .from('student_enrollments')
+          .select('class_room_id')
+          .eq('student_id', user.id);
+
+      if (enrollments.isEmpty) return [];
+
+      final classIds = enrollments.map((e) => e['class_room_id']).toList();
+
+      final response = await supabase
+          .from('materials')
+          .select()
+          .inFilter('class_room_id', classIds);
+
+
+      final List<dynamic> list = response ?? [];
+      return list
+          .map((json) => MaterialModel.fromJson(Map<String, dynamic>.from(json)))
+          .toList();
+    } catch (e) {
+      print("Error fetching student materials: $e");
+      return [];
+    }
+  }
+
+  /// Delete a material (both storage + db record)
+  static Future<bool> deleteMaterial(int materialId) async {
+    try {
+      // Get material info first
+      final material = await supabase
+          .from('materials')
+          .select()
+          .eq('id', materialId)
+          .maybeSingle();
+
+      if (material == null) return false;
+
+      final fileUrl = material['material_file_url'];
+      if (fileUrl != null && fileUrl.toString().contains("materials/")) {
+        final path = fileUrl.split("/").last;
+        await supabase.storage.from('materials').remove([path]);
+      }
+
+      await supabase.from('materials').delete().eq('id', materialId);
+
+      return true;
+    } catch (e) {
+      print("Error deleting material: $e");
+      return false;
+    }
+  }
+
+  /// Filter materials by type inside a class
+  static Future<List<MaterialModel>> getMaterialsByType(
+      String classId, String type) async {
+    try {
+      final response = await supabase
+          .from('materials')
+          .select()
+          .eq('class_room_id', classId) // ✅ fixed column
+          .eq('material_type', type);
+
+      final List<dynamic> list = response ?? [];
+      return list
+          .map((json) => MaterialModel.fromJson(Map<String, dynamic>.from(json)))
+          .toList();
+    } catch (e) {
+      print("Error fetching materials by type: $e");
+      return [];
     }
   }
 }

@@ -34,6 +34,13 @@ class ChooseRolePage extends StatelessWidget {
           color: Colors.green,
           onTap: () => Navigator.of(context).push(PageTransition(page: AdminLoginPage())),
         ),
+        // Admin login option
+        _roleOption(
+          icon: Icons.admin_panel_settings_outlined,
+          label: 'Parent',
+          color: Colors.green,
+          onTap: () => Navigator.of(context).push(PageTransition(page: AdminLoginPage())),
+        ),
       ];
     } else {
       return [

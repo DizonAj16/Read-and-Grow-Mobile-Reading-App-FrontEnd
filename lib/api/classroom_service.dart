@@ -246,7 +246,7 @@ class ClassroomService {
     final supabase = Supabase.instance.client;
 
     try {
-      final response = await supabase.from('student_classes').insert({
+      final response = await supabase.from('student_enrollments').insert({
         'student_id': studentId,
         'class_room_id': classRoomId,
       }).select().single();
@@ -257,24 +257,17 @@ class ClassroomService {
       return null;
     }
   }
-
-
   static Future<http.Response> unassignStudent({required String studentId}) async {
     try {
       final supabase = Supabase.instance.client;
 
-      final updates = await supabase
-          .from('students')
-          .update({'class_id': null})
-          .eq('id', studentId);
+      // Delete the enrollment record for this student
+      final res = await supabase
+          .from('student_enrollments')
+          .delete()
+          .eq('student_id', studentId);
 
-      if (updates == null || updates.isEmpty) {
-        return http.Response(
-          '{"error": "Failed to unassign student"}',
-          400,
-          headers: {'Content-Type': 'application/json'},
-        );
-      }
+
 
       return http.Response(
         '{"message": "Student unassigned successfully"}',
@@ -292,14 +285,34 @@ class ClassroomService {
   }
 
 
-  static Future<List<Student>> getAssignedStudents(String classId) async {
+  /// Fetch only assigned student IDs
+  static Future<Set<String>> getAssignedStudentIds() async {
+    try {
+      final supabase = Supabase.instance.client;
+
+      final assignedResponse = await supabase
+          .from('student_enrollments')
+          .select('student_id');
+
+      final assignedIds = (assignedResponse as List)
+          .map((e) => e['student_id'] as String)
+          .toSet();
+
+      return assignedIds;
+    } catch (e) {
+      print('Error fetching assigned student IDs: $e');
+      throw Exception('Failed to fetch assigned students');
+    }
+  }
+
+
+  static Future<List<Student>> getAssignedStudents() async {
     try {
       final supabase = Supabase.instance.client;
 
       final response = await supabase
           .from('students')
-          .select()
-          .eq('class_id', classId);
+          .select();
 
       final List<dynamic> list = response ?? [];
       return list
@@ -311,15 +324,24 @@ class ClassroomService {
     }
   }
 
-
   static Future<List<Student>> getUnassignedStudents() async {
     try {
       final supabase = Supabase.instance.client;
 
+      // Get all assigned student IDs first
+      final assignedResponse = await supabase
+          .from('student_enrollments')
+          .select('student_id');
+
+      final assignedIds = (assignedResponse as List)
+          .map((e) => e['student_id'] as String)
+          .toList();
+
+      // Fetch students NOT in the assignedIds list
       final response = await supabase
           .from('students')
           .select()
-          .isFilter('class_id', null);
+          .filter('id', 'not.in', '(${assignedIds.join(',')})');
 
       final List<dynamic> list = response ?? [];
       return list
@@ -328,6 +350,22 @@ class ClassroomService {
     } catch (e) {
       print('Error fetching unassigned students: $e');
       throw Exception('Failed to fetch unassigned students');
+    }
+  }
+
+  static Future<List<Student>> getAllStudents() async {
+    try {
+      final supabase = Supabase.instance.client;
+
+      final response = await supabase.from('students').select();
+
+      final List<dynamic> list = response ?? [];
+      return list
+          .map((json) => Student.fromJson(Map<String, dynamic>.from(json)))
+          .toList();
+    } catch (e) {
+      print('Error fetching all students: $e');
+      throw Exception('Failed to fetch students');
     }
   }
 

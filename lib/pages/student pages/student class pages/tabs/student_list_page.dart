@@ -7,6 +7,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lottie/lottie.dart';
 import 'package:flutter_custom_clippers/flutter_custom_clippers.dart';
 
+import '../../../../api/reading_activity_page.dart';
+import '../../../../api/reading_levels_page.dart';
+
 class StudentListPage extends StatefulWidget {
   final String classId;
   const StudentListPage({super.key, required this.classId});
@@ -34,18 +37,9 @@ class _StudentListPageState extends State<StudentListPage> {
   }
 
   Future<void> _initialize() async {
-    await _loadSharedPreferences();
     await _fetchStudents();
   }
 
-  Future<void> _loadSharedPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    _baseUrl = prefs.getString('base_url') ?? 'http://10.0.2.2:8000';
-    final studentIdString = prefs.getString('student_id');
-    if (studentIdString != null) {
-      _currentStudentId = int.tryParse(studentIdString);
-    }
-  }
 
   Future<void> _fetchStudents() async {
     try {
@@ -55,7 +49,6 @@ class _StudentListPageState extends State<StudentListPage> {
       });
 
       final fetchedStudents = await ClassroomService.getAssignedStudents(
-        widget.classId,
       );
       if (!mounted) return;
 
@@ -442,13 +435,9 @@ class _StudentCard extends StatelessWidget {
       context,
       MaterialPageRoute(
         builder:
-            (_) => StudentProfilePage(
-              name: name,
-              avatarLetter: avatarLetter,
-              avatarColor: Colors.blue[300]!,
-              profileUrl: profileUrl,
-            ),
-      ),
+            (_) => ReadingActivityPage(student: student, taskId: '3cdf1f9e-cbd5-47cb-9398-1e959ee71f0c', passageText: 'hehehhe',),
+
+    ),
     );
   }
 }

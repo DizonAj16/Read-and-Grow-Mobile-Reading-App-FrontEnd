@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:deped_reading_app_laravel/api/class_progress_screen.dart';
 import 'package:deped_reading_app_laravel/api/classroom_service.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/tabs/students_management_page.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/tabs/students_progress_page.dart';
@@ -645,7 +646,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
             MaterialsPage(
               classId: widget.classDetails['id'].toString(),
             ),
-            TasksPage(), // <- New Tab
+            ClassProgressScreen(classId: classId), // <- New Tab
           ],
         ),
       ),

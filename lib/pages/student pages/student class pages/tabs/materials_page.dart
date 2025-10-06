@@ -43,46 +43,32 @@ class _MaterialsPageState extends State<MaterialsPage> {
   }
 
   Future<void> _loadMaterials() async {
-    if (!mounted) return;
-
     setState(() {
       _isLoading = true;
       _hasError = false;
     });
 
     try {
-      print('🟡 DEBUG: Fetching student materials...');
-      final fetchedMaterials = await MaterialService.fetchStudentMaterials();
-      print('🟡 DEBUG: Fetched ${fetchedMaterials.length} materials total');
-
-      if (!mounted) return;
-
-      final filteredMaterials =
-          fetchedMaterials
-              .where((material) => material.classRoomId == widget.classId)
-              .toList();
-
-      print(
-        '🟡 DEBUG: Filtered to ${filteredMaterials.length} materials for class ${widget.classId}',
-      );
+      final data =
+      await MaterialService.getClassroomMaterials(widget.classId);
 
       setState(() {
-        _materials = filteredMaterials;
-        _isLoading = false;
+        _materials = data;
       });
 
-      print('🟢 DEBUG: Materials loaded successfully');
+      print("✅ Materials loaded: ${data.length}");
     } catch (e) {
-      if (!mounted) return;
+      print("❌ Error loading materials: $e");
       setState(() {
-        _isLoading = false;
         _hasError = true;
       });
-      print('🔴 DEBUG: Error loading materials: $e');
-      print('🔴 DEBUG: Error type: ${e.runtimeType}');
-      _showErrorSnackbar("Failed to load materials. Please try again.");
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
+
 
   // NEW: Get full file URL using base URL from shared preferences
   // NEW: Get full file URL using base URL from shared preferences
@@ -1014,7 +1000,7 @@ class _MaterialCard extends StatelessWidget {
 
                           // Spacer between metadata items
                           if (material.fileSize != null &&
-                              material.uploadedAt != null)
+                              material.createdAt != null)
                             Padding(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
@@ -1030,7 +1016,7 @@ class _MaterialCard extends StatelessWidget {
                             ),
 
                           // Upload date
-                          if (material.uploadedAt != null)
+                          if (material.createdAt != null)
                             Row(
                               children: [
                                 Icon(
@@ -1040,7 +1026,7 @@ class _MaterialCard extends StatelessWidget {
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  _formatDate(material.uploadedAt),
+                                  _formatDate(material.createdAt),
                                   style: textTheme.labelSmall?.copyWith(
                                     color: Colors.blueGrey.shade500,
                                   ),

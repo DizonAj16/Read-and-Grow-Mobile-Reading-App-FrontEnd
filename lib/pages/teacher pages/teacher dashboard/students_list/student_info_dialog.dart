@@ -1,6 +1,8 @@
 import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../api/tol.dart';
+
 // =============================================================================
 // STUDENT INFO DIALOG
 // =============================================================================
@@ -264,7 +266,18 @@ class StudentInfoDialog extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
-        onPressed: () => Navigator.of(context).pop(),
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => StudentVoiceAssessmentPage(
+                assignmentId: '148d01c7-67d3-4c40-9414-21beb4e3531c',
+                student: student,
+                profileUrl: profileUrl,
+                colorScheme: colorScheme, recordingFilePath: 'https://zrcynmiiduwrtlcyzvzi.supabase.co/storage/v1/object/public/student_voice/TERROR%20JR%20-%203%20STRIKES%20(%20LYRICS%20VIDEO%20).mp3',
+              ),
+            ),
+          );
+        },
         style: ElevatedButton.styleFrom(
           backgroundColor: colorScheme.primary,
           foregroundColor: Colors.white,

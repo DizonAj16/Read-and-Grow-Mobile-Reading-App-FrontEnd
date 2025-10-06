@@ -3,8 +3,9 @@ import 'package:deped_reading_app_laravel/api/classroom_service.dart';
 import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../main.dart';
 class StudentsManagementPage extends StatefulWidget {
   final String classId;
 
@@ -78,26 +79,42 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
     });
 
     try {
-      final assigned = await ClassroomService.getAssignedStudents(
-        widget.classId,
-      );
-      final unassigned = await ClassroomService.getUnassignedStudents();
+      // 1️⃣ Fetch all students
+      final allStudentsList = await ClassroomService.getAllStudents();
+
+      // 2️⃣ Fetch assigned student IDs
+      final assignedIds = await ClassroomService.getAssignedStudentIds();
+
+      // 3️⃣ Separate assigned and unassigned students
+      final assignedList = <Student>[];
+      final unassignedList = <Student>[];
+
+      for (var student in allStudentsList) {
+        if (assignedIds.contains(student.id)) {
+          assignedList.add(student.copyWith(classRoomId: widget.classId));
+        } else {
+          unassignedList.add(student.copyWith(classRoomId: null));
+        }
+      }
 
       if (!mounted) return;
+
       setState(() {
-        assignedStudents = assigned;
-        allStudents = unassigned;
+        assignedStudents = assignedList;
+        allStudents = unassignedList;
       });
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('Error in _loadStudents: $e');
+      print(stackTrace);
       if (mounted) {
         _showSnackBar("Failed to load students: $e", isError: true);
       }
     } finally {
-      if (mounted) {
-        setState(() => loading = false);
-      }
+      if (mounted) setState(() => loading = false);
     }
   }
+
+
 
   Future<void> _handleRefresh() async {
     if (!mounted) return;
@@ -157,12 +174,9 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
   }
 
   Future<String> _getBaseUrl() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedBaseUrl =
-        prefs.getString('base_url') ?? 'http://10.0.2.2:8000/api';
-    final uri = Uri.parse(savedBaseUrl);
-    return '${uri.scheme}://${uri.authority}';
+    return supabaseUrl;
   }
+
 
   Widget _buildStudentAvatar(Student student, bool isAssigned) {
     return FutureBuilder<String>(

@@ -1,8 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Student {
-  final String id; // student_id
-  final String? userId; // user_id from users table
+  final String id; // student_id (UUID)
+  final String? userId; // user_id (UUID) from users table
   final String studentName;
   final String? studentLrn;
   final String? studentGrade;
@@ -10,9 +10,10 @@ class Student {
   final String? username;
   final String avatarLetter;
   final String? profilePicture;
-  final String? classRoomId;
+  final String? classRoomId; // UUID of class
+  final String? currentReadingLevelId;
 
-  /// ✅ NEW: Track completed tasks (0 to 13)
+  /// Track completed tasks (0 to 13)
   final int completedTasks;
 
   Student({
@@ -26,12 +27,12 @@ class Student {
     String? avatarLetter,
     this.profilePicture,
     this.classRoomId,
-    this.completedTasks = 0, // ✅ Default if not provided
+    this.completedTasks = 0,
+    this.currentReadingLevelId,
   }) : avatarLetter =
-           avatarLetter ??
-           (studentName.isNotEmpty ? studentName[0].toUpperCase() : 'S');
+      avatarLetter ??
+          (studentName.isNotEmpty ? studentName[0].toUpperCase() : 'S');
 
-  /// ✅ NEW: copyWith method (now includes completedTasks)
   Student copyWith({
     String? id,
     String? userId,
@@ -44,6 +45,7 @@ class Student {
     String? profilePicture,
     String? classRoomId,
     int? completedTasks,
+    String? currentReadingLevelId,
   }) {
     return Student(
       id: id ?? this.id,
@@ -57,38 +59,25 @@ class Student {
       profilePicture: profilePicture ?? this.profilePicture,
       classRoomId: classRoomId ?? this.classRoomId,
       completedTasks: completedTasks ?? this.completedTasks,
+        currentReadingLevelId : currentReadingLevelId ?? this.currentReadingLevelId,
     );
   }
 
   factory Student.fromJson(Map<String, dynamic> json) {
     final name = json['student_name'] ?? '';
-
     return Student(
-      id:
-          json['id'] is int
-              ? json['id']
-              : int.tryParse(json['id']?.toString() ?? '') ?? 0, // ✅ student_id
-      userId:
-          json['user_id'] is int
-              ? json['user_id']
-              : int.tryParse(json['user_id']?.toString() ?? ''), // ✅ user_id
+      id: json['id'] as String,
+      userId: json['user_id'] as String?,
       studentName: name,
-      studentLrn: json['student_lrn'],
-      studentGrade: json['student_grade']?.toString(),
-      studentSection: json['student_section']?.toString(),
-      username: json['username'],
+      studentLrn: json['student_lrn'] as String?,
+      studentGrade: json['student_grade'] as String?,
+      studentSection: json['student_section'] as String?,
+      username: json['username'] as String?,
       avatarLetter: name.isNotEmpty ? name[0].toUpperCase() : 'S',
-      profilePicture: json['profile_picture'], // ✅ keep as filename
-      classRoomId:
-          json['class_room_id'] is int
-              ? json['class_room_id']
-              : int.tryParse(json['class_room_id']?.toString() ?? ''),
-      completedTasks:
-          json['completed_tasks'] != null
-              ? (json['completed_tasks'] is int
-                  ? json['completed_tasks']
-                  : int.tryParse(json['completed_tasks'].toString()) ?? 0)
-              : 0,
+      profilePicture: json['profile_picture'] as String?,
+      classRoomId: json['class_room_id'] as String?,
+      completedTasks: json['completed_tasks'] as int? ?? 0,
+        currentReadingLevelId: json['current_reading_level_id'] as String?
     );
   }
 
@@ -104,15 +93,15 @@ class Student {
     'class_room_id': classRoomId,
     'profile_picture': profilePicture,
     'completed_tasks': completedTasks,
+    'current_reading_level_id': currentReadingLevelId,
   };
 
   static Future<Student> fromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     final name = prefs.getString('student_name') ?? '';
-
     return Student(
       id: prefs.getString('student_id') ?? '',
-      userId: prefs.getString('user_id') ?? '',
+      userId: prefs.getString('user_id'),
       studentName: name,
       studentLrn: prefs.getString('student_lrn'),
       studentGrade: prefs.getString('student_grade'),
@@ -120,32 +109,23 @@ class Student {
       username: prefs.getString('username'),
       avatarLetter: name.isNotEmpty ? name[0].toUpperCase() : 'S',
       profilePicture: prefs.getString('profile_picture'),
-      classRoomId: prefs.getString('class_room_id') ?? '',
-      completedTasks:
-          int.tryParse(prefs.getString('completed_tasks') ?? '') ?? 0,
+      classRoomId: prefs.getString('class_room_id'),
+      completedTasks: int.tryParse(prefs.getString('completed_tasks') ?? '') ?? 0,
+        currentReadingLevelId: prefs.getString('current_reading_level_id') ?? '',
     );
   }
 
   Future<void> saveToPrefs() async {
     final prefs = await SharedPreferences.getInstance();
-
-    await prefs.setString(
-      'student_id',
-      id.toString(),
-    ); // ✅ always save profile.id
-    if (userId != null) await prefs.setString('user_id', userId.toString());
-    if (studentName.isNotEmpty)
-      await prefs.setString('student_name', studentName);
+    await prefs.setString('student_id', id);
+    if (userId != null) await prefs.setString('user_id', userId!);
+    await prefs.setString('student_name', studentName);
     if (studentLrn != null) await prefs.setString('student_lrn', studentLrn!);
-    if (studentGrade != null)
-      await prefs.setString('student_grade', studentGrade!);
-    if (studentSection != null)
-      await prefs.setString('student_section', studentSection!);
+    if (studentGrade != null) await prefs.setString('student_grade', studentGrade!);
+    if (studentSection != null) await prefs.setString('student_section', studentSection!);
     if (username != null) await prefs.setString('username', username!);
-    if (profilePicture != null)
-      await prefs.setString('profile_picture', profilePicture!);
-    if (classRoomId != null)
-      await prefs.setString('class_room_id', classRoomId.toString());
+    if (profilePicture != null) await prefs.setString('profile_picture', profilePicture!);
+    if (classRoomId != null) await prefs.setString('class_room_id', classRoomId!);
     await prefs.setString('completed_tasks', completedTasks.toString());
   }
 }

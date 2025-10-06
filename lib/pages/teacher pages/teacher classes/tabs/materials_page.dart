@@ -1293,7 +1293,7 @@ class _MaterialsPageState extends State<MaterialsPage> {
                         Row(
                           children: [
                             // Upload date
-                            if (material.uploadedAt != null)
+                            if (material.createdAt != null)
                               Row(
                                 children: [
                                   Icon(
@@ -1305,7 +1305,7 @@ class _MaterialsPageState extends State<MaterialsPage> {
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    "Uploaded: ${_formatDate(material.uploadedAt!)}",
+                                    "Uploaded: ${_formatDate(material.createdAt!)}",
                                     style: Theme.of(
                                       context,
                                     ).textTheme.bodySmall?.copyWith(
@@ -1318,7 +1318,7 @@ class _MaterialsPageState extends State<MaterialsPage> {
                                 ],
                               ),
 
-                            if (material.uploadedAt != null &&
+                            if (material.createdAt != null &&
                                 material.teacherName.isNotEmpty)
                               const SizedBox(width: 12),
                           ],

@@ -62,21 +62,30 @@ class _StudentsProgressPageState extends State<StudentsProgressPage> {
     setState(() => isLoading = true);
 
     try {
-      final students = await ClassroomService.getAssignedStudents(
-        widget.classId,
-      );
+      // 1️⃣ Get assigned student IDs
+      final assignedIds = await ClassroomService.getAssignedStudentIds(); // returns Set<String>
+
+      // 2️⃣ Get all students
+      final allStudents = await ClassroomService.getAllStudents();
+
+      // 3️⃣ Filter only assigned students
+      final students = allStudents
+          .where((student) => assignedIds.contains(student.id))
+          .map((s) => s.copyWith(classRoomId: widget.classId))
+          .toList();
 
       if (mounted) {
         setState(() => assignedStudents = students);
       }
     } catch (e) {
-      debugPrint("Error loading progress: $e");
+      debugPrint("Error loading assigned students: $e");
     } finally {
       if (mounted) {
         setState(() => isLoading = false);
       }
     }
   }
+
 
   int _extractGradeLevel(dynamic grade) {
     if (grade == null) return 1;

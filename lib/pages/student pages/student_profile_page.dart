@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:ui';
-import 'package:deped_reading_app_laravel/api/supabase_auth_service.dart';
 import 'package:deped_reading_app_laravel/api/user_service.dart';
 import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +8,10 @@ import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../api/reading_activity_page.dart';
+import '../../api/reading_levels_page.dart';
 
 class StudentProfilePage extends StatefulWidget {
   const StudentProfilePage({super.key});
@@ -20,7 +23,6 @@ class StudentProfilePage extends StatefulWidget {
 class _StudentProfilePageState extends State<StudentProfilePage> {
   late Future<Student> _studentFuture;
   XFile? _pickedImageFile;
-  String _baseUrl = 'http://10.0.2.2:8000';
   bool _isUploading = false;
 
   @override
@@ -30,43 +32,51 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
   }
 
   Future<Student> _initializeStudentData() async {
+    final supabase = Supabase.instance.client;
     final prefs = await SharedPreferences.getInstance();
-    final savedBaseUrl =
-        prefs.getString('base_url') ?? 'http://10.0.2.2:8000/api';
-    final uri = Uri.parse(savedBaseUrl);
-    _baseUrl = '${uri.scheme}://${uri.authority}';
 
     Student student;
 
     try {
-      // ✅ Fetch from Supabase
-      final profileData = await SupabaseAuthService.getAuthProfile();
-      debugPrint('📡 API profileData: $profileData');
+      final currentUser = supabase.auth.currentUser;
+      if (currentUser == null) throw Exception('No logged in student');
 
-      final studentJson = profileData?['profile'] ?? {};
-      student = Student.fromJson(studentJson);
-      debugPrint('✅ Student from API: ${student.toJson()}');
+      // ✅ Fetch the student record directly
+      final response = await supabase
+          .from('students')
+          .select()
+          .eq('user_id', currentUser.id)
+          .maybeSingle();
 
+      if (response == null) throw Exception('Student record not found');
+
+      student = Student.fromJson(Map<String, dynamic>.from(response));
+
+      // ✅ Save to local prefs for caching
       await student.saveToPrefs();
+
+      debugPrint('✅ Student data fetched from Supabase: ${student.toJson()}');
     } catch (e) {
       debugPrint('⚠️ Error fetching from Supabase: $e');
 
       // ✅ Fallback to SharedPreferences
       student = await Student.fromPrefs();
-      debugPrint('📦 Student from SharedPreferences: ${student.toJson()}');
+      debugPrint('📦 Student data loaded from SharedPreferences: ${student.toJson()}');
     }
 
-    // ✅ Normalize profile picture URL if needed
+    // ✅ Ensure the profile picture URL is valid (if stored as relative path)
     if (student.profilePicture != null &&
         !student.profilePicture!.startsWith('http')) {
-      student = student.copyWith(
-        profilePicture: '$_baseUrl/${student.profilePicture}',
-      );
+      // Optional: store your bucket base URL once in env/config if needed
+      final bucketBaseUrl =
+      supabase.storage.from('avatars').getPublicUrl(student.profilePicture!);
+      student = student.copyWith(profilePicture: bucketBaseUrl);
       debugPrint('🖼️ Normalized profile picture URL: ${student.profilePicture}');
     }
 
     return student;
   }
+
 
   Future<void> _pickAndUploadImage(Student student) async {
     try {
@@ -216,7 +226,7 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
                   student: student,
                   pickedImage: _pickedImageFile,
                   isUploading: _isUploading,
-                  onTap: () => _pickAndUploadImage(student),
+                  onTap: () => ReadingActivityPage(student: student, taskId: '3cdf1f9e-cbd5-47cb-9398-1e959ee71f0c', passageText: 'hehehhe',),
                 ),
                 const SizedBox(height: 18),
                 Text(
