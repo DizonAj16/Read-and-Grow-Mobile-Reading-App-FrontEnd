@@ -19,17 +19,13 @@ class _AdminPageState extends State<AdminPage> {
 
   Future<void> _logout(BuildContext context) async {
     try {
-      // Supabase handles the logout
       await Supabase.instance.client.auth.signOut();
-
-      // Clear local prefs (only admin-related)
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('user_id');
       await prefs.remove('role');
       await prefs.remove('admin_name');
       await prefs.remove('admin_email');
 
-      // Show progress dialog
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -39,7 +35,7 @@ class _AdminPageState extends State<AdminPage> {
       await Future.delayed(const Duration(seconds: 1));
 
       if (mounted) {
-        Navigator.of(context).pop(); // Close loading dialog
+        Navigator.of(context).pop();
         Navigator.of(context).pushAndRemoveUntil(
           PageTransition(page: const LandingPage()),
               (route) => false,

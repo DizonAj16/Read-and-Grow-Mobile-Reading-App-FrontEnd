@@ -47,20 +47,15 @@ Future<List<StudentProgress>> getParentChildrenProgress(String parentId) async {
   for (final s in studentsResponse) {
     final studentId = s['id'];
     final studentName = s['student_name'];
-
-    // Fetch reading level
     final levelResp = await supabase
         .from('reading_levels')
         .select('level_number, title')
         .eq('id', s['current_reading_level_id'])
         .single();
-
-    // Fetch quiz submissions
     final submissionsResp = await supabase
         .from('student_submissions')
         .select('score, submitted_at, assignment_id')
         .eq('student_id', studentId);
-
     final quizSubs = submissionsResp.map<QuizSubmission>((sub) {
       return QuizSubmission(
         quizTitle: sub['assignment_id']?.toString() ?? 'Quiz',
@@ -87,7 +82,7 @@ Future<List<StudentProgress>> getParentChildrenProgress(String parentId) async {
 
 
 class ParentDashboardPage extends StatefulWidget {
-  final String parentId; // logged-in parent
+  final String parentId;
 
   const ParentDashboardPage({super.key, required this.parentId});
 
@@ -121,15 +116,11 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
       for (final s in studentsResp) {
         final studentId = s['id'];
         final studentName = s['student_name'];
-
-        // Fetch reading level
         final levelResp = await supabase
             .from('reading_levels')
             .select('title')
             .eq('id', s['current_reading_level_id'])
             .maybeSingle();
-
-        // Fetch quiz submissions
         final submissionsResp = await supabase
             .from('student_submissions')
             .select('score, submitted_at, assignment_id')

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../list_of_quiz_and_lessons.dart';
-import '../student_quiz_pages.dart';
 import 'tabs/student_list_page.dart';
 import 'tabs/materials_page.dart';
 import 'tabs/teacher_info_page.dart';

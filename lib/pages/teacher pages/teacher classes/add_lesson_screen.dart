@@ -7,8 +7,7 @@ import 'package:file_picker/file_picker.dart';
 
 class AddLessonScreen extends StatefulWidget {
   final String? readingLevelId;
-  final String classRoomId; // 👈 only keep the class id
-
+  final String classRoomId;
   const AddLessonScreen({
     super.key,
     this.readingLevelId,
@@ -26,9 +25,8 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
   bool _unlocksNextLevel = false;
   bool _isLoading = false;
 
-  // Uploaded file info
   String? _uploadedFileUrl;
-  String? _uploadedFileType; // image, pdf, video, audio
+  String? _uploadedFileType;
 
   Future<void> _pickFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(

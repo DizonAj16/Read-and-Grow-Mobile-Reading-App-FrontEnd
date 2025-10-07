@@ -12,7 +12,7 @@ class ReadingActivityPage extends StatefulWidget {
   final String taskId;
   final String passageText;
   final Student student;
-  final String? pdfUrl; // Optional PDF passage from Supabase Storage
+  final String? pdfUrl;
 
   const ReadingActivityPage({
     Key? key,
@@ -76,7 +76,6 @@ class _ReadingActivityPageState extends State<ReadingActivityPage> {
       }
 
       final dir = await getTemporaryDirectory();
-      // Include user ID in filename to avoid conflicts
       final filePath =
           '${dir.path}/reading_${user.id}_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
@@ -100,7 +99,7 @@ class _ReadingActivityPageState extends State<ReadingActivityPage> {
 
       setState(() {
         _isRecording = false;
-        _recordedPath = path ?? _recordedPath; // fallback in case stop() returns null
+        _recordedPath = path ?? _recordedPath;
       });
     } catch (e) {
       debugPrint('Error stopping recorder: $e');
@@ -111,7 +110,6 @@ class _ReadingActivityPageState extends State<ReadingActivityPage> {
     if (_recordedPath == null) return;
     setState(() => _isUploading = true);
     try {
-      // Get authenticated user
       final user = supabase.auth.currentUser;
       if (user == null) {
         Text('You must be logged in to upload');
@@ -122,18 +120,13 @@ class _ReadingActivityPageState extends State<ReadingActivityPage> {
       final file = File(_recordedPath!);
       final fileName = 'reading_${user.id}_${DateTime.now().millisecondsSinceEpoch}.m4a';
       final storagePath = 'student_voice/$fileName';
-
-      // Upload using authenticated client
       await supabase.storage.from('student_voice').upload(storagePath, file);
-
-      // Get public URL
+      final taskId = widget.taskId;
       final publicUrl = supabase.storage.from('student_voice').getPublicUrl(storagePath);
       print('hellooo ${publicUrl}');
-      // Insert metadata into table (RLS will pass since student_id = auth.uid())
       await supabase.from('student_recordings').insert({
-        'student_id': user.id,             // Authenticated user ID
-        'file_url': publicUrl,
-      });
+        'student_id': user.id,
+        'file_url': publicUrl});
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -1,60 +1,75 @@
+import 'package:deped_reading_app_laravel/api/task_service.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
-class TasksPage extends StatelessWidget {
-  const TasksPage({super.key});
+class TasksPage extends StatefulWidget {
+  final String classId;
+
+  const TasksPage({super.key, required this.classId});
+
+  @override
+  State<TasksPage> createState() => _TasksPageState();
+}
+
+class _TasksPageState extends State<TasksPage> {
+  late Future<List<Map<String, dynamic>>> _tasksFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _tasksFuture = TaskService.fetchTasksForClass(widget.classId);
+  }
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-      body: ListView(
-        children: [
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.5,
-            child: Center(
+      appBar: AppBar(title: const Text("Class Tasks")),
+      body: FutureBuilder(
+        future: _tasksFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(child: Text("Error: ${snapshot.error}"));
+          }
+
+          final tasks = snapshot.data ?? [];
+
+          if (tasks.isEmpty) {
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Lottie.asset(
-                    'assets/animation/empty_box.json', // Use your task-related animation
-                    width: 200,
-                    height: 200,
-                  ),
+                  Lottie.asset('assets/animation/empty_box.json', width: 200),
                   const SizedBox(height: 24),
-                  Text(
-                    "No Tasks Available",
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[700],
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 40),
-                    child: Text(
-                      "Create your first task by tapping the + button below",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14, 
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ),
+                  const Text("No Tasks Found"),
                 ],
               ),
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Task creation coming soon...")),
+            );
+          }
+
+          return ListView.builder(
+            itemCount: tasks.length,
+            itemBuilder: (context, index) {
+              final item = tasks[index];
+              final taskTitle = item['tasks']?['title'] ?? 'Untitled Task';
+              final quizTitle = item['quizzes']?['title'];
+              final dueDate = item['due_date'];
+
+              return ListTile(
+                leading: const Icon(Icons.assignment),
+                title: Text(quizTitle ?? taskTitle),
+                subtitle: Text(
+                  dueDate != null
+                      ? "Due: ${DateTime.parse(dueDate).toLocal().toString().split(' ')[0]}"
+                      : "No due date",
+                ),
+              );
+            },
           );
         },
-        child: const Icon(Icons.add),
       ),
     );
   }

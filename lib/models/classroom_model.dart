@@ -10,9 +10,9 @@ class Classroom {
   final String teacherId;
 
   final String? teacherName;
-  final String? teacherEmail;      // ✅ NEW
-  final String? teacherPosition;   // ✅ NEW
-  final String? teacherAvatar;     // ✅ NEW
+  final String? teacherEmail;
+  final String? teacherPosition;
+  final String? teacherAvatar;
   final String? backgroundImage;
 
   Classroom({
@@ -31,7 +31,7 @@ class Classroom {
   });
 
   factory Classroom.fromJson(Map<String, dynamic>? json) {
-    final data = json ?? {}; // ✅ prevent null crashes
+    final data = json ?? {};
     return Classroom(
       id: data['id'] ?? '',
       className: data['class_name'] ?? 'Unnamed',

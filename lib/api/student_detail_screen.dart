@@ -19,7 +19,6 @@ class StudentDetailScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Summary Card
           Card(
             child: ListTile(
               title: const Text("Summary"),
@@ -33,14 +32,11 @@ class StudentDetailScreen extends StatelessWidget {
 
           const SizedBox(height: 16),
 
-          // Quiz Results Header
           const Text(
             "Quiz Results",
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-
-          // Bar Chart for Quiz Scores
           if (student.quizResults.isNotEmpty)
             SizedBox(
               height: 200,
@@ -88,8 +84,6 @@ class StudentDetailScreen extends StatelessWidget {
             ),
 
           const SizedBox(height: 16),
-
-          // Quiz Results List
           ...student.quizResults.map(
                 (quiz) => Card(
               child: ListTile(

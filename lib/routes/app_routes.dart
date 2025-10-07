@@ -6,9 +6,7 @@ import '../pages/auth pages/student_signup_page.dart';
 import '../pages/student pages/student_page.dart';
 import '../pages/teacher pages/teacher_page.dart';
 
-// AppRoutes defines named routes for all pages in the project
 class AppRoutes {
-  // Route names for navigation
   static const String landing = '/';
   static const String login = '/login';
   static const String teacherSignup = '/teacher-signup';
@@ -17,7 +15,6 @@ class AppRoutes {
   static const String teacherDashboard = '/teacherDashboard';
   static const String adminDashboard = '/adminDashboard';
 
-  // Map of route names to their corresponding widget builders
   static final Map<String, WidgetBuilder> routes = {
     login: (context) => LoginPage(),
     teacherSignup: (context) => TeacherSignUpPage(),

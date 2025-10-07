@@ -29,7 +29,7 @@ class _ReadingLevelsPageState extends State<ReadingLevelsPage> {
       final response = await supabase
           .from('reading_levels')
           .select('*, reading_tasks(id, title, description, passage_text)')
-          .eq('id', widget.student.currentReadingLevelId!) // 👈 safe now because we checked
+          .eq('id', widget.student.currentReadingLevelId!)
           .maybeSingle();
 
       if (response != null) {

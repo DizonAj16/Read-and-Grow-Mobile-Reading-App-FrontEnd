@@ -40,7 +40,6 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
     super.dispose();
   }
 
-  /// Registers a teacher using Supabase auth + inserts extra profile fields
   Future<void> registerTeacher() async {
     if (!_formKey.currentState!.validate()) {
       setState(() => _autoValidate = true);
@@ -52,7 +51,6 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
     try {
       final supabase = Supabase.instance.client;
 
-      // ✅ Create user with email + password
       final authResponse = await supabase.auth.signUp(
         email: teacherEmailController.text.trim(),
         password: teacherPasswordController.text.trim(),
@@ -64,7 +62,7 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
       );
 
       if (authResponse.user == null) {
-        Navigator.of(context).pop(); // close loading
+        Navigator.of(context).pop();
         _handleErrorDialog(
           title: "Registration Failed",
           message: "Unable to create account. Please try again.",
@@ -74,7 +72,7 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
 
 
       final user = authResponse.user;
-      final userId = user!.id; // Auth UUID
+      final userId = user!.id;
       await supabase.from('users').insert({
         'id':  userId,
         'username': teacherUsernameController.text,
@@ -83,7 +81,6 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
       });
 
 
-      // ✅ Insert teacher profile into `teachers` table
       await supabase.from('teachers').insert({
         'user_id': authResponse.user!.id,
         'teacher_name': teacherNameController.text.trim(),
@@ -93,10 +90,10 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
       });
 
 
-      Navigator.of(context).pop(); // close loading
+      Navigator.of(context).pop();
       await _showSuccessAndProceedDialogs("Registration successful!");
     } catch (e) {
-      Navigator.of(context).pop(); // close loading
+      Navigator.of(context).pop();
       _handleErrorDialog(title: "Error", message: e.toString());
     }
   }

@@ -2,8 +2,8 @@
 class StudentProgress {
   final String studentId;
   final String studentName;
-  final int readingTime; // mapped to total score
-  final int miscues; // mapped to wrong answers
+  final int readingTime;
+  final int miscues;
   final double quizAverage;
   final List<Map<String, dynamic>> quizResults;
 

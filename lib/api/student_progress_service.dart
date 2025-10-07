@@ -6,7 +6,6 @@ class StudentProgressService {
 
   Future<List<StudentProgress>> getClassProgress(String classId) async {
     try {
-      // Get all students in this class
       final studentEnrollments = await supabase
           .from('student_enrollments')
           .select('student_id, students(student_name)')
@@ -17,8 +16,6 @@ class StudentProgressService {
       for (final s in studentEnrollments) {
         final studentId = s['student_id'] as String;
         final studentName = (s['students'] as Map<String, dynamic>)['student_name'] as String;
-
-        // Get task progress from student_task_progress
         final tasks = await supabase
             .from('student_task_progress')
             .select('score, max_score, correct_answers, wrong_answers')
@@ -40,7 +37,7 @@ class StudentProgressService {
         progressList.add(StudentProgress(
           studentId: studentId,
           studentName: studentName,
-          readingTime: totalScore, // for demo purposes
+          readingTime: totalScore,
           miscues: totalWrong,
           quizAverage: avgScore,
           quizResults: List<Map<String, dynamic>>.from(tasks),

@@ -9,25 +9,20 @@ import 'package:mime/mime.dart';
 
 class ApiService {
   static const String supabaseUrl = 'https://zrcynmiiduwrtlcyzvzi.supabase.co/rest/v1';
-  static const String supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpyY3lubWlpZHV3cnRsY3l6dnppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcyNDExMzIsImV4cCI6MjA3MjgxNzEzMn0.NPDpQKXC5h7qiSTPsIIty8qdNn1DnSHptIkagWlmTHM'; // truncated
+  static const String supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpyY3lubWlpZHV3cnRsY3l6dnppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcyNDExMzIsImV4cCI6MjA3MjgxNzEzMn0.NPDpQKXC5h7qiSTPsIIty8qdNn1DnSHptIkagWlmTHM';
 
 
   static final SupabaseClient supabase = SupabaseClient('https://zrcynmiiduwrtlcyzvzi.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpyY3lubWlpZHV3cnRsY3l6dnppIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzI0MTEzMiwiZXhwIjoyMDcyODE3MTMyfQ.2Bm8PCz6NS4uH4dRRSbcY9Ad7VLmCY7BitWSZjAjaB8');
   static Future<String?> uploadFile(File file) async {
     try {
-      // Only the file name, no leading slash
       String fileName =
           'file_${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
-
-      // Upload to the 'document' bucket
       final response = await supabase.storage.from('document').upload(fileName, file);
-
       if (response == null) {
         print('❌ Failed to upload file: $fileName');
         return null;
       }
 
-      // Get public URL
       final fileUrl = supabase.storage.from('document').getPublicUrl(fileName);
       print('✅ Uploaded: $fileUrl');
       return fileUrl;
@@ -56,9 +51,6 @@ class ApiService {
     }
   }
 
-  // ========================
-  // GET LESSONS
-  // ========================
   static Future<List<Map<String, dynamic>>> getLessons() async {
     final response = await http.get(
       Uri.parse('$supabaseUrl/tasks?select=id,title'),
@@ -73,13 +65,10 @@ class ApiService {
       return data.map((e) => Map<String, dynamic>.from(e)).toList();
     } else {
       print('Error fetching lessons: ${response.body}');
-      return []; // return empty list instead of null
+      return [];
     }
   }
 
-  // ========================
-  // GET QUIZZES
-  // ========================
   static Future<List<Map<String, dynamic>>?> getQuizzes() async {
     final response = await http.get(
       Uri.parse('$supabaseUrl/quizzes?select=*'),
@@ -96,11 +85,7 @@ class ApiService {
     }
   }
 
-  // ========================
-  // GET QUIZ QUESTIONS
-  // ========================
   static Future<List<QuizQuestion>?> getQuizQuestions(String quizId) async {
-    // Use the explicit relationship for matching_pairs
     final response = await http.get(
       Uri.parse(
           '$supabaseUrl/quiz_questions?quiz_id=eq.$quizId&select=*,matching_pairs!fk_question(*)'),
@@ -139,14 +124,12 @@ class ApiService {
           type = QuestionType.multipleChoice;
       }
 
-      // Options for multiple choice or drag/drop
       List<String>? options;
       if ((type == QuestionType.multipleChoice || type == QuestionType.dragAndDrop) &&
           q['options'] != null) {
         options = List<String>.from(q['options']);
       }
 
-      // Matching pairs
       List<MatchingPair>? matchingPairs;
       if (type == QuestionType.matching && q['matching_pairs'] != null) {
         matchingPairs = (q['matching_pairs'] as List)
@@ -168,16 +151,12 @@ class ApiService {
   }
 
 
-  // ========================
-  // ADD QUIZ
-  // ========================
   static Future<Map<String, dynamic>?> addQuiz({
     required String taskId,
     required String title,
     required List<QuizQuestion> questions,
   }) async {
     try {
-      // 1️⃣ Create the quiz
       final quizResponse = await http.post(
         Uri.parse('$supabaseUrl/quizzes'),
         headers: {
@@ -198,7 +177,6 @@ class ApiService {
       final quizId = quizData[0]['id'];
       print('✅ Quiz created with ID: $quizId');
 
-      // 2️⃣ Add questions
       for (var i = 0; i < questions.length; i++) {
         final q = questions[i];
         try {
@@ -226,7 +204,6 @@ class ApiService {
           final questionId = jsonDecode(questionResponse.body)[0]['id'];
           print('✅ Question ${i + 1} added with ID: $questionId');
 
-          // 3️⃣ Multiple Choice Options
           if (q.type == QuestionType.multipleChoice && q.options != null) {
             bool hasCorrect = false;
             for (var option in q.options!) {
@@ -253,7 +230,6 @@ class ApiService {
             }
           }
 
-          // 4️⃣ Matching / Drag & Drop
           if ((q.type == QuestionType.dragAndDrop || q.type == QuestionType.matching) &&
               q.matchingPairs != null) {
             for (var pair in q.matchingPairs!) {
@@ -273,7 +249,6 @@ class ApiService {
             }
           }
 
-          // 5️⃣ Fill in the Blank
           if (q.type == QuestionType.fillInTheBlank && q.correctAnswer != null) {
             await http.post(
               Uri.parse('$supabaseUrl/fill_in_the_blank_answers'),
@@ -300,11 +275,8 @@ class ApiService {
     }
   }
 
-  // ========================
-  // ADD LESSON
-  // ========================
   static Future<Map<String, dynamic>?> addLesson({
-    String? readingLevelId, // nullable now
+    String? readingLevelId,
     required String title,
     String? description,
     int? timeLimitMinutes,

@@ -25,8 +25,8 @@ class StudentVoiceAssessmentPage extends StatefulWidget {
   final Student student;
   final String? profileUrl;
   final ColorScheme colorScheme;
-  final String recordingFilePath; // path to the student's recorded file
-  final String assignmentId; // current assignment UUID
+  final String recordingFilePath;
+  final String assignmentId;
 
   const StudentVoiceAssessmentPage({
     Key? key,
@@ -91,16 +91,12 @@ class _StudentVoiceAssessmentPageState
     return '$minutes:$seconds';
   }
 
-  /// Save the score & update current reading level
   Future<void> _saveScore() async {
     final supabase = Supabase.instance.client;
 
     try {
-      // Fetch reading levels
       final response = await supabase.from('reading_levels').select();
       final List<dynamic> list = response ?? [];
-
-      // Find the level that matches the score
       final matchedLevel = list
           .map((json) => Map<String, dynamic>.from(json))
           .firstWhere(
@@ -131,14 +127,10 @@ class _StudentVoiceAssessmentPageState
     }
   }
 
-  /// Submit teacher remarks to student_submissions
   Future<void> _submitRemarks() async {
     final supabase = Supabase.instance.client;
-
     if (_remarksController.text.trim().isEmpty) return;
-
     try {
-
       await supabase.from('student_submissions').insert({
         'assignment_id': widget.assignmentId,
         'student_id': widget.student.id,
@@ -184,7 +176,6 @@ class _StudentVoiceAssessmentPageState
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 24),
 
-            // Audio Player
             if (widget.recordingFilePath.isNotEmpty) ...[
               Slider(
                 value: _position.inMilliseconds.toDouble(),
@@ -219,7 +210,6 @@ class _StudentVoiceAssessmentPageState
             ],
 
             const SizedBox(height: 24),
-            // Score Slider
             Row(
               children: [
                 const Text('Score:'),
@@ -241,7 +231,6 @@ class _StudentVoiceAssessmentPageState
             ),
 
             const SizedBox(height: 24),
-            // Teacher Remarks
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

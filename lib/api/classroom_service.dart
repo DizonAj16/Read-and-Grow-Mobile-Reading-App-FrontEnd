@@ -73,7 +73,6 @@ class ClassroomService {
       ''')
         .eq('student_id', studentId);
 
-    // Map into a flat list of quizzes
     List<Map<String, dynamic>> results = [];
 
     for (var enrollment in response) {
@@ -155,12 +154,9 @@ class ClassroomService {
 
       final classDetails = Map<String, dynamic>.from(response as Map);
 
-      // Count students
       final studentCount =
           (classDetails['student_enrollments'] as List<dynamic>?)?.length ?? 0;
       classDetails['student_count'] = studentCount;
-
-      // Flatten teacher_name for UI
       final teacher = classDetails['teacher'];
       classDetails['teacher_name'] =
       teacher != null ? teacher['teacher_name'] ?? 'N/A' : 'N/A';
@@ -177,27 +173,60 @@ class ClassroomService {
     final supabase = Supabase.instance.client;
 
     try {
-      final response = await supabase.from('class_rooms').select();
+      final currentUser = supabase.auth.currentUser;
+      if (currentUser == null) throw Exception('No logged-in teacher');
 
-      if (response == null) {
-        return [];
-      }
+      final teacher = await supabase
+          .from('teachers')
+          .select('id')
+          .eq('user_id', currentUser.id)
+          .single();
 
-      return (response as List<dynamic>)
-          .map((json) => Classroom.fromJson(Map<String, dynamic>.from(json)))
-          .toList();
+      final teacherId = teacher['id'];
+      final response = await supabase
+          .from('class_rooms')
+          .select('id, class_name, section, teacher_id, student_enrollments(count)')
+          .eq('teacher_id', teacherId);
+
+      return (response as List<dynamic>).map((json) {
+        final data = Map<String, dynamic>.from(json);
+        final enrollments = data['student_enrollments'] as List?;
+        final studentCount =
+        (enrollments != null && enrollments.isNotEmpty)
+            ? (enrollments.first['count'] ?? 0)
+            : 0;
+
+        data['student_count'] = studentCount;
+        return Classroom.fromJson(data);
+      }).toList();
     } catch (e) {
       print('Error fetching teacher classes: $e');
       return [];
     }
   }
+
+  static Future<int> fetchStudentCount(String classId) async {
+    final supabase = Supabase.instance.client;
+
+    try {
+      final response = await supabase
+          .from('class_students')
+          .select('id')
+          .eq('class_room_id', classId);
+
+      return response.length;
+    } catch (e) {
+      print('Error fetching student count for class $classId: $e');
+      return 0;
+    }
+  }
+
   static Future<List<Classroom>> getStudentClasses() async {
     final supabase = Supabase.instance.client;
 
     try {
       final user = supabase.auth.currentUser;
       if (user == null) throw Exception("No logged in student");
-
       final student = await supabase
           .from('students')
           .select('id')
@@ -205,39 +234,50 @@ class ClassroomService {
           .single();
 
       final studentId = student['id'];
-
       final response = await supabase
           .from('student_enrollments')
           .select('''
-          class_room_id,
-          class_rooms (
             id,
-            class_name,
-            section,
-            assignments (
+            class_room_id,
+            class_rooms (
               id,
-              task_id,
-              due_date,
-              instructions,
-              tasks (
-                id,
-                title,
-                description
-              )
+              class_name,
+              grade_level,
+              section,
+              school_year,
+              background_image,
+              teacher_id,
+              teacher:teachers (
+                teacher_name,
+                teacher_position,
+                teacher_avatar,
+                user:users (
+                  email
+                )
+              ),
+              student_enrollments (id)
             )
-          )
-        ''')
+          ''')
           .eq('student_id', studentId);
 
-      return (response as List<dynamic>)
-          .map((json) => Classroom.fromJson(Map<String, dynamic>.from(json['class_rooms'])))
-          .toList();
+      return (response as List<dynamic>).map((item) {
+        final classRoom = Map<String, dynamic>.from(item['class_rooms'] ?? {});
+        final teacher = classRoom['teacher'] ?? {};
+        final user = teacher['user'] ?? {};
+        final enrollments = classRoom['student_enrollments'] as List? ?? [];
+        classRoom['student_count'] = enrollments.length;
+        classRoom['teacher_name'] = teacher['teacher_name'];
+        classRoom['teacher_email'] = user['email'];
+        classRoom['teacher_position'] = teacher['teacher_position'];
+        classRoom['teacher_avatar'] = teacher['teacher_avatar'];
+
+        return Classroom.fromJson(classRoom);
+      }).toList();
     } catch (e) {
       print('Error fetching student classes: $e');
       return [];
     }
   }
-
 
   static Future<Map<String, dynamic>?> assignStudent({
     required String studentId,
@@ -261,7 +301,6 @@ class ClassroomService {
     try {
       final supabase = Supabase.instance.client;
 
-      // Delete the enrollment record for this student
       final res = await supabase
           .from('student_enrollments')
           .delete()
@@ -285,7 +324,6 @@ class ClassroomService {
   }
 
 
-  /// Fetch only assigned student IDs
   static Future<Set<String>> getAssignedStudentIds() async {
     try {
       final supabase = Supabase.instance.client;
@@ -327,8 +365,6 @@ class ClassroomService {
   static Future<List<Student>> getUnassignedStudents() async {
     try {
       final supabase = Supabase.instance.client;
-
-      // Get all assigned student IDs first
       final assignedResponse = await supabase
           .from('student_enrollments')
           .select('student_id');
@@ -336,8 +372,6 @@ class ClassroomService {
       final assignedIds = (assignedResponse as List)
           .map((e) => e['student_id'] as String)
           .toList();
-
-      // Fetch students NOT in the assignedIds list
       final response = await supabase
           .from('students')
           .select()

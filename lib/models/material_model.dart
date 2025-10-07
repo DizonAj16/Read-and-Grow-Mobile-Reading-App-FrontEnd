@@ -1,15 +1,15 @@
 class MaterialModel {
   final int id;
-  final String classRoomId;      // UUID string
-  final String uploadedBy;       // comes from "uploaded_by"
+  final String classRoomId;
+  final String uploadedBy;
   final String materialTitle;
   final String materialFileUrl;
   final String materialType;
   final String? description;
   final String? fileIcon;
-  final String? fileSize;           // store as int
+  final String? fileSize;
   final String fileExtension;
-  final DateTime createdAt;      // map from created_at
+  final DateTime createdAt;
   final String teacherName;
 
   MaterialModel({

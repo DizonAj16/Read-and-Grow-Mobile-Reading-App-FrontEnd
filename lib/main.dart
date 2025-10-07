@@ -115,7 +115,6 @@ final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ Initialize Supabase once
   await Supabase.initialize(
     url: supabaseUrl,
     anonKey: supabaseAnonKey,
@@ -137,7 +136,7 @@ class MyApp extends StatelessWidget {
           theme: buildLightTheme(context),
           darkTheme: buildDarkTheme(context),
           themeMode: currentTheme,
-          home: const LandingPage(), // 👈 always go to landing now
+          home: const LandingPage(),
         );
       },
     );

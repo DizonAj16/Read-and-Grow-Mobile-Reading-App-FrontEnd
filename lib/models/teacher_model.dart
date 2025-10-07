@@ -1,8 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Teacher {
-  final int? id; // teacher_id from profile
-  final int? userId; // user_id from user object
+  final int? id;
+  final int? userId;
   final String name;
   final String? position;
   final String? email;
@@ -64,11 +64,9 @@ class Teacher {
 
   /// Create a Teacher object from JSON or Map - handles both API response formats
   factory Teacher.fromJson(Map<String, dynamic> json) {
-    // Check if this is the nested API response structure
     final hasUserProfileStructure = json.containsKey('user') && json.containsKey('profile');
     
     if (hasUserProfileStructure) {
-      // Handle the nested API response structure
       final userData = json['user'] ?? {};
       final profileData = json['profile'] ?? {};
       
@@ -88,7 +86,6 @@ class Teacher {
             : null,
       );
     } else {
-      // Handle flat structure (already merged or from prefs)
       return Teacher(
         id: _parseInt(json['id'] ?? json['teacher_id']),
         userId: _parseInt(json['user_id']),

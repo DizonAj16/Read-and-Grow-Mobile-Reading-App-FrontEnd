@@ -1,8 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Student {
-  final String id; // student_id (UUID)
-  final String? userId; // user_id (UUID) from users table
+  final String id;
+  final String? userId;
   final String studentName;
   final String? studentLrn;
   final String? studentGrade;
@@ -10,10 +10,9 @@ class Student {
   final String? username;
   final String avatarLetter;
   final String? profilePicture;
-  final String? classRoomId; // UUID of class
+  final String? classRoomId;
   final String? currentReadingLevelId;
 
-  /// Track completed tasks (0 to 13)
   final int completedTasks;
 
   Student({

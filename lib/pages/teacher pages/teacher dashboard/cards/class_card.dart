@@ -228,48 +228,27 @@ class TeacherDashboardClassCard extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Student count
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.people,
-                              color: Colors.white,
-                              size: 18,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              "$studentCount Students",
-                              style: Theme.of(
-                                context,
-                              ).textTheme.bodyMedium?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 14,
-                                shadows: [
-                                  Shadow(
-                                    offset: Offset(0, 1),
-                                    blurRadius: 1.5,
-                                    color: Colors.black26,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                        const Icon(
+                          Icons.people,
+                          color: Colors.white,
+                          size: 18,
                         ),
-                        // Hint for actions
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            'Tap for options',
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(color: Colors.white),
+                        const SizedBox(width: 6),
+                        Text(
+                          studentCount == 0
+                              ? "No students yet"
+                              : "$studentCount ${studentCount == 1 ? 'Student' : 'Students'}",
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 14,
+                            shadows: const [
+                              Shadow(
+                                offset: Offset(0, 1),
+                                blurRadius: 1.5,
+                                color: Colors.black26,
+                              ),
+                            ],
                           ),
                         ),
                       ],

@@ -14,12 +14,11 @@ class QuizQuestion {
   final String? id;
   String questionText;
   QuestionType type;
-  List<String>? options;               // MCQ or drag order
-  String? correctAnswer;               // single correct answer (MCQ / fill-in / order encoded)
-  List<MatchingPair>? matchingPairs;   // for matching type
-  String userAnswer;                   // student's typed / selected answer
-  int? timeLimitSeconds;               // optional time limit per question
-
+  List<String>? options;
+  String? correctAnswer;
+  List<MatchingPair>? matchingPairs;
+  String userAnswer;
+  int? timeLimitSeconds;
   QuizQuestion({
     this.id,
     required this.questionText,
@@ -30,8 +29,6 @@ class QuizQuestion {
     this.timeLimitSeconds,
     String? userAnswer,
   }) : userAnswer = userAnswer ?? '';
-
-  /// Creates a copy of the QuizQuestion with updated fields
   QuizQuestion copyWith({
     String? id,
     String? questionText,
@@ -54,13 +51,10 @@ class QuizQuestion {
     );
   }
 
-  /// Flexible parser from a Map (works with Supabase rows or JSON)
   factory QuizQuestion.fromMap(Map<String, dynamic> map) {
     final id = map['id']?.toString();
     final questionText = (map['question_text'] ?? map['questionText'] ?? map['text'] ?? '').toString();
     final typeStr = (map['question_type'] ?? map['type'] ?? '').toString();
-
-    // Map string to enum
     QuestionType type;
     switch (typeStr.toLowerCase()) {
       case 'multiple_choice':
@@ -90,7 +84,6 @@ class QuizQuestion {
         type = QuestionType.multipleChoice;
     }
 
-    // Options: could be stored as List or JSON string
     List<String>? options;
     final rawOptions = map['options'] ?? map['question_options'];
     if (rawOptions != null) {
@@ -110,13 +103,10 @@ class QuizQuestion {
         }).toList();
       }
     }
-
-    // Correct answer
     String? correctAnswer = map['correct_answer']?.toString() ??
         map['answer']?.toString() ??
         map['correct']?.toString();
 
-    // Matching pairs
     List<MatchingPair>? matchingPairs;
     final rawPairs = map['matching_pairs'] ?? map['matchingPairs'] ?? map['pairs'] ?? map['matching'];
     if (rawPairs != null && rawPairs is List) {
@@ -126,10 +116,7 @@ class QuizQuestion {
       }).toList();
     }
 
-    // User answer
     final userAnswer = map['userAnswer']?.toString();
-
-    // Time limit
     int? timeLimit;
     if (map['time_limit_seconds'] != null) {
       timeLimit = int.tryParse(map['time_limit_seconds'].toString());
@@ -149,7 +136,6 @@ class QuizQuestion {
     );
   }
 
-  /// Convert to Map for DB insertion
   Map<String, dynamic> toMap() => {
     'id': id,
     'question_text': questionText,
@@ -163,11 +149,11 @@ class QuizQuestion {
 }
 
 class MatchingPair {
-  String leftItem;       // text to drag
-  File? rightItemFile;   // optional local file (not used when loaded from DB)
-  String? rightItemUrl;  // URL of image/asset
-  String userSelected;   // track student's selection (non-null)
-  String? correctAnswer; // expected match text
+  String leftItem;
+  File? rightItemFile;
+  String? rightItemUrl;
+  String userSelected;
+  String? correctAnswer;
 
   MatchingPair({
     required this.leftItem,

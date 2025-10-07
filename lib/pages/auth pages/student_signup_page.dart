@@ -44,7 +44,6 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
     super.dispose();
   }
 
-  /// Handles student registration with Supabase
   Future<void> registerStudent() async {
     if (!_formKey.currentState!.validate()) {
       setState(() => _autoValidate = true);
@@ -56,14 +55,13 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
     try {
       final supabase = Supabase.instance.client;
 
-      // 1️⃣ Sign up user in Supabase Auth
       final authResponse = await supabase.auth.signUp(
-        email: "${studentUsernameController.text}@gmail.com", // fake email
+        email: "${studentUsernameController.text}@gmail.com",
         password: studentPasswordController.text,
       );
 
       if (authResponse.user == null) {
-        Navigator.of(context).pop(); // Close loading
+        Navigator.of(context).pop();
         _handleErrorDialog(
           title: "Registration Failed",
           message: "Could not create account. Please try again.",
@@ -72,9 +70,8 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
       }
 
       final user = authResponse.user;
-      final userId = user!.id; // Auth UUID
+      final userId = user!.id;
 
-// Insert into 'users' table
       await supabase.from('users').insert({
         'id': userId,
         'username': studentUsernameController.text,
@@ -82,10 +79,8 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
         'role': 'student',
       });
 
-// Insert into 'students' table
       await supabase.from('students').insert({
-        // 'id' will be auto-generated
-        'user_id': userId, // FK to users.id
+        'user_id': userId,
         'username': studentUsernameController.text,
         'student_name': studentNameController.text,
         'student_lrn': studentLRNController.text,
@@ -94,13 +89,12 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
       });
 
 
-      // ✅ Success
       if (mounted) {
-        Navigator.of(context).pop(); // Close loading
+        Navigator.of(context).pop();
         await _showSuccessAndProceedDialogs("Registration successful!");
       }
     } catch (e) {
-      Navigator.of(context).pop(); // Close loading
+      Navigator.of(context).pop();
       _handleErrorDialog(
         title: "Error",
         message: "Failed to sign up: $e",

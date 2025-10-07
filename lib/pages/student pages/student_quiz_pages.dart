@@ -35,16 +35,9 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
   }
 
   Future<void> _loadQuiz() async {
-    print('🚀 Starting _loadQuiz');
-    print('   quizId: ${widget.quizId}');
-    print('   assignmentId: ${widget.assignmentId}');
-    print('   studentId: ${widget.studentId}');
-
     final supabase = Supabase.instance.client;
 
     try {
-      // Fetch quiz title
-      print('📥 Fetching quiz title...');
       final quizRes = await supabase
           .from('quizzes')
           .select('title')
@@ -52,39 +45,25 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
           .single();
 
       if (quizRes == null || quizRes.isEmpty) {
-        debugPrint("⚠️ No quiz found with ID: ${widget.quizId}");
         return;
       }
 
       quizTitle = quizRes['title'] ?? "Quiz";
-      print('✅ Quiz title: $quizTitle');
-
-      print('📥 Fetching quiz questions...');
       final qRes = await supabase
           .from('quiz_questions')
           .select('*, question_options(*), matching_pairs!matching_pairs_question_id_fkey(*)')
           .eq('quiz_id', widget.quizId)
           .order('sort_order', ascending: true);
 
-      print('📊 Raw response: ${qRes.length} questions');
-
       questions = qRes.map<QuizQuestion>((q) {
-        print('📋 Processing question: ${q['id']}');
-        print('   Type: ${q['type']}');
-        print('   Text: ${q['question_text']}');
-
         List<MatchingPair> pairs = [];
         if (q['matching_pairs'] != null) {
-          print('   🎯 Found matching_pairs data: ${q['matching_pairs']}');
           pairs = (q['matching_pairs'] as List)
               .map((p) {
-            print('      Creating MatchingPair: $p');
             return MatchingPair.fromMap(p);
           })
               .toList();
-          print('   ✅ Created ${pairs.length} matching pairs');
         } else {
-          print('   ⚠️ No matching_pairs data');
         }
 
         return QuizQuestion.fromMap(q).copyWith(matchingPairs: pairs);

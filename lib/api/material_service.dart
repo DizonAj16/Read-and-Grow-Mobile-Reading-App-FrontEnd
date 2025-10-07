@@ -6,7 +6,6 @@ import '../models/material_model.dart';
 class MaterialService {
   static final supabase = Supabase.instance.client;
 
-  /// Upload a material file to Supabase Storage + insert metadata in `materials` table
   static Future<bool> uploadMaterialFile({
     required File file,
     required String materialTitle,
@@ -23,20 +22,16 @@ class MaterialService {
       final fileName =
           "materials/$classroomId-${DateTime.now().millisecondsSinceEpoch}-${file.uri.pathSegments.last}";
 
-      // Upload file to Supabase Storage bucket
       await supabase.storage.from('materials').uploadBinary(
         fileName,
         await file.readAsBytes(),
         fileOptions: const FileOptions(upsert: true),
       );
 
-      // Get public URL
       final publicUrl = supabase.storage.from('materials').getPublicUrl(fileName);
-
-      // Insert metadata into Supabase table
       await supabase.from('materials').insert({
         'material_title': materialTitle,
-        'class_room_id': classroomId, // ✅ matches your schema
+        'class_room_id': classroomId,
         'material_type': materialType,
         'description': description,
         'material_file_url': publicUrl,
@@ -50,7 +45,6 @@ class MaterialService {
     }
   }
 
-  /// Get all materials for a specific class
   static Future<List<MaterialModel>> getClassroomMaterials(String classId) async {
     try {
       final response = await supabase
@@ -58,7 +52,7 @@ class MaterialService {
           .select()
           .eq('class_room_id', classId);
 
-      print("📥 Raw response: $response"); // This will already be a List<dynamic>
+      print("📥 Raw response: $response");
       if (response.isNotEmpty) {
         print("📦 Parsed list length: ${response.length}");
         print("🔑 First item keys: ${(response[0] as Map).keys}");
@@ -73,13 +67,10 @@ class MaterialService {
     }
   }
 
-  /// Get all materials accessible to a student (via student_enrollments)
   static Future<List<MaterialModel>> fetchStudentMaterials() async {
     try {
       final user = supabase.auth.currentUser;
       if (user == null) throw Exception("No logged in student");
-
-      // ✅ get enrolled classes from student_enrollments
       final enrollments = await supabase
           .from('student_enrollments')
           .select('class_room_id')
@@ -105,10 +96,8 @@ class MaterialService {
     }
   }
 
-  /// Delete a material (both storage + db record)
   static Future<bool> deleteMaterial(int materialId) async {
     try {
-      // Get material info first
       final material = await supabase
           .from('materials')
           .select()
@@ -132,14 +121,13 @@ class MaterialService {
     }
   }
 
-  /// Filter materials by type inside a class
   static Future<List<MaterialModel>> getMaterialsByType(
       String classId, String type) async {
     try {
       final response = await supabase
           .from('materials')
           .select()
-          .eq('class_room_id', classId) // ✅ fixed column
+          .eq('class_room_id', classId)
           .eq('material_type', type);
 
       final List<dynamic> list = response ?? [];

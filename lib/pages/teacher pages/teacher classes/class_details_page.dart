@@ -637,16 +637,10 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
           onPageChanged: (index) => setState(() => _currentIndex = index),
           children: [
             ClassInfoPage(classDetails: widget.classDetails),
-            StudentsManagementPage(
-              classId: widget.classDetails['id'].toString(),
-            ),
-            StudentsProgressPage(
-              classId: widget.classDetails['id'].toString(),
-            ),
-            MaterialsPage(
-              classId: widget.classDetails['id'].toString(),
-            ),
-            ClassProgressScreen(classId: classId), // <- New Tab
+            StudentsManagementPage(classId: widget.classDetails['id'].toString()),
+            ClassProgressPage(classId: widget.classDetails['id'].toString()), // Progress
+            MaterialsPage(classId: widget.classDetails['id'].toString()),
+            TasksPage(classId: widget.classDetails['id'].toString()), // Tasks
           ],
         ),
       ),
@@ -678,7 +672,6 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
             label: "Materials",
           ),
           BottomNavigationBarItem(
-            // <- New Tab
             icon: Icon(Icons.task_outlined),
             activeIcon: Icon(Icons.task),
             label: "Tasks",

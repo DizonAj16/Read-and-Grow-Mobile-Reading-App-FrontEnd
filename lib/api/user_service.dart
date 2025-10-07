@@ -34,7 +34,7 @@ class UserService {
     final supabase = Supabase.instance.client;
     try {
       final response = await supabase
-          .from('students') // change to your actual table name
+          .from('students')
           .insert(body)
           .select()
           .single();
@@ -51,7 +51,7 @@ class UserService {
     final supabase = Supabase.instance.client;
     try {
       final response = await supabase
-          .from('teachers') // adjust to your actual table name
+          .from('teachers')
           .insert(body)
           .select()
           .single();
@@ -68,7 +68,7 @@ class UserService {
     final supabase = Supabase.instance.client;
     try {
       final response = await supabase
-          .from('students') // 👈 change if your table name is different
+          .from('students')
           .select();
 
       return (response as List)
@@ -147,15 +147,10 @@ class UserService {
     final supabase = Supabase.instance.client;
 
     try {
-      // Choose bucket based on role
       final bucket = role == 'teacher' ? 'teacher-avatars' : 'student-avatars';
-
-      // File name: userId + timestamp to avoid overwriting
       final fileName = '$userId-${DateTime
           .now()
           .millisecondsSinceEpoch}.png';
-
-      // Upload file
       final fileBytes = await File(filePath).readAsBytes();
       await supabase.storage.from(bucket).uploadBinary(
         fileName,
@@ -163,10 +158,7 @@ class UserService {
         fileOptions: const FileOptions(upsert: true),
       );
 
-      // Get public URL
       final publicUrl = supabase.storage.from(bucket).getPublicUrl(fileName);
-
-      // Update DB table with new profile picture
       final table = role == 'teacher' ? 'teachers' : 'students';
       await supabase.from(table).update({
         'profile_picture': publicUrl,

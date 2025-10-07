@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 /// Service to handle quiz score submissions to the backend.
 class QuizScoreService {
   final String baseUrl;
-  final String? authToken; // Optional bearer token
+  final String? authToken;
 
   QuizScoreService({required this.baseUrl, this.authToken});
 

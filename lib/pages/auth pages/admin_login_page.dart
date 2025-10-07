@@ -184,7 +184,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
         await prefs.setString('role', role);
 
         if (!mounted) return;
-        Navigator.of(context).pop(); // close loading
+        Navigator.of(context).pop();
         await _showSuccessDialog();
 
         if (role == 'parent') {
@@ -205,7 +205,6 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                 (route) => false,
           );
         } else {
-          // Default: maybe student dashboard
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) => const StudentDashboardPage()),
                 (route) => false,

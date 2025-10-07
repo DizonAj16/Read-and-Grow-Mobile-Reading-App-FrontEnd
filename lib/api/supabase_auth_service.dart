@@ -16,16 +16,13 @@ class SupabaseAuthService {
       throw Exception('Login failed. No user returned.');
     }
 
-    // Store role separately from your public.users table
     final roleRow = await _supabase
         .from('users')
         .select('role')
-        .eq('id', user.id) // link via Supabase auth.uid
+        .eq('id', user.id)
         .maybeSingle();
 
     final role = roleRow?['role'] ?? 'student';
-
-    // Save locally (like old code did)
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_id', user.id);
     await prefs.setString('role', role);
@@ -47,8 +44,6 @@ class SupabaseAuthService {
   static Future<Map<String, dynamic>?> getAuthProfile() async {
     final user = _supabase.auth.currentUser;
     if (user == null) throw Exception('No logged in user');
-
-    // Fetch extra fields (like role, username) from your `users` table
     final profile = await _supabase
         .from('users')
         .select()

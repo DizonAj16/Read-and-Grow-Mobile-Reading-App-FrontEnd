@@ -45,31 +45,23 @@ class _LoginPageState extends State<LoginPage> {
         passwordController.text.trim(),
       );
 
-      Navigator.of(context).pop(); // close loading dialog
-
-      // Extract user info and role from result
+      Navigator.of(context).pop();
       final userMap = result['user'];
       final role = result['role'] ?? 'student';
 
-      // Save locally user_id and role
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_id', userMap['id']);
       await prefs.setString('role', role);
 
-      // You can still check session if needed:
       final session = Supabase.instance.client.auth.currentSession;
       if (session == null) {
-        // Handle unexpected case: session is null
       } else {
-        // Optionally you can store accessToken if you need to use it manually:
-        // await prefs.setString('access_token', session.accessToken);
-        // await prefs.setString('refresh_token', session.refreshToken);
       }
 
       await _showSuccessAndProceedDialogs(role);
 
     } catch (e) {
-      Navigator.of(context).pop(); // close loading dialog on error
+      Navigator.of(context).pop();
       _showErrorDialog(title: 'Login Failed', message: e.toString());
       debugPrint('Login error: $e');
     }
@@ -110,17 +102,11 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  /// Shows a success dialog, then a proceeding dialog, then navigates to dashboard.
-  /// Used after a successful login.
   Future<void> _showSuccessAndProceedDialogs(String? role) async {
     await _showSuccessDialog();
     _navigateToDashboard(role);
   }
 
-  /// Shows a success dialog for login.
-  /// Waits for a few seconds before closing.
-  /// Shows a success dialog for login.
-  /// Waits for a few seconds before closing.
   Future<void> _showSuccessDialog() async {
     showDialog(
       context: context,
@@ -155,10 +141,9 @@ class _LoginPageState extends State<LoginPage> {
     );
 
     await Future.delayed(const Duration(milliseconds: 2100));
-    Navigator.of(context).pop(); // Close success dialog
+    Navigator.of(context).pop();
   }
 
-  /// Navigates to the appropriate dashboard page based on user role.
   void _navigateToDashboard(String? role) {
     debugPrint("Navigating to dashboard for role: $role");
 
@@ -181,8 +166,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  /// Shows an error dialog with a title and message.
-  /// Used for displaying validation, login, or storage errors.
   void _showErrorDialog({required String title, required String message}) {
     showDialog(
       context: context,
@@ -249,11 +232,9 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  /// Builds the header section with avatar and title for the login page.
   Widget _buildHeader(BuildContext context) => Column(
     children: [
       const SizedBox(height: 50),
-      // User avatar icon
       CircleAvatar(
         radius: 80,
         backgroundColor: Theme.of(context).colorScheme.onPrimary,
@@ -264,7 +245,6 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ),
       const SizedBox(height: 5),
-      // Page title
       Text(
         "Login",
         style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -276,8 +256,6 @@ class _LoginPageState extends State<LoginPage> {
     ],
   );
 
-  /// Builds the login form with username/email, password, and action buttons.
-  /// Includes validation and navigation to sign up pages.
   Widget _buildLoginForm(BuildContext context) => Form(
     key: _formKey,
     autovalidateMode:
@@ -292,7 +270,6 @@ class _LoginPageState extends State<LoginPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 20),
-          // Username input field
           TextFormField(
             controller: usernameController,
             decoration: InputDecoration(
@@ -347,7 +324,6 @@ class _LoginPageState extends State<LoginPage> {
             },
           ),
           const SizedBox(height: 20),
-          // Password input field
           PasswordTextField(
             labelText: "Password",
             controller: passwordController,
@@ -359,7 +335,6 @@ class _LoginPageState extends State<LoginPage> {
             },
           ),
           const SizedBox(height: 10),
-          // Forgot password link
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
@@ -372,9 +347,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
           ),
-          // Login button
           LoginButton(text: "Login", onPressed: login),
-          // Add sign up as student and teacher buttons
           const SizedBox(height: 20),
           Divider(height: 10),
           const SizedBox(height: 5),
@@ -395,7 +368,7 @@ class _LoginPageState extends State<LoginPage> {
               elevation: 4,
             ),
             icon: Image.asset(
-              'assets/icons/graduating-student.png', // for student
+              'assets/icons/graduating-student.png',
               width: 30,
               height: 30,
             ),
@@ -421,7 +394,7 @@ class _LoginPageState extends State<LoginPage> {
               elevation: 4,
             ),
             icon: Image.asset(
-              'assets/icons/teacher.png', // for teacher
+              'assets/icons/teacher.png',
               width: 30,
               height: 30,
             ),
@@ -440,10 +413,8 @@ class _LoginPageState extends State<LoginPage> {
     ),
   );
 
-  /// Builds the background with an image and a gradient overlay.
   Widget _buildBackground(BuildContext context) => Stack(
     children: [
-      // Background image with color filter
       ColorFiltered(
         colorFilter: ColorFilter.mode(
           Theme.of(context).colorScheme.primary.withOpacity(0.7),
@@ -459,7 +430,6 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
       ),
-      // Gradient overlay
       Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -475,8 +445,6 @@ class _LoginPageState extends State<LoginPage> {
     ],
   );
 
-  /// Main build method for the login page.
-  /// Assembles the app bar, background, header, and login form.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -486,15 +454,12 @@ class _LoginPageState extends State<LoginPage> {
           color: Theme.of(context).colorScheme.onPrimary,
         ),
         actions: [
-          // Theme toggle button in the app bar
           ThemeToggleButton(iconColor: Theme.of(context).colorScheme.onPrimary),
         ],
       ),
       body: Stack(
         children: [
-          // Page background
           _buildBackground(context),
-          // Scrollable content with header and login form
           SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(
@@ -504,7 +469,6 @@ class _LoginPageState extends State<LoginPage> {
                 child: Column(
                   children: [
                     _buildHeader(context),
-                    // Expands login form to fill remaining space
                     Expanded(child: _buildLoginForm(context)),
                   ],
                 ),

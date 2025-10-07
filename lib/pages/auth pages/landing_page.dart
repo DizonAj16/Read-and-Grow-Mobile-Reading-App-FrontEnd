@@ -12,7 +12,6 @@ class LandingPage extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Blended background image with color overlay for effect
           ColorFiltered(
             colorFilter: ColorFilter.mode(
               Theme.of(context).colorScheme.primary.withOpacity(0.7),
@@ -28,14 +27,11 @@ class LandingPage extends StatelessWidget {
               ),
             ),
           ),
-          // Main content column
           SingleChildScrollView(
             child: Column(
               children: [
                 const SizedBox(height: 80),
-                // Animated hello illustration
                 Lottie.asset('assets/animation/hello.json', height: 400),
-                // App title
                 Text(
                   "Read & Grow",
                   textAlign: TextAlign.center,
@@ -44,7 +40,6 @@ class LandingPage extends StatelessWidget {
                       ),
                 ),
                 const SizedBox(height: 5),
-                // App subtitle/description
                 Text(
                   "Mobile Reading App For Elementary School Learners",
                   textAlign: TextAlign.center,
@@ -52,8 +47,7 @@ class LandingPage extends StatelessWidget {
                         color: Colors.white,
                       ),
                 ),
-                const SizedBox(height: 40), // <-- Replace Spacer with SizedBox for spacing
-                // Welcome card with login and sign up buttons
+                const SizedBox(height: 40),
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -65,7 +59,6 @@ class LandingPage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Welcome message
                       Text(
                         "Welcome",
                         style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -73,7 +66,6 @@ class LandingPage extends StatelessWidget {
                             ),
                       ),
                       const SizedBox(height: 10),
-                      // Short description
                       Text(
                         "Start your reading journey today with our platform.",
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -84,12 +76,11 @@ class LandingPage extends StatelessWidget {
                             ),
                       ),
                       const SizedBox(height: 20),
-                      // Login button navigates to ChooseRolePage (login mode)
                       ElevatedButton(
                         onPressed: () {
                           Navigator.of(context).push(
                             PageTransition(
-                              page: ChooseRolePage(showLogin: true), // Show login roles
+                              page: ChooseRolePage(showLogin: true),
                             ),
                           );
                         },
@@ -110,12 +101,11 @@ class LandingPage extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 10),
-                      // Sign Up button navigates to ChooseRolePage (sign up mode)
                       OutlinedButton(
                         onPressed: () {
                           Navigator.of(context).push(
                             PageTransition(
-                              page: ChooseRolePage(showLogin: false), // Show sign up roles
+                              page: ChooseRolePage(showLogin: false),
                             ),
                           );
                         },
@@ -143,7 +133,6 @@ class LandingPage extends StatelessWidget {
               ],
             ),
           ),
-          // Theme toggle button positioned at the top-right corner
           Positioned(
             top: 40,
             right: 0,
