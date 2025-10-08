@@ -255,8 +255,6 @@ class _StudentVoiceAssessmentPageState
                   },
                   child: const Text('Save Score & Submit Remarks'),
                 ),
-
-
               ],
             ),
           ],

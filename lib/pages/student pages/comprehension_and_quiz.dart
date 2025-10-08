@@ -6,7 +6,7 @@ enum QuestionType { multipleChoice, trueFalse, fillInTheBlank }
 
 class ComprehensionQuizPage extends StatefulWidget {
   final String studentId;
-  final String storyId; // link to the story being read
+  final String storyId;
   final String levelId;
 
   const ComprehensionQuizPage({
@@ -26,9 +26,9 @@ class _ComprehensionQuizPageState extends State<ComprehensionQuizPage> {
   bool loading = true;
   String quizTitle = "";
   List<Map<String, dynamic>> questions = [];
-  Map<int, String> answers = {}; // {questionId: answer}
+  Map<int, String> answers = {};
   Timer? timer;
-  int? timeLimit; // in seconds
+  int? timeLimit;
   int remainingSeconds = 0;
 
   @override
@@ -45,7 +45,6 @@ class _ComprehensionQuizPageState extends State<ComprehensionQuizPage> {
 
   Future<void> _loadQuiz() async {
     try {
-      // 1️⃣ Fetch quiz for the story
       final quizRes = await supabase
           .from('quizzes')
           .select('id, quiz_title, time_limit, questions')
@@ -66,7 +65,6 @@ class _ComprehensionQuizPageState extends State<ComprehensionQuizPage> {
 
       questions = List<Map<String, dynamic>>.from(quizRes['questions']);
 
-      // 2️⃣ Start timer if applicable
       if (timeLimit != null && timeLimit! > 0) {
         timer = Timer.periodic(const Duration(seconds: 1), (t) {
           if (remainingSeconds > 0) {
@@ -98,7 +96,6 @@ class _ComprehensionQuizPageState extends State<ComprehensionQuizPage> {
       if (correct == user) score++;
     }
 
-    // Save submission
     await supabase.from('quiz_submissions').insert({
       'student_id': widget.studentId,
       'quiz_id': questions.isNotEmpty ? questions.first['quiz_id'] : null,
@@ -108,7 +105,6 @@ class _ComprehensionQuizPageState extends State<ComprehensionQuizPage> {
       'submitted_at': DateTime.now().toIso8601String(),
     });
 
-    // Unlock next level if passed (≥ 70%)
     final passed = (score / questions.length) >= 0.7;
     if (passed) {
       await supabase.from('student_levels').update({'status': 'completed'}).match({
@@ -116,7 +112,6 @@ class _ComprehensionQuizPageState extends State<ComprehensionQuizPage> {
         'level_id': widget.levelId,
       });
 
-      // Get next level
       final nextLevel = await supabase
           .from('reading_levels')
           .select('id')

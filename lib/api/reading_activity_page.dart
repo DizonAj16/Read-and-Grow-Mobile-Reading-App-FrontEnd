@@ -6,8 +6,6 @@ import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/student_model.dart';
 
-
-
 class ReadingActivityPage extends StatefulWidget {
   final String taskId;
   final String passageText;
@@ -105,6 +103,7 @@ class _ReadingActivityPageState extends State<ReadingActivityPage> {
       debugPrint('Error stopping recorder: $e');
     }
   }
+
   Future<void> _uploadRecording() async {
 
     if (_recordedPath == null) return;
@@ -144,8 +143,6 @@ class _ReadingActivityPageState extends State<ReadingActivityPage> {
       setState(() => _isUploading = false);
     }
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -188,7 +185,7 @@ class _ReadingActivityPageState extends State<ReadingActivityPage> {
                 ElevatedButton.icon(
                   onPressed: _uploadRecording,
                   icon: const Icon(Icons.upload),
-                  label: Text('Upload Recordiddddddng'),
+                  label: Text('Upload Recording'),
                 ),
 
               ],

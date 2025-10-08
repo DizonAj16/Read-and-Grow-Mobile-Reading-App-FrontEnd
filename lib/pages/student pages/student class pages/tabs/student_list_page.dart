@@ -19,7 +19,6 @@ class StudentListPage extends StatefulWidget {
 }
 
 class _StudentListPageState extends State<StudentListPage> {
-  // State variables - initialized with default values
   List<Student> _students = [];
   bool _isLoading = true;
   bool _hasError = false;
@@ -426,18 +425,21 @@ class _StudentCard extends StatelessWidget {
   }
 
   void _navigateToStudentProfile(
-    BuildContext context,
-    String name,
-    String avatarLetter,
-    String? profileUrl,
-  ) {
+      BuildContext context,
+      String name,
+      String avatarLetter,
+      String? profileUrl,
+      ) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder:
-            (_) => ReadingActivityPage(student: student, taskId: '3cdf1f9e--47cb-9398-1e959ee71f0c', passageText: 'hehehhe',),
-
-    ),
+        builder: (_) => StudentProfilePage(
+          name: name,
+          avatarLetter: avatarLetter,
+          avatarColor: Colors.blue,
+          profileUrl: profileUrl,
+        ),
+      ),
     );
   }
 }

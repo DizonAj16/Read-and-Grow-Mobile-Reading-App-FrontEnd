@@ -3,23 +3,24 @@ import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classe
 import 'package:flutter/material.dart';
 import '../../../../models/quiz_questions.dart';
 
-/// Reusable screen for both preview (teacher) and actual quiz (student)
 class QuizPreviewScreen extends StatefulWidget {
   final String title;
   final List<QuizQuestion> questions;
-
-  /// Indicates whether the screen is being used as a teacher preview
   final bool isPreview;
-
-  /// If preview (teacher), we need classDetails to go back
   final Map<String, dynamic>? classDetails;
+
+  // ✅ Added for student context
+  final String? studentId;
+  final String? assignmentId;
 
   const QuizPreviewScreen({
     super.key,
     required this.title,
     required this.questions,
-    this.isPreview = false, // default false for students
-    this.classDetails,      // only required for teacher preview
+    this.isPreview = false,
+    this.classDetails,
+    this.studentId,       // ✅ newly added
+    this.assignmentId,    // ✅ newly added
   });
 
   @override
@@ -30,7 +31,6 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize user answers
     for (var q in widget.questions) {
       q.userAnswer = q.userAnswer ?? '';
       q.matchingPairs ??= [];
@@ -40,7 +40,6 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
     }
   }
 
-  // Build question widget
   Widget _buildQuestionWidget(QuizQuestion q) {
     if (q.type == QuestionType.multipleChoice && q.options!.isNotEmpty) {
       return Column(
@@ -93,7 +92,8 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
         children: q.options!
             .map((opt) => ListTile(
           title: Text(opt),
-          leading: const Icon(Icons.drag_handle, color: Colors.grey),
+          leading:
+          const Icon(Icons.drag_handle, color: Colors.grey),
         ))
             .toList(),
       )
@@ -130,12 +130,14 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
                 Expanded(
                   child: Text(
                     pair.leftItem,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w500),
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: (pair.rightItemUrl != null && pair.rightItemUrl!.isNotEmpty)
+                  child: (pair.rightItemUrl != null &&
+                      pair.rightItemUrl!.isNotEmpty)
                       ? Image.network(
                     pair.rightItemUrl!,
                     height: 80,
@@ -156,7 +158,8 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
           const SizedBox(height: 8),
           const Text(
             'Drag the text to match the images',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            style: TextStyle(
+                fontWeight: FontWeight.bold, fontSize: 16),
           ),
           const SizedBox(height: 16),
           Wrap(
@@ -171,7 +174,9 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
                     color: Colors.blue,
                     child: Text(
                       pair.leftItem,
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
@@ -183,7 +188,9 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   color: Colors.blue[100],
-                  child: Text(pair.leftItem, style: const TextStyle(fontWeight: FontWeight.w500)),
+                  child: Text(pair.leftItem,
+                      style:
+                      const TextStyle(fontWeight: FontWeight.w500)),
                 ),
               );
             }).toList(),
@@ -204,13 +211,15 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
                     color: Colors.green[100],
                     child: Row(
                       children: [
-                        if (pair.rightItemUrl != null && pair.rightItemUrl!.isNotEmpty)
+                        if (pair.rightItemUrl != null &&
+                            pair.rightItemUrl!.isNotEmpty)
                           Image.network(
                             pair.rightItemUrl!,
                             height: 100,
                             width: 100,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
+                            errorBuilder:
+                                (context, error, stackTrace) {
                               return Container(
                                 height: 100,
                                 width: 100,
@@ -222,10 +231,17 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
                         const SizedBox(width: 16),
                         Expanded(
                           child: Text(
-                            pair.userSelected!.isEmpty ? 'Drop text here' : pair.userSelected!,
+                            pair.userSelected!.isEmpty
+                                ? 'Drop text here'
+                                : pair.userSelected!,
                             style: TextStyle(
-                              color: pair.userSelected!.isEmpty ? Colors.grey : Colors.black,
-                              fontWeight: pair.userSelected!.isEmpty ? FontWeight.normal : FontWeight.bold,
+                              color: pair.userSelected!.isEmpty
+                                  ? Colors.grey
+                                  : Colors.black,
+                              fontWeight:
+                              pair.userSelected!.isEmpty
+                                  ? FontWeight.normal
+                                  : FontWeight.bold,
                             ),
                           ),
                         ),
@@ -243,7 +259,6 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
     return const SizedBox();
   }
 
-  // Refresh class details from API
   Future<Map<String, dynamic>> _fetchUpdatedClassDetails() async {
     if (widget.classDetails == null) return {};
     final classId = widget.classDetails!['id'];
@@ -261,7 +276,8 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (_) => ClassDetailsPage(classDetails: updatedData),
+                builder: (_) =>
+                    ClassDetailsPage(classDetails: updatedData),
               ),
             );
           }
@@ -291,7 +307,8 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
                     children: [
                       Text(
                         '${index + 1}. ${q.questionText}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
                       _buildQuestionWidget(q),
@@ -303,18 +320,20 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
 
             if (widget.isPreview && widget.classDetails != null)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding:
+                const EdgeInsets.symmetric(vertical: 16),
                 child: SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () async {
-                      final updatedData = await _fetchUpdatedClassDetails();
+                      final updatedData =
+                      await _fetchUpdatedClassDetails();
                       if (mounted) {
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
-                            builder: (_) =>
-                                ClassDetailsPage(classDetails: updatedData),
+                            builder: (_) => ClassDetailsPage(
+                                classDetails: updatedData),
                           ),
                         );
                       }

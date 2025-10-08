@@ -41,7 +41,6 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
       final currentUser = supabase.auth.currentUser;
       if (currentUser == null) throw Exception('No logged in student');
 
-      // ✅ Fetch the student record directly
       final response = await supabase
           .from('students')
           .select()
@@ -52,22 +51,18 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
 
       student = Student.fromJson(Map<String, dynamic>.from(response));
 
-      // ✅ Save to local prefs for caching
       await student.saveToPrefs();
 
       debugPrint('✅ Student data fetched from Supabase: ${student.toJson()}');
     } catch (e) {
       debugPrint('⚠️ Error fetching from Supabase: $e');
 
-      // ✅ Fallback to SharedPreferences
       student = await Student.fromPrefs();
       debugPrint('📦 Student data loaded from SharedPreferences: ${student.toJson()}');
     }
 
-    // ✅ Ensure the profile picture URL is valid (if stored as relative path)
     if (student.profilePicture != null &&
         !student.profilePicture!.startsWith('http')) {
-      // Optional: store your bucket base URL once in env/config if needed
       final bucketBaseUrl =
       supabase.storage.from('avatars').getPublicUrl(student.profilePicture!);
       student = student.copyWith(profilePicture: bucketBaseUrl);
@@ -115,7 +110,6 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
       }
 
       if (uploadedUrl != null) {
-        // ✅ Success — update student's profile
         final updatedStudent = student.copyWith(profilePicture: uploadedUrl);
         await updatedStudent.saveToPrefs();
 
@@ -126,7 +120,6 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
 
         ScaffoldMessenger.of(context).showSnackBar(UploadSuccessSnackBar());
       } else {
-        // ❌ Upload failed
         ScaffoldMessenger.of(context).showSnackBar(
           UploadErrorSnackBar(500),
         );
@@ -217,7 +210,6 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
       child: Column(
         children: [
           const SizedBox(height: 80),
-          // Profile Card
           _GlassCard(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -262,7 +254,6 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
             ),
           ),
           const SizedBox(height: 30),
-          // Info Card
           _GlassCard(
             child: Column(
               children: [
@@ -297,10 +288,8 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
             ),
           ),
           const SizedBox(height: 30),
-          // Progress indicator
           _TaskProgressIndicator(completedTasks: student.completedTasks),
           const SizedBox(height: 20),
-          // Fun decoration
           Image.asset('assets/activity_images/reading_owl.jpg', width: 100),
         ],
       ),

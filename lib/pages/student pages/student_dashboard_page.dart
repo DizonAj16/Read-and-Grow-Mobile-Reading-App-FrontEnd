@@ -18,7 +18,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
       GlobalKey<RefreshIndicatorState>();
   bool _isLoading = false;
   bool _minimumLoadingTimeElapsed = false;
-  bool _dataLoaded = false; // Add this flag
+  bool _dataLoaded = false;
 
   @override
   void initState() {
@@ -42,7 +42,6 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
     setState(() => _isLoading = true);
     try {
       final response = await SupabaseAuthService.getAuthProfile();
-      // Adjust this depending on what your profile query returns
       final profileJson = (response?['profile'] ?? {}) as Map<String, dynamic>;
       final student = Student.fromJson(profileJson);
       await student.saveToPrefs();
@@ -81,7 +80,6 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Show loading indicator if still loading OR if minimum time hasn't elapsed
     final showLoading = _isLoading || !_minimumLoadingTimeElapsed;
 
     return Scaffold(
@@ -218,7 +216,6 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
   }
 
   Widget _buildRecentActivitiesSection(BuildContext context) {
-    // Simulated empty list (replace with your actual logic later)
     final List activities = [];
 
     if (activities.isEmpty) {
@@ -262,7 +259,6 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
       );
     }
 
-    // Otherwise, show actual activities
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -278,7 +274,6 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
         Column(
           children:
               activities.map((activity) {
-                // replace with actual data rendering
                 return StudentDashboardActivityTile(
                   title: activity.title,
                   subtitle: activity.subtitle,

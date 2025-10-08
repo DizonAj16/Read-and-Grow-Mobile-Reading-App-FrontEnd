@@ -168,7 +168,6 @@ class ClassroomService {
     }
   }
 
-  /// TEACHER CLASSES
   static Future<List<Classroom>> fetchTeacherClasses() async {
     final supabase = Supabase.instance.client;
 
@@ -226,7 +225,8 @@ class ClassroomService {
 
     try {
       final user = supabase.auth.currentUser;
-      if (user == null) throw Exception("No logged in student");
+      if (user == null) throw Exception("No logged-in student");
+
       final student = await supabase
           .from('students')
           .select('id')
@@ -237,39 +237,35 @@ class ClassroomService {
       final response = await supabase
           .from('student_enrollments')
           .select('''
-            id,
-            class_room_id,
-            class_rooms (
-              id,
-              class_name,
-              grade_level,
-              section,
-              school_year,
-              background_image,
-              teacher_id,
-              teacher:teachers (
-                teacher_name,
-                teacher_position,
-                teacher_avatar,
-                user:users (
-                  email
-                )
-              ),
-              student_enrollments (id)
-            )
-          ''')
+      class_room_id,
+      class_rooms (
+        id,
+        class_name,
+        grade_level,
+        section,
+        school_year,
+        teacher_id,
+        teacher:teachers (
+          teacher_name,
+          teacher_email,
+          teacher_position,
+          profile_picture
+        ),
+        student_enrollments (student_id)
+      )
+    ''')
           .eq('student_id', studentId);
 
       return (response as List<dynamic>).map((item) {
         final classRoom = Map<String, dynamic>.from(item['class_rooms'] ?? {});
         final teacher = classRoom['teacher'] ?? {};
-        final user = teacher['user'] ?? {};
         final enrollments = classRoom['student_enrollments'] as List? ?? [];
+
         classRoom['student_count'] = enrollments.length;
         classRoom['teacher_name'] = teacher['teacher_name'];
-        classRoom['teacher_email'] = user['email'];
+        classRoom['teacher_email'] = teacher['teacher_email'];
         classRoom['teacher_position'] = teacher['teacher_position'];
-        classRoom['teacher_avatar'] = teacher['teacher_avatar'];
+        classRoom['teacher_avatar'] = teacher['profile_picture'];
 
         return Classroom.fromJson(classRoom);
       }).toList();
