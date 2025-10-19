@@ -2,6 +2,9 @@ import 'package:deped_reading_app_laravel/api/supabase_auth_service.dart';
 import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:percent_indicator/percent_indicator.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'student page widgets/horizontal_card.dart';
 import 'student page widgets/activity_tile.dart';
 
@@ -15,10 +18,18 @@ class StudentDashboardPage extends StatefulWidget {
 class _StudentDashboardPageState extends State<StudentDashboardPage> {
   String? username;
   final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey =
-      GlobalKey<RefreshIndicatorState>();
+  GlobalKey<RefreshIndicatorState>();
   bool _isLoading = false;
   bool _minimumLoadingTimeElapsed = false;
   bool _dataLoaded = false;
+
+  // Progress data
+  double _averageScore = 0;
+  int _completedTasks = 0;
+  int _totalCorrect = 0;
+  int _totalWrong = 0;
+  DateTime? _lastUpdated;
+  List<double> _recentScores = [];
 
   @override
   void initState() {
@@ -49,6 +60,8 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
       if (student.username != null && student.username!.isNotEmpty) {
         setState(() => username = student.username);
       }
+
+      await _loadProgressData();
     } catch (e) {
       debugPrint('API fetch failed: $e');
       final fallbackStudent = await Student.fromPrefs();
@@ -58,6 +71,61 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
         _dataLoaded = true;
         _updateLoadingState();
       });
+    }
+  }
+
+  Future<void> _loadProgressData() async {
+    try {
+      final supabase = Supabase.instance.client;
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final response = await supabase
+          .from('student_task_progress')
+          .select('score, max_score, correct_answers, wrong_answers, updated_at')
+          .eq('student_id', userId)
+          .order('updated_at', ascending: false);
+
+      if (response.isEmpty) return;
+
+      double totalScore = 0;
+      double totalMax = 0;
+      int correct = 0;
+      int wrong = 0;
+      DateTime? latest;
+
+      List<double> scores = [];
+
+      for (var row in response) {
+        double score = (row['score'] ?? 0).toDouble();
+        double maxScore = (row['max_score'] ?? 0).toDouble();
+
+        totalScore += score;
+        totalMax += maxScore;
+        correct += (row['correct_answers'] ?? 0) as int;
+        wrong += (row['wrong_answers'] ?? 0) as int;
+
+        final updated = DateTime.tryParse(row['updated_at'] ?? '');
+        if (updated != null) {
+          if (latest == null || updated.isAfter(latest)) latest = updated;
+        }
+
+        // collect last 5 normalized scores
+        if (maxScore > 0) scores.add(score / maxScore);
+      }
+
+      scores = scores.take(5).toList().reversed.toList();
+
+      setState(() {
+        _averageScore = totalMax > 0 ? totalScore / totalMax : 0;
+        _completedTasks = response.length;
+        _totalCorrect = correct;
+        _totalWrong = wrong;
+        _lastUpdated = latest;
+        _recentScores = scores;
+      });
+    } catch (e) {
+      debugPrint('⚠️ Failed to load progress: $e');
     }
   }
 
@@ -85,49 +153,49 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFFCEEEE),
       body: SafeArea(
-        child:
-            showLoading
-                ? Center(
-                  child: Lottie.asset(
-                    'assets/animation/loading_rainbow.json',
-                    width: 90,
-                    height: 90,
+        child: showLoading
+            ? Center(
+          child: Lottie.asset(
+            'assets/animation/loading_rainbow.json',
+            width: 90,
+            height: 90,
+          ),
+        )
+            : RefreshIndicator(
+          key: _refreshIndicatorKey,
+          onRefresh: _handleRefresh,
+          color: Colors.purple,
+          backgroundColor: Colors.white,
+          strokeWidth: 3.0,
+          displacement: 40.0,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(20.0),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight,
                   ),
-                )
-                : RefreshIndicator(
-                  key: _refreshIndicatorKey,
-                  onRefresh: _handleRefresh,
-                  color: Colors.purple,
-                  backgroundColor: Colors.white,
-                  strokeWidth: 3.0,
-                  displacement: 40.0,
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      return SingleChildScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.all(20.0),
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minHeight: constraints.maxHeight,
-                          ),
-                          child: IntrinsicHeight(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Center(child: _buildWelcomeSection(context)),
-                                const SizedBox(height: 20),
-                                _buildStatisticsCards(),
-                                const SizedBox(height: 30),
-                                _buildRecentActivitiesSection(context),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
+                  child: IntrinsicHeight(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(child: _buildWelcomeSection(context)),
+                        const SizedBox(height: 20),
+                        _buildStatisticsCards(),
+                        const SizedBox(height: 30),
+                        _buildProgressSection(),
+                        const SizedBox(height: 30),
+                        _buildRecentActivitiesSection(context),
+                      ],
+                    ),
                   ),
                 ),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
@@ -147,7 +215,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
             ),
@@ -185,7 +253,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
         children: [
           StudentDashboardHorizontalCard(
             title: "Completed",
-            value: "0",
+            value: _completedTasks.toString(),
             gradientColors: [Colors.lightGreen, Colors.green],
             icon: Icons.check_circle_outline,
           ),
@@ -205,12 +273,157 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
           ),
           const SizedBox(width: 16),
           StudentDashboardHorizontalCard(
-            title: "Badge",
+            title: "Level",
             value: "N/A",
             gradientColors: [Colors.blueAccent, Colors.lightBlue],
             icon: Icons.star_border,
           ),
         ],
+      ),
+    );
+  }
+
+  // ✅ PROGRESS SECTION
+  Widget _buildProgressSection() {
+    final percent = _averageScore.clamp(0, 1);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFEDE7F6), Color(0xFFF3E5F5)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.purple.shade100,
+              blurRadius: 6,
+              offset: const Offset(0, 3)),
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(
+            "📊 My Progress Report",
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.purple.shade700,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              CircularPercentIndicator(
+                radius: 70,
+                lineWidth: 10,
+               percent: percent.toDouble(),
+                animation: true,
+                circularStrokeCap: CircularStrokeCap.round,
+                center: Text(
+                  "${(percent * 100).toStringAsFixed(1)}%",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                    color: Colors.purple.shade800,
+                  ),
+                ),
+                progressColor: Colors.purpleAccent,
+                backgroundColor: Colors.purple.shade100,
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: _buildTrendChart()),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _progressStat(Icons.check_circle, "Completed",
+                  _completedTasks.toString(), Colors.green),
+              _progressStat(Icons.check, "Correct", _totalCorrect.toString(),
+                  Colors.blue),
+              _progressStat(
+                  Icons.close, "Wrong", _totalWrong.toString(), Colors.redAccent),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (_lastUpdated != null)
+            Text(
+              "Last updated: ${_lastUpdated!.toLocal().toString().split('.')[0]}",
+              style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _progressStat(
+      IconData icon, String label, String value, Color color) {
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 28),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: color,
+          ),
+        ),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            color: Colors.black54,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 📈 TREND CHART
+  Widget _buildTrendChart() {
+    if (_recentScores.isEmpty) {
+      return const Center(
+        child: Text(
+          "No recent scores yet",
+          style: TextStyle(fontSize: 12, color: Colors.grey),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 120,
+      child: LineChart(
+        LineChartData(
+          gridData: FlGridData(show: true, drawVerticalLine: false),
+          titlesData: FlTitlesData(show: false),
+          borderData: FlBorderData(show: false),
+          lineBarsData: [
+            LineChartBarData(
+              isCurved: true,
+              spots: _recentScores
+                  .asMap()
+                  .entries
+                  .map((e) => FlSpot(e.key.toDouble(), e.value))
+                  .toList(),
+              color: Colors.purpleAccent,
+              barWidth: 3,
+              dotData: FlDotData(show: true),
+              belowBarData: BarAreaData(
+                show: true,
+                color: Colors.purpleAccent.withOpacity(0.2),
+              ),
+            ),
+          ],
+          minY: 0,
+          maxY: 1,
+        ),
       ),
     );
   }
@@ -272,14 +485,13 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
         ),
         const SizedBox(height: 16),
         Column(
-          children:
-              activities.map((activity) {
-                return StudentDashboardActivityTile(
-                  title: activity.title,
-                  subtitle: activity.subtitle,
-                  icon: activity.icon,
-                );
-              }).toList(),
+          children: activities.map((activity) {
+            return StudentDashboardActivityTile(
+              title: activity.title,
+              subtitle: activity.subtitle,
+              icon: activity.icon,
+            );
+          }).toList(),
         ),
       ],
     );

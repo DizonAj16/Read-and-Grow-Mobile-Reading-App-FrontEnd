@@ -63,6 +63,8 @@ dependencies:
   fl_chart: ^1.1.1
   record: ^6.1.2
   just_audio: ^0.9.26
+  percent_indicator: ^4.2.3
+  dio: ^5.4.0
 
 
 dev_dependencies:

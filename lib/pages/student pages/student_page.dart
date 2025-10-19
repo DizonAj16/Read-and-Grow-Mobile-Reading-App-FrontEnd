@@ -1,6 +1,8 @@
 import 'package:deped_reading_app_laravel/api/supabase_auth_service.dart';
 import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:deped_reading_app_laravel/pages/auth%20pages/landing_page.dart';
+import 'package:deped_reading_app_laravel/pages/student%20pages/student%20class%20pages/reading_levels_page.dart';
+import 'package:deped_reading_app_laravel/pages/student%20pages/student_dashboard_page.dart';
 import 'package:deped_reading_app_laravel/widgets/helpers/tts_helper.dart';
 import 'package:deped_reading_app_laravel/widgets/helpers/tts_modal.dart';
 import 'package:flutter/material.dart';
@@ -8,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../widgets/navigation/page_transition.dart';
 import 'student class pages/student_class_page.dart';
-import 'student_dashboard_page.dart';
+
 import 'student_profile_page.dart';
 
 class StudentPage extends StatefulWidget {
@@ -26,6 +28,7 @@ class _StudentPageState extends State<StudentPage> {
   final List<Widget> _pages = const [
     StudentDashboardPage(),
     StudentClassPage(),
+    ReadingLevelsPage(),
   ];
 
   @override
@@ -160,10 +163,12 @@ class _StudentPageState extends State<StudentPage> {
       ),
     );
   }
+
   Future<void> _enrollStudentToClass(String classroomCode) async {
     try {
       final supabase = Supabase.instance.client;
 
+      // 1️⃣ Validate classroom code
       final classroomResponse = await supabase
           .from('class_rooms')
           .select('id')
@@ -172,15 +177,19 @@ class _StudentPageState extends State<StudentPage> {
 
       if (classroomResponse == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("❌ Invalid classroom code")),
+          const SnackBar(
+            content: Text("❌ Invalid classroom code"),
+            backgroundColor: Colors.redAccent,
+          ),
         );
         return;
       }
 
       final classId = classroomResponse['id'];
 
+      // 2️⃣ Get current student
       final user = supabase.auth.currentUser;
-      if (user == null) throw Exception("⚠️ No logged in user");
+      if (user == null) throw Exception("⚠️ No logged-in user");
 
       final studentResponse = await supabase
           .from('students')
@@ -194,25 +203,55 @@ class _StudentPageState extends State<StudentPage> {
 
       final studentId = studentResponse['id'];
 
+      // 3️⃣ Upsert enrollment
       await supabase.from('student_enrollments').upsert({
         'student_id': studentId,
         'class_room_id': classId,
         'enrollment_date': DateTime.now().toIso8601String(),
       });
 
+      // 4️⃣ Show snackbar
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✅ Successfully enrolled!")),
+        const SnackBar(
+          content: Text("✅ Successfully joined the class!"),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
       );
 
-      setState(() {});
+      // 5️⃣ Close the dialog (use rootNavigator: true to close modal)
+      if (Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      // 6️⃣ Wait a short moment to finish animations
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      // 7️⃣ Refresh My Classes tab safely
+      if (!mounted) return;
+      setState(() {
+        _currentIndex = 1;
+      });
+
+      // Rebuild StudentClassPage (forces refresh)
+      _pageController.jumpToPage(1);
+
     } catch (e, stack) {
       debugPrint("❌ Enrollment error: $e");
       debugPrintStack(stackTrace: stack);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error enrolling: $e")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error enrolling: $e"),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     }
   }
+
+
 
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
@@ -271,6 +310,11 @@ class _StudentPageState extends State<StudentPage> {
         icon: Icon(Icons.class_outlined),
         activeIcon: Icon(Icons.class_),
         label: "My Class",
+      ),
+      BottomNavigationBarItem(
+        icon: Icon(Icons.class_outlined),
+        activeIcon: Icon(Icons.read_more),
+        label: "My Reading Levels Page",
       ),
     ];
   }

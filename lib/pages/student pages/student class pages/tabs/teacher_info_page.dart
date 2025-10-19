@@ -1,5 +1,114 @@
 import 'package:deped_reading_app_laravel/constants.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+class _SocialLinksSection extends StatelessWidget {
+  final Map<String, dynamic> socialLinks;
+
+  const _SocialLinksSection({required this.socialLinks});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12),
+      child: Column(
+        children: [
+          Text(
+            "📱 Connect with Teacher",
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Colors.blueGrey[800],
+              fontFamily: 'ComicNeue',
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              if (socialLinks['facebook'] != null)
+                _SocialButton(
+                  icon: Icons.facebook,
+                  color: Colors.blue[700]!,
+                  label: "Facebook",
+                  url: socialLinks['facebook'],
+                ),
+              if (socialLinks['linkedin'] != null)
+                _SocialButton(
+                  icon: Icons.business_center_rounded,
+                  color: Colors.indigo,
+                  label: "LinkedIn",
+                  url: socialLinks['linkedin'],
+                ),
+              if (socialLinks['twitter'] != null)
+                _SocialButton(
+                  icon: Icons.alternate_email_rounded,
+                  color: Colors.lightBlue,
+                  label: "Twitter / X",
+                  url: socialLinks['twitter'],
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SocialButton extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String label;
+  final String url;
+
+  const _SocialButton({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.url,
+  });
+
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      debugPrint('❌ Could not launch $url');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () => _launchUrl(url),
+      child: Chip(
+        avatar: CircleAvatar(
+          backgroundColor: color.withOpacity(0.15),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        label: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.blueGrey,
+            fontWeight: FontWeight.w600,
+            fontFamily: 'ComicNeue',
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 2,
+        shadowColor: color.withOpacity(0.2),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        side: BorderSide(color: color.withOpacity(0.3), width: 1),
+      ),
+    );
+  }
+}
+
 
 class TeacherInfoPage extends StatelessWidget {
   final String teacherName;
@@ -38,11 +147,23 @@ class TeacherInfoPage extends StatelessWidget {
                     avatarLetter: avatarLetter,
                     avatarColor: avatarColor,
                   ),
+
+                  // 👇 NEW SOCIAL LINKS SECTION HERE
+                  const SizedBox(height: 16),
+                  _SocialLinksSection(
+                    socialLinks: const {
+                      "facebook": "https://facebook.com",
+                      "linkedin": "https://linkedin.com",
+                      "twitter": "https://x.com",
+                    },
+                  ),
+
                   const _SuperpowersSection(),
                 ],
               ),
             ),
           ),
+
         ],
       ),
     );
