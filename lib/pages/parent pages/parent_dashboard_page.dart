@@ -88,13 +88,17 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                     ],
                   ),
                 )
+
               : RefreshIndicator(
                   onRefresh: _fetchChildrenData,
+
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
                     itemCount: _children.length,
                     itemBuilder: (context, index) {
                       final child = _children[index];
+                      debugPrint('📡 Loading children for parentId: ${widget.parentId}');
+
                       return _buildChildCard(context, child);
                     },
                   ),

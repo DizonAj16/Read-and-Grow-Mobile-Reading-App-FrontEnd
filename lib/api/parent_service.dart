@@ -4,13 +4,46 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class ParentService {
   final supabase = Supabase.instance.client;
 
-  /// Fetch summary of all children for a parent
-  Future<List<Map<String, dynamic>>> getChildrenSummary(String parentId) async {
+  /// Fetch all children linked to this parent (via parent_student_relationships)
+  Future<List<Map<String, dynamic>>> getChildrenSummary(String parentUserId) async {
     try {
+      debugPrint('🔍 Fetching children for parentUserId (auth ID): $parentUserId');
+
+      // Step 1: Find the parent record matching this auth user ID
+      final parentRecord = await supabase
+          .from('parents')
+          .select('id, user_id')
+          .eq('user_id', parentUserId)
+          .maybeSingle();
+
+      if (parentRecord == null) {
+        debugPrint('⚠️ No parent record found for user_id: $parentUserId');
+        return [];
+      }
+
+      final parentId = parentRecord['user_id'];
+      debugPrint('👨 Parent found: $parentId');
+
+      // Step 2: Get linked students via parent_student_relationships
+      final relationships = await supabase
+          .from('parent_student_relationships')
+          .select('student_id')
+          .eq('parent_id', parentId);
+
+      if (relationships.isEmpty) {
+        debugPrint('⚠️ No linked students for parent_id: $parentId');
+        return [];
+      }
+
+      final studentIds =
+      relationships.map((r) => r['student_id'] as String).toList();
+      debugPrint('👦 Student IDs found: $studentIds');
+
+      // Step 3: Fetch student info
       final studentsResp = await supabase
           .from('students')
           .select('id, student_name, current_reading_level_id')
-          .eq('parent_id', parentId);
+          .inFilter('user_id', studentIds); // ✅ Using user_id since that’s what relationship links to
 
       List<Map<String, dynamic>> childrenList = [];
 
@@ -19,7 +52,7 @@ class ParentService {
         final studentName = student['student_name'] as String;
         final levelId = student['current_reading_level_id'] as String?;
 
-        // Get reading level info
+        // Step 4: Get reading level title
         String readingLevel = 'Not Set';
         if (levelId != null) {
           final levelResp = await supabase
@@ -27,42 +60,39 @@ class ParentService {
               .select('title')
               .eq('id', levelId)
               .maybeSingle();
-          
-          if (levelResp != null) {
-            readingLevel = levelResp['title'] ?? 'Unknown';
-          }
+          readingLevel = levelResp?['title'] ?? 'Unknown';
         }
 
-        // Get task progress
+        // Step 5: Task progress
         final taskProgress = await supabase
             .from('student_task_progress')
             .select('score, max_score, completed')
             .eq('student_id', studentId);
 
         int totalTasks = taskProgress.length;
-        int completedTasks = taskProgress.where((t) => t['completed'] == true).length;
+        int completedTasks =
+            taskProgress.where((t) => t['completed'] == true).length;
+
         double totalScore = 0;
         double totalMax = 0;
-
-        for (final task in taskProgress) {
-          totalScore += (task['score'] ?? 0).toDouble();
-          totalMax += (task['max_score'] ?? 0).toDouble();
+        for (final t in taskProgress) {
+          totalScore += (t['score'] ?? 0).toDouble();
+          totalMax += (t['max_score'] ?? 0).toDouble();
         }
-
         double avgScore = totalMax > 0 ? (totalScore / totalMax) * 100 : 0;
 
-        // Get quiz submissions count
+        // Step 6: Quiz submissions
         final submissions = await supabase
             .from('student_submissions')
-            .select('id, score')
+            .select('score')
             .eq('student_id', studentId);
 
         int quizCount = submissions.length;
         double quizAvg = 0;
-
-        if (submissions.isNotEmpty) {
-          final scores = submissions.map((s) => (s['score'] ?? 0).toDouble()).toList();
-          quizAvg = scores.reduce((a, b) => a + b) / scores.length;
+        if (quizCount > 0) {
+          final scores =
+          submissions.map((s) => (s['score'] ?? 0).toDouble()).toList();
+          quizAvg = scores.reduce((a, b) => a + b) / quizCount;
         }
 
         childrenList.add({
@@ -77,17 +107,20 @@ class ParentService {
         });
       }
 
+      debugPrint('✅ Found ${childrenList.length} children.');
       return childrenList;
     } catch (e) {
-      debugPrint('Error fetching children summary: $e');
+      debugPrint('❌ Error fetching children summary: $e');
       return [];
     }
   }
 
-  /// Fetch detailed progress data for a specific child
+  /// Fetch detailed progress for a single child
   Future<Map<String, dynamic>?> getChildProgress(String studentId) async {
     try {
-      // Get student info
+      debugPrint('📘 Fetching progress for studentId: $studentId');
+
+      // Step 1: Get reading level
       final studentResp = await supabase
           .from('students')
           .select('current_reading_level_id')
@@ -95,44 +128,44 @@ class ParentService {
           .maybeSingle();
 
       String readingLevel = 'Not Set';
-      if (studentResp != null && studentResp['current_reading_level_id'] != null) {
-        final levelId = studentResp['current_reading_level_id'] as String;
+      if (studentResp != null &&
+          studentResp['current_reading_level_id'] != null) {
         final levelResp = await supabase
             .from('reading_levels')
             .select('title')
-            .eq('id', levelId)
+            .eq('id', studentResp['current_reading_level_id'])
             .maybeSingle();
-
         readingLevel = levelResp?['title'] ?? 'Not Set';
       }
 
-      // Get task progress
+      // Step 2: Task progress
       final taskProgress = await supabase
           .from('student_task_progress')
           .select('score, max_score, correct_answers, wrong_answers, completed')
           .eq('student_id', studentId);
 
       int totalTasks = taskProgress.length;
-      int completedTasks = taskProgress.where((t) => t['completed'] == true).length;
+      int completedTasks =
+          taskProgress.where((t) => t['completed'] == true).length;
 
       double totalScore = 0;
       double totalMax = 0;
       int totalCorrect = 0;
       int totalWrong = 0;
 
-      for (final task in taskProgress) {
-        totalScore += (task['score'] ?? 0).toDouble();
-        totalMax += (task['max_score'] ?? 0).toDouble();
-        totalCorrect += (task['correct_answers'] ?? 0) as int;
-        totalWrong += (task['wrong_answers'] ?? 0) as int;
+      for (final t in taskProgress) {
+        totalScore += (t['score'] ?? 0).toDouble();
+        totalMax += (t['max_score'] ?? 0).toDouble();
+        totalCorrect += (t['correct_answers'] ?? 0) as int;
+        totalWrong += (t['wrong_answers'] ?? 0) as int;
       }
 
       double averageScore = totalMax > 0 ? (totalScore / totalMax) * 100 : 0;
 
-      // Get quiz submissions
-      final submissions = await supabase
+      // Step 3: Quiz submissions
+      final quizSubmissions = await supabase
           .from('student_submissions')
-          .select('id, score, max_score, submitted_at')
+          .select('score, max_score, submitted_at')
           .eq('student_id', studentId)
           .order('submitted_at', ascending: false);
 
@@ -143,10 +176,10 @@ class ParentService {
         'totalCorrect': totalCorrect,
         'totalWrong': totalWrong,
         'averageScore': averageScore,
-        'quizSubmissions': List<Map<String, dynamic>>.from(submissions),
+        'quizSubmissions': List<Map<String, dynamic>>.from(quizSubmissions),
       };
     } catch (e) {
-      debugPrint('Error fetching child progress: $e');
+      debugPrint('❌ Error fetching child progress: $e');
       return null;
     }
   }
