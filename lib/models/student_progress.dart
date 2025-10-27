@@ -1,4 +1,3 @@
-
 class StudentProgress {
   final String studentId;
   final String studentName;

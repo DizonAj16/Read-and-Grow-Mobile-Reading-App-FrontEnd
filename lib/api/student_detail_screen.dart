@@ -1,21 +1,60 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/student_progress.dart';
 
 class StudentDetailScreen extends StatelessWidget {
   final StudentProgress student;
   const StudentDetailScreen({super.key, required this.student});
 
+  void _showFeedbackDialog(BuildContext context, String submissionId) {
+    final controller = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Add Feedback'),
+        content: TextField(
+          controller: controller,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            hintText: 'Write your feedback here...',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await _saveFeedback(submissionId, controller.text.trim());
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Feedback saved!')),
+              );
+            },
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveFeedback(String submissionId, String feedback) async {
+    final supabase = Supabase.instance.client;
+
+    await supabase
+        .from('student_submissions')
+        .update({'teacher_feedback': feedback})
+        .eq('id', submissionId);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(student.studentName)),
-      floatingActionButton: FloatingActionButton(
-        child: const Icon(Icons.add),
-        onPressed: () {
-          // TODO: Add CRUD form for new quiz/task
-        },
-      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -89,15 +128,20 @@ class StudentDetailScreen extends StatelessWidget {
               child: ListTile(
                 leading: const Icon(Icons.quiz),
                 title: Text(
-                  quiz['quizzes'] != null
-                      ? quiz['quizzes']['title'] ?? 'Untitled Quiz'
-                      : 'Untitled Quiz',
+                  quiz['quizzes']?['title'] ?? 'Untitled Quiz',
                 ),
                 subtitle: Text("Score: ${quiz['score']}%"),
                 trailing: IconButton(
-                  icon: const Icon(Icons.edit),
+                  icon: const Icon(Icons.feedback_outlined),
                   onPressed: () {
-                    // TODO: Edit quiz submission
+                    final submissionId = quiz['id'] ?? quiz['submission_id'] ?? quiz['quiz_id'];
+                    if (submissionId != null && submissionId is String) {
+                      _showFeedbackDialog(context, submissionId);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Cannot find submission ID for feedback.')),
+                      );
+                    }
                   },
                 ),
               ),

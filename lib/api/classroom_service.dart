@@ -403,46 +403,83 @@ class ClassroomService {
     final supabase = Supabase.instance.client;
 
     try {
+      // 1️⃣ Find the class by its code
       final classData = await supabase
           .from('class_rooms')
-          .select()
+          .select('id, class_name, teacher_id')
           .eq('classroom_code', classCode)
           .maybeSingle();
 
       if (classData == null) {
         return {
           'success': false,
-          'message': 'Class not found',
+          'message': 'Class not found for the given code.',
         };
       }
 
+      // 2️⃣ Get the current user's corresponding student record
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) {
         return {
           'success': false,
-          'message': 'User not authenticated',
+          'message': 'User not authenticated.',
         };
       }
 
-      final inserted = await supabase.from('student_classes').insert({
-        'student_id': userId,
-        'class_id': classData['id'],
-      }).select().maybeSingle();
+      final student = await supabase
+          .from('students')
+          .select('id')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      if (student == null) {
+        return {
+          'success': false,
+          'message': 'Student record not found.',
+        };
+      }
+
+      final studentId = student['id'];
+
+      // 3️⃣ Check if already enrolled
+      final existing = await supabase
+          .from('student_enrollments')
+          .select('student_id')
+          .eq('student_id', studentId)
+          .eq('class_room_id', classData['id'])
+          .maybeSingle();
+
+      if (existing != null) {
+        return {
+          'success': false,
+          'message': 'You are already enrolled in this class.',
+        };
+      }
+
+      // 4️⃣ Insert new enrollment
+      final inserted = await supabase
+          .from('student_enrollments')
+          .insert({
+        'student_id': studentId,
+        'class_room_id': classData['id'],
+      })
+          .select()
+          .maybeSingle();
 
       return {
         'success': true,
         'class': classData,
-        'assignment': inserted,
+        'enrollment': inserted,
+        'message': 'Successfully joined the class!',
       };
     } catch (e) {
-      print("Error joining class: $e");
+      print("❌ Error joining class: $e");
       return {
         'success': false,
         'message': e.toString(),
       };
     }
   }
-
 
   static Future<http.Response?> uploadClassBackground({
     required String classId,

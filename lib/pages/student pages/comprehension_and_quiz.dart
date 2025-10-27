@@ -45,10 +45,11 @@ class _ComprehensionQuizPageState extends State<ComprehensionQuizPage> {
 
   Future<void> _loadQuiz() async {
     try {
+      // 1️⃣ Fetch quiz info and linked task time limit
       final quizRes = await supabase
           .from('quizzes')
-          .select('id, quiz_title, time_limit, questions')
-          .eq('story_id', widget.storyId)
+          .select('id, title, task:tasks(time_limit_minutes)')
+          .eq('task_id', widget.storyId) // storyId = task_id
           .maybeSingle();
 
       if (quizRes == null) {
@@ -59,12 +60,23 @@ class _ComprehensionQuizPageState extends State<ComprehensionQuizPage> {
         return;
       }
 
-      quizTitle = quizRes['quiz_title'] ?? "Comprehension Quiz";
-      timeLimit = quizRes['time_limit'];
+      // 2️⃣ Extract quiz title and timer
+      quizTitle = quizRes['title'] ?? "Comprehension Quiz";
+      timeLimit = quizRes['task']?['time_limit_minutes'];
       remainingSeconds = timeLimit ?? 0;
 
-      questions = List<Map<String, dynamic>>.from(quizRes['questions']);
+      // 3️⃣ Fetch questions and their options
+      final qRes = await supabase
+          .from('quiz_questions')
+          .select(
+          'id, question_text, question_type, question_options(option_text, is_correct)'
+      )
+          .eq('quiz_id', quizRes['id'])
+          .order('sort_order', ascending: true);
 
+      questions = List<Map<String, dynamic>>.from(qRes);
+
+      // 4️⃣ If there’s a time limit, start timer
       if (timeLimit != null && timeLimit! > 0) {
         timer = Timer.periodic(const Duration(seconds: 1), (t) {
           if (remainingSeconds > 0) {
@@ -77,8 +89,9 @@ class _ComprehensionQuizPageState extends State<ComprehensionQuizPage> {
       }
 
       setState(() => loading = false);
-    } catch (e) {
+    } catch (e, stack) {
       debugPrint("❌ Error loading quiz: $e");
+      debugPrint(stack.toString());
       setState(() => loading = false);
     }
   }

@@ -16,23 +16,24 @@ class StudentProgressService {
       for (final s in studentEnrollments) {
         final studentId = s['student_id'] as String;
         final studentName = (s['students'] as Map<String, dynamic>)['student_name'] as String;
+
+        // ✅ Fetch overall reading/task progress
         final tasks = await supabase
             .from('student_task_progress')
             .select('score, max_score, correct_answers, wrong_answers')
             .eq('student_id', studentId);
 
-        final totalScore = tasks.fold<int>(
-            0, (sum, t) => sum + ((t['score'] ?? 0) as int));
-        final totalMaxScore = tasks.fold<int>(
-            0, (sum, t) => sum + ((t['max_score'] ?? 0) as int));
-        final totalCorrect = tasks.fold<int>(
-            0, (sum, t) => sum + ((t['correct_answers'] ?? 0) as int));
-        final totalWrong = tasks.fold<int>(
-            0, (sum, t) => sum + ((t['wrong_answers'] ?? 0) as int));
+        final totalScore = tasks.fold<int>(0, (sum, t) => sum + ((t['score'] ?? 0) as int));
+        final totalMaxScore = tasks.fold<int>(0, (sum, t) => sum + ((t['max_score'] ?? 0) as int));
+        final totalWrong = tasks.fold<int>(0, (sum, t) => sum + ((t['wrong_answers'] ?? 0) as int));
 
-        final avgScore = totalMaxScore > 0
-            ? (totalScore / totalMaxScore) * 100
-            : 0.0;
+        final avgScore = totalMaxScore > 0 ? (totalScore / totalMaxScore) * 100 : 0.0;
+
+        // ✅ Fetch quiz submissions for this student (includes ID for feedback)
+        final quizResults = await supabase
+            .from('student_submissions')
+            .select('id, score, quizzes(title)')
+            .eq('student_id', studentId);
 
         progressList.add(StudentProgress(
           studentId: studentId,
@@ -40,7 +41,7 @@ class StudentProgressService {
           readingTime: totalScore,
           miscues: totalWrong,
           quizAverage: avgScore,
-          quizResults: List<Map<String, dynamic>>.from(tasks),
+          quizResults: List<Map<String, dynamic>>.from(quizResults),
         ));
       }
 

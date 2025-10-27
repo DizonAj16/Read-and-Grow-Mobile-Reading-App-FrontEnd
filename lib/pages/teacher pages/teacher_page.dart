@@ -278,13 +278,6 @@ class _TeacherPageState extends State<TeacherPage> {
                     route: '/submissions',
                     isSelected: _currentRoute == '/submissions',
                   ),
-                  _buildDrawerItem(
-                    context,
-                    icon: Icons.home_rounded,
-                    title: 'Add Lesson',
-                    route: '/dashboard',
-                    isSelected: _currentRoute == '/dashboard',
-                  ),
                 ],
               ),
             ),
