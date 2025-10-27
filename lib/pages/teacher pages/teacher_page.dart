@@ -5,6 +5,7 @@ import 'pupil_submissions_and_report_page.dart';
 import 'teacher dashboard/teacher_dashboard_page.dart';
 import 'badges_list_page.dart';
 import 'teacher_profile_page.dart';
+import 'pupil_management_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../pages/auth pages/landing_page.dart';
 import '../../widgets/navigation/page_transition.dart';
@@ -266,6 +267,13 @@ class _TeacherPageState extends State<TeacherPage> {
                   ),
                   _buildDrawerItem(
                     context,
+                    icon: Icons.people_rounded,
+                    title: 'Manage Pupils',
+                    route: '/pupils',
+                    isSelected: _currentRoute == '/pupils',
+                  ),
+                  _buildDrawerItem(
+                    context,
                     icon: Icons.emoji_events_rounded,
                     title: 'Badges List',
                     route: '/badges',
@@ -439,6 +447,9 @@ class _TeacherPageState extends State<TeacherPage> {
   Route _generateRoute(RouteSettings settings) {
     Widget page;
     switch (settings.name) {
+      case '/pupils':
+        page = const PupilManagementPage();
+        break;
       case '/badges':
         page = const BadgesListPage();
         break;

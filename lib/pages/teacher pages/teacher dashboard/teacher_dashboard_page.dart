@@ -3,6 +3,7 @@ import 'package:deped_reading_app_laravel/api/classroom_service.dart';
 import 'package:deped_reading_app_laravel/api/prefs_service.dart';
 import 'package:deped_reading_app_laravel/api/user_service.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/class_details_page.dart';
+import 'package:deped_reading_app_laravel/pages/teacher%20pages/pupil_management_page.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20dashboard/create%20student%20and%20classes/create_class_or_student_dialog.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20dashboard/manage%20classes/delete_class_modal.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20dashboard/manage%20classes/edit_class_modal.dart';
@@ -862,7 +863,14 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
                   colorScheme.primaryContainer,
                 ],
                 icon: Icons.people_outline,
-                onPressed: () => _showStudentListModal(context),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PupilManagementPage(),
+                    ),
+                  );
+                },
               ),
               const SizedBox(width: 16),
               FutureBuilder<int>(

@@ -3,11 +3,10 @@ import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../models/fals.dart';
-import '../../models/model.dart';
 import '../../widgets/appbar/theme_toggle_button.dart';
 import '../../widgets/navigation/page_transition.dart';
 import '../student pages/student_dashboard_page.dart';
+import '../parent pages/parent_dashboard_page.dart';
 import 'auth buttons widgets/login_button.dart';
 import 'form fields widgets/password_text_field.dart';
 import 'form fields widgets/email_text_field.dart';
@@ -129,29 +128,6 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
     );
   }
 
-  Future<StudentProgress?> _getFirstChildProgress(String parentId) async {
-    final children = await Supabase.instance.client
-        .from('students')
-        .select('id, student_name, current_reading_level_id')
-        .eq('parent_id', parentId);
-
-    if (children.isEmpty) return null;
-
-    final first = children[0];
-    final levelResp = await Supabase.instance.client
-        .from('reading_levels')
-        .select('title')
-        .eq('id', first['current_reading_level_id'])
-        .maybeSingle();
-
-    return StudentProgress(
-      studentId: first['id'],
-      studentName: first['student_name'],
-      readingLevel: levelResp?['title'] ?? 'Not Set',
-      averageScore: 0,
-      quizSubmissions: [],
-    );
-  }
 
   Future<void> _handleLogin() async {
     if (!mounted) return;
@@ -188,15 +164,12 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
         await _showSuccessDialog();
 
         if (role == 'parent') {
-          final progress = await _getFirstChildProgress(userId);
-          if (progress != null && mounted) {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => ChildDetailPage(progress: progress)),
-                  (route) => false,
-            );
-          } else {
-            _showErrorDialog(title: 'No Child Found', message: 'You have no children assigned.');
-          }
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => ParentDashboardPage(parentId: userId),
+            ),
+            (route) => false,
+          );
         }
         else if (role == 'admin') {
           await _showProceedingDialog();

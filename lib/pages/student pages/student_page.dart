@@ -1,7 +1,7 @@
 import 'package:deped_reading_app_laravel/api/supabase_auth_service.dart';
 import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:deped_reading_app_laravel/pages/auth%20pages/landing_page.dart';
-import 'package:deped_reading_app_laravel/pages/student%20pages/student%20class%20pages/reading_levels_page.dart';
+import 'package:deped_reading_app_laravel/pages/student%20pages/enhanced_reading_level_page.dart';
 import 'package:deped_reading_app_laravel/pages/student%20pages/student_dashboard_page.dart';
 import 'package:deped_reading_app_laravel/widgets/helpers/tts_helper.dart';
 import 'package:deped_reading_app_laravel/widgets/helpers/tts_modal.dart';
@@ -28,7 +28,7 @@ class _StudentPageState extends State<StudentPage> {
   final List<Widget> _pages = const [
     StudentDashboardPage(),
     StudentClassPage(),
-    ReadingLevelsPage(),
+    EnhancedReadingLevelPage(),
   ];
 
   @override
@@ -312,9 +312,9 @@ class _StudentPageState extends State<StudentPage> {
         label: "My Class",
       ),
       BottomNavigationBarItem(
-        icon: Icon(Icons.class_outlined),
-        activeIcon: Icon(Icons.read_more),
-        label: "My Reading Levels Page",
+        icon: Icon(Icons.library_books_outlined),
+        activeIcon: Icon(Icons.library_books),
+        label: "Reading Tasks",
       ),
     ];
   }

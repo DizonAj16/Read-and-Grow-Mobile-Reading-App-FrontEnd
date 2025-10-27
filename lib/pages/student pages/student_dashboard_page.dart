@@ -7,6 +7,7 @@ import 'package:percent_indicator/percent_indicator.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'student page widgets/horizontal_card.dart';
 import 'student page widgets/activity_tile.dart';
+import 'enhanced_reading_level_page.dart';
 
 class StudentDashboardPage extends StatefulWidget {
   const StudentDashboardPage({super.key});
@@ -186,6 +187,8 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
                         _buildStatisticsCards(),
                         const SizedBox(height: 30),
                         _buildProgressSection(),
+                        const SizedBox(height: 30),
+                        _buildQuickAccessSection(context),
                         const SizedBox(height: 30),
                         _buildRecentActivitiesSection(context),
                       ],
@@ -423,6 +426,78 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
           ],
           minY: 0,
           maxY: 1,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickAccessSection(BuildContext context) {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          // Navigate to reading levels page
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const EnhancedReadingLevelPage()),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.indigo.shade400, Colors.purple.shade400],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.book,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '📚 My Reading Tasks',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Continue your reading journey',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_ios,
+                color: Colors.white,
+              ),
+            ],
+          ),
         ),
       ),
     );
