@@ -1,16 +1,16 @@
-import 'dart:convert';
 import 'dart:ui';
 import 'package:deped_reading_app_laravel/api/user_service.dart';
 import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../widgets/ui_states.dart';
+import '../../utils/database_helpers.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'edit_student_profile_page.dart';
 
-import '../../api/reading_activity_page.dart';
 
 
 class StudentProfilePage extends StatefulWidget {
@@ -24,6 +24,7 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
   late Future<Student> _studentFuture;
   XFile? _pickedImageFile;
   bool _isUploading = false;
+  Student? _currentStudent;
 
   @override
   void initState() {
@@ -33,7 +34,6 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
 
   Future<Student> _initializeStudentData() async {
     final supabase = Supabase.instance.client;
-    final prefs = await SharedPreferences.getInstance();
 
     Student student;
 
@@ -41,32 +41,67 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
       final currentUser = supabase.auth.currentUser;
       if (currentUser == null) throw Exception('No logged in student');
 
-      final response = await supabase
-          .from('students')
-          .select()
-          .eq('user_id', currentUser.id)
-          .maybeSingle();
+      // Validate user ID
+      if (currentUser.id.isEmpty) {
+        throw Exception('Invalid user ID');
+      }
+
+      final response = await DatabaseHelpers.safeGetSingle(
+        supabase: supabase,
+        table: 'students',
+        id: currentUser.id,
+      );
 
       if (response == null) throw Exception('Student record not found');
 
-      student = Student.fromJson(Map<String, dynamic>.from(response));
-
-      await student.saveToPrefs();
-
-      debugPrint('✅ Student data fetched from Supabase: ${student.toJson()}');
+      try {
+        student = Student.fromJson(Map<String, dynamic>.from(response));
+        await student.saveToPrefs();
+        debugPrint('✅ Student data fetched from Supabase');
+      } catch (e) {
+        debugPrint('Error parsing student data: $e');
+        throw Exception('Failed to parse student data');
+      }
     } catch (e) {
       debugPrint('⚠️ Error fetching from Supabase: $e');
 
-      student = await Student.fromPrefs();
-      debugPrint('📦 Student data loaded from SharedPreferences: ${student.toJson()}');
+      try {
+        student = await Student.fromPrefs();
+        debugPrint('📦 Student data loaded from SharedPreferences');
+      } catch (prefsError) {
+        debugPrint('Error loading from preferences: $prefsError');
+        // Return a default student to prevent null errors
+        student = Student(
+          id: '',
+          studentName: 'Student',
+          studentLrn: null,
+          completedTasks: 0,
+        );
+      }
     }
 
-    if (student.profilePicture != null &&
-        !student.profilePicture!.startsWith('http')) {
-      final bucketBaseUrl =
-      supabase.storage.from('avatars').getPublicUrl(student.profilePicture!);
-      student = student.copyWith(profilePicture: bucketBaseUrl);
-      debugPrint('🖼️ Normalized profile picture URL: ${student.profilePicture}');
+    // Safely normalize profile picture URL - use 'materials' bucket as per UserService
+    if (student.profilePicture != null && student.profilePicture!.isNotEmpty) {
+      try {
+        // If already a full URL (starts with http/https), use it as is
+        if (student.profilePicture!.startsWith('http')) {
+          debugPrint('🖼️ Profile picture is already a full URL');
+          return student;
+        }
+        
+        // Get public URL from Supabase storage 'materials' bucket (matches UserService.uploadProfilePicture)
+        final bucketBaseUrl = supabase.storage
+            .from('materials')
+            .getPublicUrl(student.profilePicture!);
+        
+        if (bucketBaseUrl.isNotEmpty) {
+          student = student.copyWith(profilePicture: bucketBaseUrl);
+          debugPrint('🖼️ Normalized profile picture URL: $bucketBaseUrl');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Error normalizing profile picture URL: $e');
+        // Continue with original URL or null - don't break the profile loading
+      }
     }
 
     return student;
@@ -153,6 +188,15 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit, color: Colors.white),
+            tooltip: 'Edit Info',
+            onPressed: _currentStudent == null
+                ? null
+                : () => _handleEditStudent(_currentStudent!),
+          ),
+        ],
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -169,39 +213,36 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
           future: _studentFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return Center(
-                child: Lottie.asset(
-                  'assets/animation/loading_rainbow.json',
-                  width: 90,
-                  height: 90,
-                ),
-              );
+              return const LoadingState(message: 'Loading profile...');
             }
 
             if (!snapshot.hasData || snapshot.hasError) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Image.asset('assets/images/confused_owl.png', width: 120),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Oops! Couldn\'t load profile',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyLarge?.copyWith(color: Colors.white),
-                    ),
-                  ],
-                ),
-              );
+              return const ErrorState(message: "Couldn't load profile");
             }
 
             final student = snapshot.data!;
+            _currentStudent = student;
             return _buildProfileContent(student);
           },
         ),
       ),
     );
+  }
+
+  Future<void> _handleEditStudent(Student student) async {
+    final updated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const EditStudentProfilePage(),
+      ),
+    );
+
+    if (updated == true) {
+      // Reload student data after update
+      setState(() {
+        _studentFuture = _initializeStudentData();
+      });
+    }
   }
 
   Widget _buildProfileContent(Student student) {
@@ -218,7 +259,7 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
                   student: student,
                   pickedImage: _pickedImageFile,
                   isUploading: _isUploading,
-                  onTap: () => ReadingActivityPage(student: student, taskId: '3cdf1f9e-cbd5-47cb-9398-1e959ee71f0c', passageText: 'hehehhe',),
+                  onTap: () => _pickAndUploadImage(student),
                 ),
                 const SizedBox(height: 18),
                 Text(

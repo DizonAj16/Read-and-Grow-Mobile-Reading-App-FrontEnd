@@ -110,22 +110,120 @@ class _SocialButton extends StatelessWidget {
 }
 
 
-class TeacherInfoPage extends StatelessWidget {
-  final String teacherName;
-  final String teacherEmail;
-  final String teacherPosition;
-  final String? teacherAvatar;
+class TeacherInfoPage extends StatefulWidget {
+  final String classId;
 
   const TeacherInfoPage({
     super.key,
-    required this.teacherName,
-    required this.teacherEmail,
-    required this.teacherPosition,
-    this.teacherAvatar,
+    required this.classId,
   });
 
   @override
+  State<TeacherInfoPage> createState() => _TeacherInfoPageState();
+}
+
+class _TeacherInfoPageState extends State<TeacherInfoPage> {
+  final supabase = Supabase.instance.client;
+  bool _isLoading = true;
+  Map<String, dynamic>? _teacherData;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTeacherData();
+  }
+
+  /// Load teacher data from database based on class ID
+  Future<void> _loadTeacherData() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      // Get class room details with teacher information
+      final classResponse = await supabase
+          .from('class_rooms')
+          .select('''
+            teacher_id,
+            teachers:teachers(
+              id,
+              teacher_name,
+              teacher_email,
+              teacher_position,
+              profile_picture,
+              social_links
+            )
+          ''')
+          .eq('id', widget.classId)
+          .maybeSingle();
+
+      if (classResponse == null) {
+        throw Exception('Class not found');
+      }
+
+      final teacherData = classResponse['teachers'];
+      if (teacherData == null) {
+        throw Exception('Teacher not found for this class');
+      }
+
+      setState(() {
+        _teacherData = Map<String, dynamic>.from(teacherData);
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('❌ Error loading teacher data: $e');
+      setState(() {
+        _errorMessage = 'Failed to load teacher information';
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: Colors.lightBlue[50],
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_errorMessage != null || _teacherData == null) {
+      return Scaffold(
+        backgroundColor: Colors.lightBlue[50],
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+              const SizedBox(height: 16),
+              Text(
+                _errorMessage ?? 'Teacher information not available',
+                style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _loadTeacherData,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Extract teacher data with fallbacks
+    final teacherName = _teacherData!['teacher_name']?.toString() ?? 'Teacher';
+    final teacherEmail = _teacherData!['teacher_email']?.toString() ?? 'Email not available';
+    final teacherPosition = _teacherData!['teacher_position']?.toString() ?? 'Position not set';
+    final teacherAvatar = _teacherData!['profile_picture']?.toString();
+    final socialLinks = _teacherData!['social_links'] as Map<String, dynamic>?;
+
     final avatarLetter = teacherName.isNotEmpty ? teacherName[0].toUpperCase() : '?';
     final avatarColor = _getAvatarColor(teacherName);
 
@@ -148,15 +246,13 @@ class TeacherInfoPage extends StatelessWidget {
                     avatarColor: avatarColor,
                   ),
 
-                  // 👇 NEW SOCIAL LINKS SECTION HERE
-                  const SizedBox(height: 16),
-                  _SocialLinksSection(
-                    socialLinks: const {
-                      "facebook": "https://facebook.com",
-                      "linkedin": "https://linkedin.com",
-                      "twitter": "https://x.com",
-                    },
-                  ),
+                  // Social links section - now using database data
+                  if (socialLinks != null && socialLinks.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    _SocialLinksSection(
+                      socialLinks: socialLinks,
+                    ),
+                  ],
 
                   const _SuperpowersSection(),
                 ],

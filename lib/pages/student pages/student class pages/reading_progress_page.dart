@@ -35,7 +35,7 @@ class _ReadingProgressPageState extends State<ReadingProgressPage> {
       final studentRes = await supabase
           .from('students')
           .select('current_reading_level_id, reading_levels(title)')
-          .eq('user_id', user.id)
+          .eq('id', user.id)
           .maybeSingle();
 
       if (studentRes != null) {

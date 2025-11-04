@@ -39,13 +39,90 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
     final supabase = Supabase.instance.client;
 
     try {
+      // Check if quiz has already been submitted (only 1 attempt allowed for class tasks)
+      // widget.assignmentId is already the assignment ID from assignments table
+      final existingSubmissionRes = await supabase
+          .from('student_submissions')
+          .select('id, score, max_score')
+          .eq('assignment_id', widget.assignmentId)
+          .eq('student_id', widget.studentId)
+          .order('submitted_at', ascending: false)
+          .limit(1);
+
+      if (existingSubmissionRes.isNotEmpty) {
+        final existingSubmission = existingSubmissionRes.first;
+        // Quiz already taken, show message and go back
+        if (mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+                title: const Row(
+                  children: [
+                    Icon(Icons.info, color: Colors.blue),
+                    SizedBox(width: 8),
+                    Text('Quiz Already Completed'),
+                  ],
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'You have already completed this quiz. You can only take it once.',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Your Score',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${existingSubmission['score']} / ${existingSubmission['max_score']}',
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context); // Close dialog
+                      Navigator.pop(context); // Go back
+                    },
+                    child: const Text('OK'),
+                  ),
+                ],
+            ),
+          );
+        }
+        return;
+      }
+
       final quizRes = await supabase
           .from('quizzes')
           .select('title')
           .eq('id', widget.quizId)
-          .single();
+          .maybeSingle();
 
-      if (quizRes == null || quizRes.isEmpty) return;
+      if (quizRes == null) return;
 
       quizTitle = quizRes['title'] ?? "Quiz";
       final qRes = await supabase
@@ -65,9 +142,18 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
         return QuizQuestion.fromMap(q).copyWith(matchingPairs: pairs);
       }).toList();
 
+      // Get task_id from assignment to pass to QuizHelper
+      final assignmentRes = await supabase
+          .from('assignments')
+          .select('task_id')
+          .eq('id', widget.assignmentId)
+          .maybeSingle();
+      
+      final taskId = assignmentRes?['task_id'] as String? ?? widget.assignmentId;
+
       quizHelper = QuizHelper(
         studentId: widget.studentId,
-        taskId: widget.assignmentId,
+        taskId: taskId,
         questions: questions,
         supabase: supabase,
       );
@@ -91,28 +177,39 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
 
     final supabase = quizHelper!.supabase;
 
-    // Get assignment
-    final assignmentRes = await supabase
-        .from('assignments')
+    // Check if already submitted (prevent multiple submissions)
+    // widget.assignmentId is already the assignment ID
+    // Double check if submission already exists (only 1 attempt allowed)
+    final existingSubmissionRes = await supabase
+        .from('student_submissions')
         .select('id')
-        .eq('task_id', quizHelper!.taskId)
-        .single();
+        .eq('assignment_id', widget.assignmentId)
+        .eq('student_id', widget.studentId)
+        .limit(1);
 
-    if (assignmentRes == null) {
-      print("No assignment found for task_id ${quizHelper!.taskId}");
+    if (existingSubmissionRes.isNotEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('You have already completed this quiz. Only one attempt is allowed.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        Navigator.pop(context);
+      }
       return;
     }
-    final assignmentId = assignmentRes['id'];
 
     // Get student
     final studentRes = await supabase
         .from('students')
         .select('id')
-        .eq('user_id', widget.studentId)
-        .single();
+        .eq('id', widget.studentId)
+        .maybeSingle();
 
     if (studentRes == null) {
-      print("No student found for user_id ${widget.studentId}");
+      debugPrint("No student found for id ${widget.studentId}");
       return;
     }
     final studentId = studentRes['id'];
@@ -216,7 +313,7 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
 
     // Insert submission
     await supabase.from('student_submissions').insert({
-      'assignment_id': assignmentId,
+      'assignment_id': widget.assignmentId,
       'student_id': widget.studentId,
       'attempt_number': quizHelper!.currentAttempt,
       'score': correct,
@@ -290,7 +387,28 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
           },
         );
 
+      case QuestionType.trueFalse:
+        return Column(
+          children: ["True", "False"]
+              .map((opt) => RadioListTile<String>(
+                    title: Text(opt),
+                    value: opt,
+                    groupValue: question.userAnswer,
+                    onChanged: (value) {
+                      setState(() {
+                        question.userAnswer = value!;
+                      });
+                    },
+                  ))
+              .toList(),
+        );
+
       case QuestionType.matching:
+        // Ensure matching pairs exist
+        if (question.matchingPairs == null || question.matchingPairs!.isEmpty) {
+          return const Text("No matching pairs available for this question.");
+        }
+        
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -306,72 +424,134 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
                 return Draggable<String>(
                   data: pair.leftItem,
                   feedback: Material(
+                    elevation: 4,
+                    borderRadius: BorderRadius.circular(8),
                     child: Container(
-                      padding: const EdgeInsets.all(12),
-                      color: Colors.blue,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       child: Text(
                         pair.leftItem,
-                        style: const TextStyle(color: Colors.white),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
                     ),
                   ),
                   childWhenDragging: Container(
-                    padding: const EdgeInsets.all(12),
-                    color: Colors.grey[300],
-                    child: Text(pair.leftItem),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      pair.leftItem,
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
                   ),
                   child: Container(
-                    padding: const EdgeInsets.all(12),
-                    color: Colors.blue[100],
-                    child: Text(pair.leftItem),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[100],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue[300]!),
+                    ),
+                    child: Text(
+                      pair.leftItem,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
                   ),
                 );
               }).toList(),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
+            // Target drop zones
             Column(
-              children: question.matchingPairs!.map((pair) {
-                return DragTarget<String>(
-                  onAccept: (received) {
-                    setState(() {
-                      pair.userSelected = received;
-                    });
-                  },
-                  builder: (context, candidateData, rejectedData) {
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(12),
-                      color: Colors.green[100],
-                      child: Row(
+              children: question.matchingPairs!.asMap().entries.map((entry) {
+                final pair = entry.value;
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: pair.userSelected.isEmpty
+                        ? Colors.green[50]
+                        : Colors.green[200],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: pair.userSelected.isEmpty
+                          ? Colors.green[300]!
+                          : Colors.green,
+                      width: 2,
+                    ),
+                  ),
+                  child: DragTarget<String>(
+                    onAccept: (received) {
+                      setState(() {
+                        pair.userSelected = received;
+                      });
+                    },
+                    builder: (context, candidateData, rejectedData) {
+                      return Row(
                         children: [
                           if (pair.rightItemUrl != null &&
                               pair.rightItemUrl!.isNotEmpty)
-                            Image.network(
-                              pair.rightItemUrl!,
-                              height: 80,
-                              width: 80,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                              const Icon(Icons.broken_image),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                pair.rightItemUrl!,
+                                height: 80,
+                                width: 80,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    Container(
+                                  height: 80,
+                                  width: 80,
+                                  color: Colors.grey[300],
+                                  child: const Icon(Icons.broken_image, size: 40),
+                                ),
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return Container(
+                                    height: 80,
+                                    width: 80,
+                                    color: Colors.grey[200],
+                                    child: Center(
+                                      child: CircularProgressIndicator(
+                                        value: loadingProgress.expectedTotalBytes != null
+                                            ? loadingProgress.cumulativeBytesLoaded /
+                                                loadingProgress.expectedTotalBytes!
+                                            : null,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
                           const SizedBox(width: 16),
                           Expanded(
                             child: Text(
-                              pair.userSelected!.isEmpty
+                              pair.userSelected.isEmpty
                                   ? 'Drop text here'
-                                  : pair.userSelected!,
+                                  : pair.userSelected,
                               style: TextStyle(
-                                color: pair.userSelected!.isEmpty
-                                    ? Colors.grey
+                                color: pair.userSelected.isEmpty
+                                    ? Colors.grey[600]
                                     : Colors.black,
                                 fontWeight: FontWeight.bold,
+                                fontSize: 16,
                               ),
                             ),
                           ),
+                          if (pair.userSelected.isNotEmpty)
+                            const Icon(Icons.check_circle, color: Colors.green),
                         ],
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 );
               }).toList(),
             ),
@@ -379,28 +559,43 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
         );
 
       case QuestionType.dragAndDrop:
-        return ReorderableListView(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          onReorder: (oldIndex, newIndex) {
-            setState(() {
-              if (newIndex > oldIndex) newIndex -= 1;
-              final item = question.options!.removeAt(oldIndex);
-              question.options!.insert(newIndex, item);
-            });
-          },
+        // For drag and drop, ensure options list exists
+        if (question.options == null || question.options!.isEmpty) {
+          return const Text("No options available for this question.");
+        }
+        
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            for (int i = 0; i < question.options!.length; i++)
-              ListTile(
-                key: ValueKey('${question.options![i]}-$i'),
-                title: Text(question.options![i]),
-                trailing: const Icon(Icons.drag_handle),
-              )
+            const Text(
+              'Drag items to reorder them:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            ReorderableListView(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              onReorder: (oldIndex, newIndex) {
+                setState(() {
+                  if (newIndex > oldIndex) newIndex -= 1;
+                  final item = question.options!.removeAt(oldIndex);
+                  question.options!.insert(newIndex, item);
+                });
+              },
+              children: [
+                for (int i = 0; i < question.options!.length; i++)
+                  Card(
+                    key: ValueKey('${question.options![i]}-$i'),
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    child: ListTile(
+                      title: Text(question.options![i]),
+                      trailing: const Icon(Icons.drag_handle, color: Colors.grey),
+                    ),
+                  )
+              ],
+            ),
           ],
         );
-
-      default:
-        return const Text("Unknown question type.");
     }
   }
 

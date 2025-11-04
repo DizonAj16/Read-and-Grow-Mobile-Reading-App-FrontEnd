@@ -12,7 +12,7 @@ class Teacher {
   final DateTime? updatedAt;
 
   static const String _kTeacherIdKey = 'teacher_id';
-  static const String _kUserIdKey = 'user_id';
+  static const String _kUserIdKey = 'id';
   static const String _kNameKey = 'teacher_name';
   static const String _kPositionKey = 'teacher_position';
   static const String _kEmailKey = 'teacher_email';
@@ -88,7 +88,7 @@ class Teacher {
     } else {
       return Teacher(
         id: _parseInt(json['id'] ?? json['teacher_id']),
-        userId: _parseInt(json['user_id']),
+        userId: _parseInt(json['id']),
         name: json['teacher_name'] ?? 'Teacher',
         position: json['teacher_position'],
         email: json['teacher_email'],
@@ -107,7 +107,7 @@ class Teacher {
   /// Convert to JSON for storage (flattened structure)
   Map<String, dynamic> toJson() => {
         'teacher_id': id,
-        'user_id': userId,
+        'id': userId,
         'teacher_name': name,
         'teacher_position': position,
         'teacher_email': email,

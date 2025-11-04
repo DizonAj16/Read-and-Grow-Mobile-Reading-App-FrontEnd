@@ -156,7 +156,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
         final role = roleRes?['role'] ?? 'student';
 
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('user_id', userId);
+        await prefs.setString('id', userId);
         await prefs.setString('role', role);
 
         if (!mounted) return;

@@ -115,10 +115,22 @@ class _FeedbackAndRemedialPageState extends State<FeedbackAndRemedialPage>
   }
 
   Future<void> _submitFeedback(String submissionId, String feedback) async {
-    await supabase
-        .from('student_submissions')
-        .update({'teacher_feedback': feedback, 'feedback_date': DateTime.now().toIso8601String()})
-        .eq('id', submissionId);
+    try {
+      await supabase
+          .from('student_submissions')
+          .update({'teacher_feedback': feedback})
+          .eq('id', submissionId);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save feedback: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      rethrow;
+    }
   }
 
   void _showRemedialTaskDialog() {
@@ -198,7 +210,7 @@ class _FeedbackAndRemedialPageState extends State<FeedbackAndRemedialPage>
       final teacher = await supabase
           .from('teachers')
           .select('id')
-          .eq('user_id', userId)
+          .eq('id', userId)
           .maybeSingle();
 
       if (teacher == null) return;

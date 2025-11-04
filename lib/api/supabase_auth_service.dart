@@ -24,7 +24,7 @@ class SupabaseAuthService {
 
     final role = roleRow?['role'] ?? 'student';
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_id', user.id);
+    await prefs.setString('id', user.id);
     await prefs.setString('role', role);
 
     return {

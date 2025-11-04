@@ -9,7 +9,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/teacher_model.dart';
+import 'edit_teacher_profile_page.dart';
 
 class TeacherProfilePage extends StatefulWidget {
   const TeacherProfilePage({super.key});
@@ -48,7 +50,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
       final teacherJson = {
         ...userData,
         ...profileData,
-        'user_id': userData['id'], // Supabase user id
+        'id': userData['id'], // Supabase user id
         'teacher_id': profileData['id'], // teacher table id
       };
 
@@ -438,17 +440,37 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
       );
     } else if (_teacher?.profilePicture != null &&
         _teacher!.profilePicture!.isNotEmpty) {
-      String cleanBaseUrl = baseUrl.replaceAll(RegExp(r'/api$'), '');
-      final profilePath = _teacher!.profilePicture!.replaceFirst(
-        RegExp(r'^/'),
-        '',
-      );
-      final fullUrl =
-          '$cleanBaseUrl/$profilePath?t=${DateTime.now().millisecondsSinceEpoch}';
+      // Handle profile picture URL - check if it's already a full URL or needs Supabase storage path
+      String profileUrl = _teacher!.profilePicture!;
+      
+      // If not a full URL, assume it's a Supabase storage path and get public URL
+      if (!profileUrl.startsWith('http')) {
+        try {
+          final supabase = Supabase.instance.client;
+          profileUrl = supabase.storage
+              .from('materials')
+              .getPublicUrl(profileUrl);
+          debugPrint('🖼️ Normalized teacher profile URL: $profileUrl');
+        } catch (e) {
+          debugPrint('⚠️ Error normalizing teacher profile URL: $e');
+          // Fallback: try constructing URL from baseUrl if available
+          String cleanBaseUrl = baseUrl.replaceAll(RegExp(r'/api$'), '');
+          final profilePath = _teacher!.profilePicture!.replaceFirst(
+            RegExp(r'^/'),
+            '',
+          );
+          profileUrl = '$cleanBaseUrl/$profilePath?t=${DateTime.now().millisecondsSinceEpoch}';
+        }
+      }
+      
+      // Add cache buster for network images
+      if (!profileUrl.contains('?')) {
+        profileUrl += '?t=${DateTime.now().millisecondsSinceEpoch}';
+      }
 
       return FadeInImage.assetNetwork(
         placeholder: 'assets/placeholder/avatar_placeholder.jpg',
-        image: fullUrl,
+        image: profileUrl,
         fit: BoxFit.cover,
         fadeInDuration: const Duration(milliseconds: 100),
         fadeInCurve: Curves.fastEaseInToSlowEaseOut,
@@ -835,8 +857,19 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
                   ),
                   const SizedBox(height: 25),
                   ElevatedButton.icon(
-                    onPressed: () {
-                      // TODO: Implement edit profile
+                    onPressed: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const EditTeacherProfilePage(),
+                        ),
+                      );
+                      if (result == true && mounted) {
+                        // Refresh teacher data
+                        setState(() {
+                          _teacherFuture = _loadTeacherData();
+                        });
+                      }
                     },
                     icon: const Icon(Icons.edit, size: 20),
                     label: const Text(

@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'comprehension_and_quiz.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'package:dio/dio.dart';
 
 class EnhancedReadingTaskPage extends StatefulWidget {
   final Map<String, dynamic> task;
@@ -17,15 +19,22 @@ class EnhancedReadingTaskPage extends StatefulWidget {
 class _EnhancedReadingTaskPageState extends State<EnhancedReadingTaskPage> {
   final supabase = Supabase.instance.client;
   final AudioRecorder _audioRecorder = AudioRecorder();
-  
+
   bool isLoading = true;
   bool isRecording = false;
   bool hasRecording = false;
   String? recordingPath;
-  
+  String? pdfUrl;
+  String? localPdfPath;
+  String? uploadedAudioUrl;
+
   int attemptsLeft = 3;
   bool completed = false;
   int currentAttempt = 1;
+
+  // Audio preview
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _isPlayingPreview = false;
 
   @override
   void initState() {
@@ -36,6 +45,7 @@ class _EnhancedReadingTaskPageState extends State<EnhancedReadingTaskPage> {
   @override
   void dispose() {
     _audioRecorder.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -44,7 +54,23 @@ class _EnhancedReadingTaskPageState extends State<EnhancedReadingTaskPage> {
       final user = supabase.auth.currentUser;
       if (user == null) return;
 
-      // Load progress
+      // Load progress and PDF material in parallel
+      await Future.wait([
+        _loadProgress(),
+        _loadPDFMaterial(),
+      ]);
+    } catch (e) {
+      debugPrint('Error loading task data: $e');
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _loadProgress() async {
+    try {
+      final user = supabase.auth.currentUser;
+      if (user == null) return;
+
       final progressRes = await supabase
           .from('student_task_progress')
           .select('attempts_left, completed')
@@ -53,14 +79,52 @@ class _EnhancedReadingTaskPageState extends State<EnhancedReadingTaskPage> {
           .maybeSingle();
 
       if (progressRes != null) {
-        attemptsLeft = progressRes['attempts_left'] ?? 3;
-        completed = progressRes['completed'] ?? false;
-        currentAttempt = 4 - attemptsLeft;
+        setState(() {
+          attemptsLeft = progressRes['attempts_left'] ?? 3;
+          completed = progressRes['completed'] ?? false;
+          currentAttempt = 4 - attemptsLeft;
+        });
       }
     } catch (e) {
-      debugPrint('Error loading task data: $e');
-    } finally {
-      setState(() => isLoading = false);
+      debugPrint('Error loading progress: $e');
+    }
+  }
+
+  Future<void> _loadPDFMaterial() async {
+    try {
+      // Check if task has PDF in task_materials table
+      final materialRes = await supabase
+          .from('task_materials')
+          .select('material_file_path, material_type')
+          .eq('task_id', widget.task['id'])
+          .eq('material_type', 'pdf')
+          .maybeSingle();
+
+      if (materialRes != null && materialRes['material_file_path'] != null) {
+        final materialPath = materialRes['material_file_path'] as String;
+
+        // Construct full PDF URL
+        pdfUrl = materialPath;
+        await _downloadPDF();
+      }
+    } catch (e) {
+      debugPrint('Error loading PDF material: $e');
+    }
+  }
+
+  Future<void> _downloadPDF() async {
+    if (pdfUrl == null) return;
+
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final filePath = '${dir.path}/task_${widget.task['id']}.pdf';
+
+      await Dio().download(pdfUrl!, filePath);
+      setState(() {
+        localPdfPath = filePath;
+      });
+    } catch (e) {
+      debugPrint('Error downloading PDF: $e');
     }
   }
 
@@ -118,6 +182,30 @@ class _EnhancedReadingTaskPageState extends State<EnhancedReadingTaskPage> {
     }
   }
 
+  Future<void> _playRecordingPreview() async {
+    if (recordingPath == null || !File(recordingPath!).existsSync()) return;
+
+    try {
+      setState(() => _isPlayingPreview = true);
+      await _audioPlayer.setFilePath(recordingPath!);
+      await _audioPlayer.play();
+
+      _audioPlayer.playerStateStream.listen((state) {
+        if (state.processingState == ProcessingState.completed) {
+          setState(() => _isPlayingPreview = false);
+        }
+      });
+    } catch (e) {
+      debugPrint('Error playing preview: $e');
+      setState(() => _isPlayingPreview = false);
+    }
+  }
+
+  Future<void> _stopPreview() async {
+    await _audioPlayer.stop();
+    setState(() => _isPlayingPreview = false);
+  }
+
   Future<void> _uploadAndSubmit() async {
     if (attemptsLeft <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -126,55 +214,90 @@ class _EnhancedReadingTaskPageState extends State<EnhancedReadingTaskPage> {
       return;
     }
 
+    if (!hasRecording) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please record your reading first')),
+      );
+      return;
+    }
+
     final user = supabase.auth.currentUser;
     if (user == null) return;
 
     try {
+      setState(() => isLoading = true);
+
       // Upload recording if exists
       if (recordingPath != null && File(recordingPath!).existsSync()) {
         try {
           final file = File(recordingPath!);
-          final fileName = 'reading_${user.id}_${DateTime.now().millisecondsSinceEpoch}.m4a';
+          final fileName = 'reading_task_${user.id}_${widget.task['id']}_${DateTime.now().millisecondsSinceEpoch}.m4a';
           final storagePath = 'student_voice/$fileName';
 
           await supabase.storage
               .from('student_voice')
               .upload(storagePath, file);
 
-          final audioUrl = supabase.storage
+          uploadedAudioUrl = supabase.storage
               .from('student_voice')
               .getPublicUrl(storagePath);
-          
-          debugPrint('✅ Recording uploaded: $audioUrl');
+
+          debugPrint('✅ Recording uploaded: $uploadedAudioUrl');
+
+          // Store recording reference in database
+          await supabase.from('student_recordings').insert({
+            'student_id': user.id,
+            'task_id': widget.task['id'],
+            'recording_url': uploadedAudioUrl,
+            'recorded_at': DateTime.now().toIso8601String(),
+            'needs_grading': true,
+          });
         } catch (e) {
           debugPrint('⚠️ Failed to upload recording: $e');
+          setState(() => isLoading = false);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Upload failed: $e')),
+            );
+          }
+          return;
         }
       }
 
-      // Update progress
+      // Update progress - mark as completed after successful recording
       await supabase.from('student_task_progress').upsert({
         'student_id': user.id,
         'task_id': widget.task['id'],
         'attempts_left': attemptsLeft - 1,
-        'completed': false,
+        'completed': true,
         'updated_at': DateTime.now().toIso8601String(),
       });
 
       if (!mounted) return;
-      
-      // Navigate to quiz
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ComprehensionQuizPage(
-            studentId: user.id,
-            storyId: widget.task['id'],
-            levelId: widget.task['reading_level_id'] ?? '',
+
+      setState(() => isLoading = false);
+      setState(() => completed = true);
+
+      // Show success message and navigate back
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Recording saved successfully!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
           ),
-        ),
-      ).then((_) => Navigator.pop(context));
+        );
+        
+        // Navigate back to previous page after a short delay
+        Future.delayed(const Duration(seconds: 1), () {
+          if (mounted) {
+            Navigator.pop(context);
+          }
+        });
+      }
     } catch (e) {
       debugPrint('Error uploading: $e');
+      setState(() => isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),
@@ -218,21 +341,46 @@ class _EnhancedReadingTaskPageState extends State<EnhancedReadingTaskPage> {
 
             const SizedBox(height: 20),
 
-            // Reading Passage
+            // Reading Passage - PDF or Text
             const Text(
-              '📖 Reading Passage',
+              '📖 Reading Material',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  widget.task['passage_text'] ?? 'No passage available',
-                  style: const TextStyle(fontSize: 18, height: 1.5),
+            if (localPdfPath != null && pdfUrl != null)
+              // Show PDF viewer
+              Container(
+                height: 500,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: SfPdfViewer.file(File(localPdfPath!)),
+                ),
+              )
+            else if (widget.task['passage_text'] != null)
+              // Show text passage as fallback
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    widget.task['passage_text']!,
+                    style: const TextStyle(fontSize: 18, height: 1.5),
+                  ),
+                ),
+              )
+            else
+              Card(
+                child: const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text(
+                    'No reading material available',
+                    style: TextStyle(fontSize: 16, fontStyle: FontStyle.italic),
+                  ),
                 ),
               ),
-            ),
 
             const SizedBox(height: 24),
 
@@ -282,9 +430,19 @@ class _EnhancedReadingTaskPageState extends State<EnhancedReadingTaskPage> {
                           label: Text(isRecording ? 'Stop' : 'Record'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: isRecording ? Colors.red : Colors.purple,
-                            minimumSize: const Size(140, 48),
+                            minimumSize: const Size(120, 48),
                           ),
                         ),
+                        if (hasRecording)
+                          ElevatedButton.icon(
+                            onPressed: _isPlayingPreview ? _stopPreview : _playRecordingPreview,
+                            icon: Icon(_isPlayingPreview ? Icons.pause : Icons.play_arrow),
+                            label: Text(_isPlayingPreview ? 'Pause' : 'Preview'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              minimumSize: const Size(120, 48),
+                            ),
+                          ),
                         if (hasRecording)
                           ElevatedButton.icon(
                             onPressed: () {
@@ -297,7 +455,7 @@ class _EnhancedReadingTaskPageState extends State<EnhancedReadingTaskPage> {
                             label: const Text('Clear'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.red,
-                              minimumSize: const Size(140, 48),
+                              minimumSize: const Size(120, 48),
                             ),
                           ),
                       ],
@@ -313,13 +471,13 @@ class _EnhancedReadingTaskPageState extends State<EnhancedReadingTaskPage> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: attemptsLeft > 0
+                onPressed: attemptsLeft > 0 && hasRecording
                     ? _uploadAndSubmit
                     : null,
-                icon: const Icon(Icons.quiz),
-                label: const Text('Continue to Quiz'),
+                icon: const Icon(Icons.save),
+                label: const Text('Save Recording'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.indigo,
+                  backgroundColor: Colors.green,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
               ),

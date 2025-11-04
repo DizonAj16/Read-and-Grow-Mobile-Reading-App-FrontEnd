@@ -79,7 +79,7 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
     final teacher = await Supabase.instance.client
         .from('teachers')
         .select('id')
-        .eq('user_id', userId!)
+        .eq('id', userId!)
         .maybeSingle();
 
     if (teacher == null) {

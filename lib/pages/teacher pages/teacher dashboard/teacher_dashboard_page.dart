@@ -11,6 +11,7 @@ import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20dashbo
 import 'package:deped_reading_app_laravel/widgets/navigation/page_transition.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import '../../../../widgets/ui_states.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 import 'cards/horizontal_card.dart';
@@ -104,7 +105,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
       final teacher = Teacher.fromJson({
         ...userData,
         ...profileData,
-        'user_id': userData['id'],      // Preserve user ID
+        'id': userData['id'],      // Preserve user ID
         'teacher_id': profileData['id'], // Preserve teacher ID
       });
 
@@ -923,42 +924,15 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
           future: _classesFuture,
           builder: (context, snapshot) {
             if (snapshot.hasError) {
-              return _buildErrorWidget("Failed to load class data");
+              return const ErrorState(message: "Failed to load class data");
             }
 
             final classrooms = snapshot.data ?? [];
 
             if (classrooms.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Lottie.asset(
-                      'assets/animation/empty_box.json',
-                      width: 200,
-                      height: 200,
-                      repeat: true,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      "No Classrooms Yet! 🏫",
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Tap the "+" button to get started! 👇',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withOpacity(0.7),
-                      ),
-                    ),
-                  ],
-                ),
+              return const EmptyState(
+                title: "No Classrooms Yet! 🏫",
+                subtitle: 'Tap the "+" button to get started! 👇',
               );
             }
 

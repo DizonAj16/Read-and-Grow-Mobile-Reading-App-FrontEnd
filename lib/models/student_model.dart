@@ -66,7 +66,7 @@ class Student {
     final name = json['student_name'] ?? '';
     return Student(
       id: json['id'] as String,
-      userId: json['user_id'] as String?,
+      userId: json['id'] as String?,
       studentName: name,
       studentLrn: json['student_lrn'] as String?,
       studentGrade: json['student_grade'] as String?,
@@ -82,7 +82,7 @@ class Student {
 
   Map<String, dynamic> toJson() => {
     'id': id,
-    'user_id': userId,
+    'id': userId,
     'student_name': studentName,
     'student_lrn': studentLrn,
     'student_grade': studentGrade,
@@ -100,7 +100,7 @@ class Student {
     final name = prefs.getString('student_name') ?? '';
     return Student(
       id: prefs.getString('student_id') ?? '',
-      userId: prefs.getString('user_id'),
+      userId: prefs.getString('id'),
       studentName: name,
       studentLrn: prefs.getString('student_lrn'),
       studentGrade: prefs.getString('student_grade'),
@@ -117,7 +117,7 @@ class Student {
   Future<void> saveToPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('student_id', id);
-    if (userId != null) await prefs.setString('user_id', userId!);
+    if (userId != null) await prefs.setString('id', userId!);
     await prefs.setString('student_name', studentName);
     if (studentLrn != null) await prefs.setString('student_lrn', studentLrn!);
     if (studentGrade != null) await prefs.setString('student_grade', studentGrade!);

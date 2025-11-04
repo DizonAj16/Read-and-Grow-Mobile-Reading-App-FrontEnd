@@ -47,8 +47,8 @@ class _StudentListPageState extends State<StudentListPage> {
         _hasError = false;
       });
 
-      final fetchedStudents = await ClassroomService.getAssignedStudents(
-      );
+      // Use class-specific method to get only classmates in this class
+      final fetchedStudents = await ClassroomService.getStudentsByClass(widget.classId);
       if (!mounted) return;
 
       _sortAndSetStudents(fetchedStudents);

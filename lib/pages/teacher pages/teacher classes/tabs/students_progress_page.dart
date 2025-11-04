@@ -62,11 +62,13 @@ class _StudentsProgressPageState extends State<StudentsProgressPage> {
     setState(() => isLoading = true);
 
     try {
-      // 1️⃣ Get assigned student IDs
-      final assignedIds = await ClassroomService.getAssignedStudentIds(); // returns Set<String>
+      // 1️⃣ Get assigned student IDs scoped to this class
+      final assignedIds = await ClassroomService.getAssignedStudentIdsForClass(widget.classId); // returns Set<String>
+      debugPrint("📊 Found ${assignedIds.length} assigned student IDs for class ${widget.classId}");
 
       // 2️⃣ Get all students
       final allStudents = await ClassroomService.getAllStudents();
+      debugPrint("📊 Total students in system: ${allStudents.length}");
 
       // 3️⃣ Filter only assigned students
       final students = allStudents
@@ -74,14 +76,21 @@ class _StudentsProgressPageState extends State<StudentsProgressPage> {
           .map((s) => s.copyWith(classRoomId: widget.classId))
           .toList();
 
+      debugPrint("📊 Filtered to ${students.length} assigned students");
+
       if (mounted) {
-        setState(() => assignedStudents = students);
+        setState(() {
+          assignedStudents = students;
+          isLoading = false;
+        });
       }
     } catch (e) {
-      debugPrint("Error loading assigned students: $e");
-    } finally {
+      debugPrint("❌ Error loading assigned students: $e");
       if (mounted) {
-        setState(() => isLoading = false);
+        setState(() {
+          assignedStudents = [];
+          isLoading = false;
+        });
       }
     }
   }

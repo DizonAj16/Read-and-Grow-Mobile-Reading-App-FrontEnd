@@ -18,34 +18,92 @@ class _AdminPageState extends State<AdminPage> {
   int _currentIndex = 0;
 
   Future<void> _logout(BuildContext context) async {
-    try {
-      await Supabase.instance.client.auth.signOut();
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('user_id');
-      await prefs.remove('role');
-      await prefs.remove('admin_name');
-      await prefs.remove('admin_email');
+    // Show confirmation dialog first
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Column(
+          children: [
+            Icon(
+              Icons.logout,
+              color: Theme.of(context).colorScheme.error,
+              size: 50,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Logout?",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          "Are you sure you want to logout?",
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              "Cancel",
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Logout"),
+          ),
+        ],
+      ),
+    );
 
+    if (confirmed != true) return;
+
+    try {
+      // Show loading dialog
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (context) => const _LoggingOutDialog(),
       );
 
+      // Logout from Supabase
+      await Supabase.instance.client.auth.signOut();
+      
+      // Clear SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('id');
+      await prefs.remove('role');
+      await prefs.remove('admin_name');
+      await prefs.remove('admin_email');
+      await prefs.clear();
+
       await Future.delayed(const Duration(seconds: 1));
 
       if (mounted) {
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(); // Close loading dialog
         Navigator.of(context).pushAndRemoveUntil(
           PageTransition(page: const LandingPage()),
-              (route) => false,
+          (route) => false,
         );
       }
     } catch (e) {
-      showDialog(
-        context: context,
-        builder: (context) => const _LogoutFailedDialog(),
-      );
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog if open
+        showDialog(
+          context: context,
+          builder: (context) => const _LogoutFailedDialog(),
+        );
+      }
     }
   }
 
@@ -70,6 +128,28 @@ class _AdminPageState extends State<AdminPage> {
         ),
         backgroundColor: Theme.of(context).colorScheme.primary,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.white),
+            onSelected: (value) {
+              if (value == 'logout') {
+                _logout(context);
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, color: Colors.red, size: 20),
+                    SizedBox(width: 8),
+                    Text('Logout'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       body: PageView(
         controller: _pageController,

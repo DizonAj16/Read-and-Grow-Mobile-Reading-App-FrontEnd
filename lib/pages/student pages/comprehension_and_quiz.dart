@@ -26,7 +26,7 @@ class _ComprehensionQuizPageState extends State<ComprehensionQuizPage> {
   bool loading = true;
   String quizTitle = "";
   List<Map<String, dynamic>> questions = [];
-  Map<int, String> answers = {};
+  Map<String, String> answers = {}; // ✅ Keys and values are Strings
   Timer? timer;
   int? timeLimit;
   int remainingSeconds = 0;
@@ -49,7 +49,7 @@ class _ComprehensionQuizPageState extends State<ComprehensionQuizPage> {
       final quizRes = await supabase
           .from('quizzes')
           .select('id, title, task:tasks(time_limit_minutes)')
-          .eq('task_id', widget.storyId) // storyId = task_id
+          .eq('task_id', widget.storyId)
           .maybeSingle();
 
       if (quizRes == null) {
@@ -65,18 +65,16 @@ class _ComprehensionQuizPageState extends State<ComprehensionQuizPage> {
       timeLimit = quizRes['task']?['time_limit_minutes'];
       remainingSeconds = timeLimit ?? 0;
 
-      // 3️⃣ Fetch questions and their options
+      // 3️⃣ Fetch questions and options
       final qRes = await supabase
           .from('quiz_questions')
-          .select(
-          'id, question_text, question_type, question_options(option_text, is_correct)'
-      )
+          .select('id, question_text, question_type, question_options(option_text, is_correct)')
           .eq('quiz_id', quizRes['id'])
           .order('sort_order', ascending: true);
 
       questions = List<Map<String, dynamic>>.from(qRes);
 
-      // 4️⃣ If there’s a time limit, start timer
+      // 4️⃣ Start timer if applicable
       if (timeLimit != null && timeLimit! > 0) {
         timer = Timer.periodic(const Duration(seconds: 1), (t) {
           if (remainingSeconds > 0) {
@@ -102,45 +100,27 @@ class _ComprehensionQuizPageState extends State<ComprehensionQuizPage> {
     int score = 0;
 
     for (var q in questions) {
-      final qId = q['id'] as int;
-      final correct = q['correct_answer'].toString().trim().toLowerCase();
+      final qId = q['id'].toString(); // ✅ Always String
+      final opts = (q['question_options'] ?? []) as List<dynamic>;
+      final correctOption = opts.firstWhere(
+            (opt) => opt['is_correct'] == true,
+        orElse: () => null,
+      );
+      final correct = correctOption?['option_text']?.toString().trim().toLowerCase() ?? '';
       final user = (answers[qId] ?? '').trim().toLowerCase();
 
       if (correct == user) score++;
     }
 
-    await supabase.from('quiz_submissions').insert({
+    await supabase.from('student_submissions').insert({
       'student_id': widget.studentId,
-      'quiz_id': questions.isNotEmpty ? questions.first['quiz_id'] : null,
-      'story_id': widget.storyId,
-      'level_id': widget.levelId,
+      'assignment_id': null,
       'score': score,
+      'max_score': questions.length,
       'submitted_at': DateTime.now().toIso8601String(),
     });
 
     final passed = (score / questions.length) >= 0.7;
-    if (passed) {
-      await supabase.from('student_levels').update({'status': 'completed'}).match({
-        'student_id': widget.studentId,
-        'level_id': widget.levelId,
-      });
-
-      final nextLevel = await supabase
-          .from('reading_levels')
-          .select('id')
-          .gt('id', int.parse(widget.levelId))
-          .order('id')
-          .limit(1)
-          .maybeSingle();
-
-      if (nextLevel != null) {
-        await supabase.from('student_levels').insert({
-          'student_id': widget.studentId,
-          'level_id': nextLevel['id'],
-          'status': 'active',
-        });
-      }
-    }
 
     if (!mounted) return;
     showDialog(
@@ -185,7 +165,9 @@ class _ComprehensionQuizPageState extends State<ComprehensionQuizPage> {
                 child: Text(
                   _formatTime(remainingSeconds),
                   style: const TextStyle(
-                      fontWeight: FontWeight.bold, color: Colors.red),
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  ),
                 ),
               ),
             ),
@@ -197,8 +179,9 @@ class _ComprehensionQuizPageState extends State<ComprehensionQuizPage> {
         itemCount: questions.length,
         itemBuilder: (context, index) {
           final q = questions[index];
-          final qId = q['id'] as int;
-          final qType = q['type'];
+          final qId = q['id'].toString(); // ✅ String
+          final qType = q['question_type']?.toString();
+          final opts = (q['question_options'] ?? []) as List<dynamic>;
 
           return Card(
             margin: const EdgeInsets.all(8),
@@ -207,16 +190,18 @@ class _ComprehensionQuizPageState extends State<ComprehensionQuizPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("${index + 1}. ${q['question_text']}",
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                    "${index + 1}. ${q['question_text']}",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 8),
 
-                  if (qType == 'multipleChoice')
+                  if (qType == 'multiple_choice')
                     Column(
-                      children: (q['options'] as List<dynamic>)
+                      children: opts
                           .map((opt) => RadioListTile<String>(
-                        title: Text(opt.toString()),
-                        value: opt.toString(),
+                        title: Text(opt['option_text']),
+                        value: opt['option_text'],
                         groupValue: answers[qId],
                         onChanged: (val) {
                           setState(() => answers[qId] = val ?? '');
@@ -225,7 +210,7 @@ class _ComprehensionQuizPageState extends State<ComprehensionQuizPage> {
                           .toList(),
                     ),
 
-                  if (qType == 'trueFalse')
+                  if (qType == 'true_false' || qType == 'truefalse')
                     Column(
                       children: ["True", "False"]
                           .map((opt) => RadioListTile<String>(
@@ -239,7 +224,7 @@ class _ComprehensionQuizPageState extends State<ComprehensionQuizPage> {
                           .toList(),
                     ),
 
-                  if (qType == 'fillInTheBlank')
+                  if (qType == 'fill_in_the_blank')
                     TextField(
                       decoration:
                       const InputDecoration(labelText: "Your Answer"),

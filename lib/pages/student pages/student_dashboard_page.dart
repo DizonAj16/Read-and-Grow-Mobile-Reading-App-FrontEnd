@@ -8,6 +8,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'student page widgets/horizontal_card.dart';
 import 'student page widgets/activity_tile.dart';
 import 'enhanced_reading_level_page.dart';
+import 'student_badges_page.dart';
 
 class StudentDashboardPage extends StatefulWidget {
   const StudentDashboardPage({super.key});
@@ -31,6 +32,9 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
   int _totalWrong = 0;
   DateTime? _lastUpdated;
   List<double> _recentScores = [];
+  int _assignedTasks = 0;
+  int _badgesCount = 0;
+  String _levelDisplay = 'N/A';
 
   @override
   void initState() {
@@ -63,10 +67,12 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
       }
 
       await _loadProgressData();
+      await _loadAssignedBadgesAndLevel();
     } catch (e) {
       debugPrint('API fetch failed: $e');
       final fallbackStudent = await Student.fromPrefs();
       setState(() => username = fallbackStudent.username ?? '');
+      await _loadAssignedBadgesAndLevel();
     } finally {
       setState(() {
         _dataLoaded = true;
@@ -127,6 +133,83 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
       });
     } catch (e) {
       debugPrint('⚠️ Failed to load progress: $e');
+    }
+  }
+
+  Future<void> _loadAssignedBadgesAndLevel() async {
+    try {
+      final supabase = Supabase.instance.client;
+      final authUserId = supabase.auth.currentUser?.id;
+      if (authUserId == null) return;
+
+      // Get student.id from students by user_id
+      final studentRow = await supabase
+          .from('students')
+          .select('id, current_reading_level_id')
+          .eq('id', authUserId)
+          .maybeSingle();
+
+      if (studentRow == null) return;
+      final String studentId = studentRow['id'] as String;
+
+      // Fetch enrolled class ids
+      final enrollments = await supabase
+          .from('student_enrollments')
+          .select('class_room_id')
+          .eq('student_id', studentId);
+
+      final classIds = (enrollments as List)
+          .map((e) => e['class_room_id'] as String)
+          .toList();
+
+      int assignedCount = 0;
+      if (classIds.isNotEmpty) {
+        final assignments = await supabase
+            .from('assignments')
+            .select('id')
+            .inFilter('class_room_id', classIds);
+        assignedCount = (assignments as List).length;
+      }
+
+      // Badges: count submissions with score ratio >= 0.8
+      final submissions = await supabase
+          .from('student_submissions')
+          .select('score, max_score')
+          .eq('student_id', authUserId);
+
+      int badges = 0;
+      for (final row in (submissions as List)) {
+        final int score = (row['score'] ?? 0) as int;
+        final int maxScore = (row['max_score'] ?? 0) as int;
+        if (maxScore > 0 && score / maxScore >= 0.8) {
+          badges += 1;
+        }
+      }
+
+      // Level display
+      String levelText = 'N/A';
+      final levelId = studentRow['current_reading_level_id'] as String?;
+      if (levelId != null) {
+        final levelRow = await supabase
+            .from('reading_levels')
+            .select('level_number, title')
+            .eq('id', levelId)
+            .maybeSingle();
+        if (levelRow != null) {
+          final num = levelRow['level_number'];
+          final title = levelRow['title'];
+          levelText = (num != null ? 'Level $num' : '') + (title != null ? ' - $title' : '');
+          levelText = levelText.isEmpty ? 'N/A' : levelText;
+        }
+      }
+
+      setState(() {
+        _assignedTasks = assignedCount;
+        _badgesCount = badges;
+        _levelDisplay = levelText;
+      });
+    } catch (e) {
+      debugPrint('⚠️ Failed to load assigned/badges/level: $e');
     }
   }
 
@@ -263,21 +346,31 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
           const SizedBox(width: 16),
           StudentDashboardHorizontalCard(
             title: "Pending",
-            value: "11",
+            value: (_assignedTasks - _completedTasks > 0
+                    ? _assignedTasks - _completedTasks
+                    : 0)
+                .toString(),
             gradientColors: [Colors.orangeAccent, Colors.deepOrange],
             icon: Icons.pending_actions,
           ),
           const SizedBox(width: 16),
           StudentDashboardHorizontalCard(
             title: "Badges",
-            value: "0",
+            value: _badgesCount.toString(),
             gradientColors: [Colors.pinkAccent, Colors.redAccent],
             icon: Icons.emoji_events_outlined,
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const StudentBadgesPage(),
+                ),
+              );
+            },
           ),
           const SizedBox(width: 16),
           StudentDashboardHorizontalCard(
             title: "Level",
-            value: "N/A",
+            value: _levelDisplay,
             gradientColors: [Colors.blueAccent, Colors.lightBlue],
             icon: Icons.star_border,
           ),

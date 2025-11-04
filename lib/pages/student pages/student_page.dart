@@ -1,8 +1,10 @@
 import 'package:deped_reading_app_laravel/api/supabase_auth_service.dart';
+import 'package:deped_reading_app_laravel/api/classroom_service.dart';
 import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:deped_reading_app_laravel/pages/auth%20pages/landing_page.dart';
 import 'package:deped_reading_app_laravel/pages/student%20pages/enhanced_reading_level_page.dart';
 import 'package:deped_reading_app_laravel/pages/student%20pages/student_dashboard_page.dart';
+import 'package:deped_reading_app_laravel/pages/student%20pages/student_reading_materials_page.dart';
 import 'package:deped_reading_app_laravel/widgets/helpers/tts_helper.dart';
 import 'package:deped_reading_app_laravel/widgets/helpers/tts_modal.dart';
 import 'package:flutter/material.dart';
@@ -25,10 +27,11 @@ class _StudentPageState extends State<StudentPage> {
   final PageController _pageController = PageController();
   final TTSHelper _ttsHelper = TTSHelper();
 
-  final List<Widget> _pages = const [
-    StudentDashboardPage(),
-    StudentClassPage(),
-    EnhancedReadingLevelPage(),
+  final List<Widget> _pages = [
+    const StudentDashboardPage(),
+    const StudentClassPage(),
+    const EnhancedReadingLevelPage(),
+    const StudentReadingMaterialsPage(),
   ];
 
   @override
@@ -165,70 +168,143 @@ class _StudentPageState extends State<StudentPage> {
   }
 
   Future<void> _enrollStudentToClass(String classroomCode) async {
+    if (!mounted) return;
+
     try {
+      debugPrint('📝 [STUDENT_ENROLL] Starting enrollment with code: $classroomCode');
       final supabase = Supabase.instance.client;
 
       // 1️⃣ Validate classroom code
       final classroomResponse = await supabase
           .from('class_rooms')
-          .select('id')
-          .eq('classroom_code', classroomCode)
+          .select('id, class_name')
+          .eq('classroom_code', classroomCode.trim())
           .maybeSingle();
 
-      if (classroomResponse == null) {
+      if (classroomResponse == null || classroomResponse['id'] == null) {
+        debugPrint('❌ [STUDENT_ENROLL] Invalid classroom code: $classroomCode');
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text("❌ Invalid classroom code"),
             backgroundColor: Colors.redAccent,
+            duration: Duration(seconds: 3),
           ),
         );
         return;
       }
 
-      final classId = classroomResponse['id'];
+      final classId = classroomResponse['id'] as String;
+      final className = classroomResponse['class_name'] as String? ?? 'Unknown';
+
+      debugPrint('✅ [STUDENT_ENROLL] Found class: $className ($classId)');
 
       // 2️⃣ Get current student
       final user = supabase.auth.currentUser;
-      if (user == null) throw Exception("⚠️ No logged-in user");
+      if (user == null) {
+        debugPrint('❌ [STUDENT_ENROLL] No logged-in user');
+        throw Exception("No logged-in user");
+      }
 
       final studentResponse = await supabase
           .from('students')
-          .select('id')
-          .eq('user_id', user.id)
+          .select('id, student_name')
+          .eq('id', user.id)
           .maybeSingle();
 
       if (studentResponse == null) {
-        throw Exception("⚠️ No matching student profile found for this user");
+        debugPrint('❌ [STUDENT_ENROLL] No matching student profile found');
+        throw Exception("No matching student profile found for this user");
       }
 
-      final studentId = studentResponse['id'];
+      final studentId = studentResponse['id'] as String;
+      final studentName = studentResponse['student_name'] as String? ?? 'Student';
 
-      // 3️⃣ Upsert enrollment
-      await supabase.from('student_enrollments').upsert({
-        'student_id': studentId,
-        'class_room_id': classId,
-        'enrollment_date': DateTime.now().toIso8601String(),
-      });
+      debugPrint('✅ [STUDENT_ENROLL] Found student: $studentName ($studentId)');
 
-      // 4️⃣ Show snackbar
+      // 3️⃣ Check if already enrolled in another class
+      final existingEnrollment = await supabase
+          .from('student_enrollments')
+          .select('class_room_id, class_rooms(class_name)')
+          .eq('student_id', studentId)
+          .maybeSingle();
+
+      if (existingEnrollment != null) {
+        final existingClassId = existingEnrollment['class_room_id'] as String?;
+        final existingClassName = existingEnrollment['class_rooms']?['class_name'] as String?;
+
+        // If already enrolled in this class
+        if (existingClassId == classId) {
+          debugPrint('ℹ️ [STUDENT_ENROLL] Already enrolled in this class');
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("You are already enrolled in $className"),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          if (Navigator.of(context, rootNavigator: true).canPop()) {
+            Navigator.of(context, rootNavigator: true).pop();
+          }
+          return;
+        }
+
+        // If enrolled in different class
+        debugPrint('❌ [STUDENT_ENROLL] Already enrolled in different class: $existingClassName');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("You are already enrolled in \"${existingClassName ?? 'another class'}\". Please contact your teacher to switch classes."),
+            backgroundColor: Colors.redAccent,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+
+      // 4️⃣ Insert enrollment using ClassroomService for consistency
+      debugPrint('📝 [STUDENT_ENROLL] No existing enrollment - proceeding with join');
+      final enrollmentResult = await ClassroomService.assignStudent(
+        studentId: studentId,
+        classRoomId: classId,
+      );
+
+      if (enrollmentResult != null && enrollmentResult.containsKey('error')) {
+        final errorMessage = enrollmentResult['error'] as String? ?? 'Failed to join class';
+        debugPrint('❌ [STUDENT_ENROLL] Assignment failed: $errorMessage');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.redAccent,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+
+      debugPrint('✅ [STUDENT_ENROLL] Successfully enrolled in class');
+
+      // 5️⃣ Show success snackbar
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("✅ Successfully joined the class!"),
+        SnackBar(
+          content: Text("✅ Successfully joined $className!"),
           backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
         ),
       );
 
-      // 5️⃣ Close the dialog (use rootNavigator: true to close modal)
+      // 6️⃣ Close the dialog
       if (Navigator.of(context, rootNavigator: true).canPop()) {
         Navigator.of(context, rootNavigator: true).pop();
       }
 
-      // 6️⃣ Wait a short moment to finish animations
+      // 7️⃣ Wait a short moment to finish animations
       await Future.delayed(const Duration(milliseconds: 200));
 
-      // 7️⃣ Refresh My Classes tab safely
+      // 8️⃣ Refresh My Classes tab safely
       if (!mounted) return;
       setState(() {
         _currentIndex = 1;
@@ -238,13 +314,14 @@ class _StudentPageState extends State<StudentPage> {
       _pageController.jumpToPage(1);
 
     } catch (e, stack) {
-      debugPrint("❌ Enrollment error: $e");
+      debugPrint("❌ [STUDENT_ENROLL] Enrollment error: $e");
       debugPrintStack(stackTrace: stack);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Error enrolling: $e"),
+            content: Text("Error enrolling: ${e.toString().replaceAll('Exception: ', '')}"),
             backgroundColor: Colors.redAccent,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -316,6 +393,7 @@ class _StudentPageState extends State<StudentPage> {
         activeIcon: Icon(Icons.library_books),
         label: "Reading Tasks",
       ),
+
     ];
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:lottie/lottie.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -55,49 +56,118 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
     try {
       final supabase = Supabase.instance.client;
 
+      final trimmedUsername = studentUsernameController.text.trim();
+      final trimmedPassword = studentPasswordController.text.trim();
+      final trimmedName = studentNameController.text.trim();
+      final trimmedLRN = studentLRNController.text.trim();
+      final trimmedGrade = gradeController.text.trim();
+      final trimmedSection = sectionController.text.trim();
+
+      // 1️⃣ Check if username already exists
+      final existingUser = await supabase
+          .from('users')
+          .select('id')
+          .eq('username', trimmedUsername)
+          .maybeSingle();
+
+      if (existingUser != null) {
+        Navigator.of(context).pop();
+        _handleErrorDialog(
+          title: "Registration Failed",
+          message: "Username already exists. Please choose a different username.",
+        );
+        return;
+      }
+
+      // 2️⃣ Check if LRN already exists
+      final existingLRN = await supabase
+          .from('students')
+          .select('id')
+          .eq('student_lrn', trimmedLRN)
+          .maybeSingle();
+
+      if (existingLRN != null) {
+        Navigator.of(context).pop();
+        _handleErrorDialog(
+          title: "Registration Failed",
+          message: "LRN already registered. Please use a different LRN.",
+        );
+        return;
+      }
+
+      // 3️⃣ Create Supabase Auth account (using username-based email format)
+      final authEmail = "$trimmedUsername@student.app";
       final authResponse = await supabase.auth.signUp(
-        email: "${studentUsernameController.text}@gmail.com",
-        password: studentPasswordController.text,
+        email: authEmail,
+        password: trimmedPassword,
+        data: {
+          "username": trimmedUsername,
+          "name": trimmedName,
+        },
       );
 
       if (authResponse.user == null) {
         Navigator.of(context).pop();
         _handleErrorDialog(
           title: "Registration Failed",
-          message: "Could not create account. Please try again.",
+          message: "Could not create authentication account. Please try again.",
         );
         return;
       }
 
-      final user = authResponse.user;
-      final userId = user!.id;
+      final userId = authResponse.user!.id;
 
-      await supabase.from('users').insert({
-        'id': userId,
-        'username': studentUsernameController.text,
-        'password': studentPasswordController.text,
-        'role': 'student',
-      });
+      try {
+        // 4️⃣ Insert into users table with role='student'
+        await supabase.from('users').insert({
+          'id': userId,
+          'username': trimmedUsername,
+          'password': trimmedPassword,
+          'role': 'student',
+        });
 
-      await supabase.from('students').insert({
-        'user_id': userId,
-        'username': studentUsernameController.text,
-        'student_name': studentNameController.text,
-        'student_lrn': studentLRNController.text,
-        'student_grade': gradeController.text,
-        'student_section': sectionController.text,
-      });
+        // 5️⃣ Insert into students table (linked via id foreign key)
+        await supabase.from('students').insert({
+          'id': userId,
+          'username': trimmedUsername,
+          'student_name': trimmedName,
+          'student_lrn': trimmedLRN,
+          'student_grade': trimmedGrade.isNotEmpty ? trimmedGrade : null,
+          'student_section': trimmedSection.isNotEmpty ? trimmedSection : null,
+        });
 
-
-      if (mounted) {
-        Navigator.of(context).pop();
-        await _showSuccessAndProceedDialogs("Registration successful!");
+        if (mounted) {
+          Navigator.of(context).pop();
+          await _showSuccessAndProceedDialogs("Registration successful!");
+        }
+      } catch (insertError) {
+        // Rollback: Delete auth user and users record if student insert failed
+        try {
+          await supabase.from('users').delete().eq('id', userId);
+          await supabase.auth.admin.deleteUser(userId);
+        } catch (rollbackError) {
+          debugPrint('⚠️ Rollback error: $rollbackError');
+        }
+        if (mounted) {
+          Navigator.of(context).pop();
+          _handleErrorDialog(
+            title: "Registration Failed",
+            message: "Failed to complete registration. Please try again.",
+          );
+        }
       }
     } catch (e) {
       Navigator.of(context).pop();
+      String errorMessage = "An error occurred during registration. Please try again.";
+      final errorString = e.toString().toLowerCase();
+      if (errorString.contains('duplicate') || errorString.contains('unique')) {
+        errorMessage = "Username or LRN already exists. Please use different credentials.";
+      } else if (errorString.contains('foreign key') || errorString.contains('constraint')) {
+        errorMessage = "Invalid data provided. Please check your information.";
+      }
       _handleErrorDialog(
         title: "Error",
-        message: "Failed to sign up: $e",
+        message: errorMessage,
       );
     }
   }

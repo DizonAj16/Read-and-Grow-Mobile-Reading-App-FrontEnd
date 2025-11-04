@@ -17,13 +17,14 @@ class ApiService {
     try {
       String fileName =
           'file_${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
-      final response = await supabase.storage.from('document').upload(fileName, file);
+      // Using 'materials' bucket as per user's Supabase storage setup
+      final response = await supabase.storage.from('materials').upload(fileName, file);
       if (response == null) {
         print('❌ Failed to upload file: $fileName');
         return null;
       }
 
-      final fileUrl = supabase.storage.from('document').getPublicUrl(fileName);
+      final fileUrl = supabase.storage.from('materials').getPublicUrl(fileName);
       print('✅ Uploaded: $fileUrl');
       return fileUrl;
     } catch (e) {

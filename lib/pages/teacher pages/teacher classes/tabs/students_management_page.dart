@@ -1,9 +1,7 @@
-import 'dart:convert';
 import 'package:deped_reading_app_laravel/api/classroom_service.dart';
 import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../main.dart';
 class StudentsManagementPage extends StatefulWidget {
@@ -82,8 +80,8 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
       // 1️⃣ Fetch all students
       final allStudentsList = await ClassroomService.getAllStudents();
 
-      // 2️⃣ Fetch assigned student IDs
-      final assignedIds = await ClassroomService.getAssignedStudentIds();
+      // 2️⃣ Fetch assigned student IDs for this class only
+      final assignedIds = await ClassroomService.getAssignedStudentIdsForClass(widget.classId);
 
       // 3️⃣ Separate assigned and unassigned students
       final assignedList = <Student>[];
@@ -139,27 +137,37 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
       classRoomId: widget.classId,
     );
 
-    if (res != null) {
-      // ✅ Success
-      currentUnassignedPage = 0;
-      currentAssignedPage = 0;
-
-      setState(() {
-        final updatedStudent = student.copyWith(classRoomId: widget.classId);
-        allStudents.removeWhere((s) => s.id == student.id);
-        assignedStudents.add(updatedStudent);
-      });
-
-      _showSnackBar("Student assigned successfully");
-    } else {
-
+    if (res == null) {
       _showSnackBar("Failed to assign student", isError: true);
+      return;
     }
+
+    // Check if response contains an error
+    if (res.containsKey('error')) {
+      final errorMessage = res['error'] as String? ?? 'Failed to assign student';
+      _showSnackBar(errorMessage, isError: true);
+      return;
+    }
+
+    // ✅ Success - Student assigned
+    currentUnassignedPage = 0;
+    currentAssignedPage = 0;
+
+    setState(() {
+      final updatedStudent = student.copyWith(classRoomId: widget.classId);
+      allStudents.removeWhere((s) => s.id == student.id);
+      assignedStudents.add(updatedStudent);
+    });
+
+    _showSnackBar("Student assigned successfully");
   }
 
 
   Future<void> _unassignStudent(Student student) async {
-    final res = await ClassroomService.unassignStudent(studentId: student.id);
+    final res = await ClassroomService.unassignStudent(
+      studentId: student.id,
+      classRoomId: widget.classId,
+    );
 
     if (res.statusCode == 200) {
       setState(() {

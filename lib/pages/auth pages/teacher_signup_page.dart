@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:lottie/lottie.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../widgets/appbar/theme_toggle_button.dart';
@@ -51,13 +52,52 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
     try {
       final supabase = Supabase.instance.client;
 
+      final trimmedUsername = teacherUsernameController.text.trim();
+      final trimmedPassword = teacherPasswordController.text.trim();
+      final trimmedEmail = teacherEmailController.text.trim();
+      final trimmedName = teacherNameController.text.trim();
+      final trimmedPosition = teacherPositionController.text.trim();
+
+      // 1️⃣ Check if username already exists
+      final existingUser = await supabase
+          .from('users')
+          .select('id')
+          .eq('username', trimmedUsername)
+          .maybeSingle();
+
+      if (existingUser != null) {
+        Navigator.of(context).pop();
+        _handleErrorDialog(
+          title: "Registration Failed",
+          message: "Username already exists. Please choose a different username.",
+        );
+        return;
+      }
+
+      // 2️⃣ Check if email already exists in teachers table
+      final existingEmail = await supabase
+          .from('teachers')
+          .select('id')
+          .eq('teacher_email', trimmedEmail)
+          .maybeSingle();
+
+      if (existingEmail != null) {
+        Navigator.of(context).pop();
+        _handleErrorDialog(
+          title: "Registration Failed",
+          message: "Email already registered. Please use a different email.",
+        );
+        return;
+      }
+
+      // 3️⃣ Create Supabase Auth account
       final authResponse = await supabase.auth.signUp(
-        email: teacherEmailController.text.trim(),
-        password: teacherPasswordController.text.trim(),
+        email: trimmedEmail,
+        password: trimmedPassword,
         data: {
-          "username": teacherUsernameController.text.trim(),
-          "name": teacherNameController.text.trim(),
-          "position": teacherPositionController.text.trim(),
+          "username": trimmedUsername,
+          "name": trimmedName,
+          "position": trimmedPosition,
         },
       );
 
@@ -65,36 +105,56 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
         Navigator.of(context).pop();
         _handleErrorDialog(
           title: "Registration Failed",
-          message: "Unable to create account. Please try again.",
+          message: "Unable to create authentication account. Please try again.",
         );
         return;
       }
 
+      final userId = authResponse.user!.id;
 
-      final user = authResponse.user;
-      final userId = user!.id;
-      await supabase.from('users').insert({
-        'id':  userId,
-        'username': teacherUsernameController.text,
-        'password': teacherPasswordController.text,
-        'role': 'teacher',
-      });
+      try {
+        // 4️⃣ Insert into users table with role='teacher'
+        await supabase.from('users').insert({
+          'id': userId,
+          'username': trimmedUsername,
+          'password': trimmedPassword,
+          'role': 'teacher',
+        });
 
+        // 5️⃣ Insert into teachers table (linked via id foreign key)
+        await supabase.from('teachers').insert({
+          'id': userId,
+          'teacher_name': trimmedName,
+          'teacher_email': trimmedEmail,
+          'teacher_position': trimmedPosition,
+        });
 
-      await supabase.from('teachers').insert({
-        'user_id': authResponse.user!.id,
-        'teacher_name': teacherNameController.text.trim(),
-        'username': teacherUsernameController.text.trim(),
-        'teacher_email': teacherEmailController.text.trim(),
-        'teacher_position': teacherPositionController.text.trim(),
-      });
-
-
-      Navigator.of(context).pop();
-      await _showSuccessAndProceedDialogs("Registration successful!");
+        Navigator.of(context).pop();
+        await _showSuccessAndProceedDialogs("Registration successful!");
+      } catch (insertError) {
+        // Rollback: Delete auth user and users record if teacher insert failed
+        try {
+          await supabase.from('users').delete().eq('id', userId);
+          await supabase.auth.admin.deleteUser(userId);
+        } catch (rollbackError) {
+          debugPrint('⚠️ Rollback error: $rollbackError');
+        }
+        Navigator.of(context).pop();
+        _handleErrorDialog(
+          title: "Registration Failed",
+          message: "Failed to complete registration. Please try again.",
+        );
+      }
     } catch (e) {
       Navigator.of(context).pop();
-      _handleErrorDialog(title: "Error", message: e.toString());
+      String errorMessage = "An error occurred during registration. Please try again.";
+      final errorString = e.toString().toLowerCase();
+      if (errorString.contains('duplicate') || errorString.contains('unique')) {
+        errorMessage = "Username or email already exists. Please use different credentials.";
+      } else if (errorString.contains('foreign key') || errorString.contains('constraint')) {
+        errorMessage = "Invalid data provided. Please check your information.";
+      }
+      _handleErrorDialog(title: "Error", message: errorMessage);
     }
   }
 

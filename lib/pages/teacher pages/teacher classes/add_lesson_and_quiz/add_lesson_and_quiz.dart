@@ -101,7 +101,7 @@ class _AddLessonWithQuizScreenState extends State<AddLessonWithQuizScreen> {
         final teacherData = await Supabase.instance.client
             .from('teachers')
             .select('id')
-            .eq('user_id', Supabase.instance.client.auth.currentUser!.id)
+            .eq('id', Supabase.instance.client.auth.currentUser!.id)
             .maybeSingle();
         teacherId = teacherData?['id'];
         if (teacherId == null) {

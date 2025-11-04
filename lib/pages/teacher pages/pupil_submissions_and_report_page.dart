@@ -56,12 +56,12 @@ class _StudentSubmissionsPageState extends State<StudentSubmissionsPage>
       // Fetch student names
       final usersRes = await supabase
           .from('students')
-          .select('user_id, student_name')
-          .filter('user_id', 'in', userIds);
+          .select('id, student_name')
+          .filter('id', 'in', userIds);
 
       final Map<String, String> names = {
         for (var u in usersRes)
-          u['user_id'] as String: u['student_name'] as String
+          u['id'] as String: u['student_name'] as String
       };
 
       // Calculate student progress

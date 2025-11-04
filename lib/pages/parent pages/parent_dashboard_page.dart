@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:percent_indicator/percent_indicator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../api/parent_service.dart';
+import '../../api/supabase_auth_service.dart';
+import '../../widgets/navigation/page_transition.dart';
+import '../auth pages/landing_page.dart';
 import 'child_detail_page.dart';
 
 class ParentDashboardPage extends StatefulWidget {
@@ -51,6 +56,98 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
     }
   }
 
+  /// Logout function for parent
+  Future<void> _logout() async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Column(
+          children: [
+            Icon(
+              Icons.logout,
+              color: Theme.of(context).colorScheme.error,
+              size: 50,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Logout?",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          "Are you sure you want to logout?",
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              "Cancel",
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Logout"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      // Logout from Supabase
+      await SupabaseAuthService.logout();
+
+      // Clear any parent-specific preferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('parent_id');
+      await prefs.remove('parent_name');
+
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+        Navigator.of(context).pushAndRemoveUntil(
+          PageTransition(page: const LandingPage()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Logout error: $e');
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to logout. Please try again.'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -63,6 +160,26 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
             icon: const Icon(Icons.refresh),
             onPressed: _fetchChildrenData,
             tooltip: 'Refresh',
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'logout') {
+                _logout();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, color: Colors.red, size: 20),
+                    SizedBox(width: 8),
+                    Text('Logout'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),

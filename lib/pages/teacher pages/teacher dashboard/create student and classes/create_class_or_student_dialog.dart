@@ -73,34 +73,58 @@ class _CreateClassOrStudentDialogState
 
     try {
       final response = await UserService.registerStudent({
-        'student_username': studentUsernameController.text,
+        'student_username': studentUsernameController.text.trim(),
         'student_password': studentPasswordController.text,
-        'student_name': studentNameController.text,
-        'student_lrn': studentLrnController.text,
-        'student_grade': studentGradeController.text,
-        'student_section': studentSectionController.text,
+        'student_name': studentNameController.text.trim(),
+        'student_lrn': studentLrnController.text.trim(),
+        'student_grade': studentGradeController.text.trim().isNotEmpty 
+            ? studentGradeController.text.trim() 
+            : null,
+        'student_section': studentSectionController.text.trim().isNotEmpty
+            ? studentSectionController.text.trim()
+            : null,
       });
 
-      if (response != null) {
-        await Future.delayed(const Duration(milliseconds: 100));
+      // Close loading dialog first
+      if (Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
 
+      if (response != null && !response.containsKey('error')) {
+        await Future.delayed(const Duration(milliseconds: 100));
         await _handleSuccess("Student account created successfully!");
       } else {
-        await Future.delayed(const Duration(milliseconds: 100));
-
-        // _handleError(
-        //   title: 'Registration Failed',
-        //   message: 'Student registration failed. Please try again.',
-        // );
+        // Show error message
+        setState(() => _isLoading = false);
+        final errorMsg = response?['error'] ?? 'Student registration failed. Please try again.';
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMsg),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
     } catch (e) {
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      // _handleError(
-      //
-      //   title: 'Error',
-      //   message: 'An error occurred: $e',
-      // );
+      // Close loading dialog
+      if (Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+      
+      setState(() => _isLoading = false);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -153,9 +177,8 @@ class _CreateClassOrStudentDialogState
 
   Future<void> _handleSuccess(String message) async {
     if (!mounted) return;
-    await Future.delayed(const Duration(milliseconds: 100));
-
-    // Close the loading dialog
+    
+    // Close the loading dialog first
     Navigator.of(context, rootNavigator: true).pop();
 
     // Hide keyboard just in case
@@ -167,13 +190,20 @@ class _CreateClassOrStudentDialogState
     // ✅ Show success modal
     await DialogUtils.showSuccessDialog(context, message);
 
-    // 🕐 Wait a bit so user sees the success dialog clearly (2s)
+    // 🕐 Wait a bit so user sees the success dialog clearly
     await Future.delayed(const Duration(seconds: 1));
 
     if (!mounted) return;
 
+    // Close the success dialog if still open
+    if (Navigator.of(context, rootNavigator: true).canPop()) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+
     // Close the Create dialog
-    Navigator.of(context, rootNavigator: true).pop();
+    if (Navigator.of(context, rootNavigator: true).canPop()) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
 
     // 🔄 Trigger refresh callback
     if (selectedTab == 0) {
@@ -181,6 +211,12 @@ class _CreateClassOrStudentDialogState
     } else {
       widget.onStudentAdded?.call();
     }
+
+    // Reset form state
+    setState(() {
+      _isLoading = false;
+      _autoValidate = false;
+    });
 
     // ✅ Optional snackbar
     _showSuccessSnackbar(message);

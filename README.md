@@ -28,24 +28,48 @@ This app is part of our BSIT Capstone Project and is not yet complete.
 
 ---
 
-## 📱 Features (Planned)
+## 📱 Features
 
+### ✅ Implemented
 - Role-Based Authentication (Teacher, Student and Admin)
-- Task levels
-- Read-aloud with audio recording
-- Multiple types of quizzes
-- Badge system 
-- Student progress tracking
-- Student dashboard
-- Teacher dashboard
+- Reading levels with PDF materials
+- Audio recording while reading
+- Audio preview before submission
+- Teacher grading interface with playback
+- Multiple attempts per task (up to 3)
+- Sequential task unlocking
+- Progress tracking and reporting
+- Comprehensive student dashboard
+- Teacher dashboard with analytics
 - Admin dashboard
+- Multiple types of quizzes
+- Badge system
+
+### 🚧 In Progress
+- Offline recording queue
+- Batch grading
+- Grade export
+
+### 📋 Planned
+- AI-powered transcription
+- Automated pronunciation scoring
+- Parent audio access
 
 ---
+
+## 📚 Latest Features
+
+### Reading with Recording & Grading
+Students can now record themselves reading PDF materials, and teachers can grade these recordings through an intuitive interface. See documentation:
+- **Implementation**: `FINAL_IMPLEMENTATION_SUMMARY.md`
+- **Database**: `DATABASE_MIGRATION.md`
+- **Testing**: `BUG_FIXES_AND_SCENARIOS.md`
 
 ## 📌 Notes
 
 - This app is for academic use only.
 - More features and updates will be added as development continues.
+- For deployment: Run database migrations before starting.
 
 ---
 

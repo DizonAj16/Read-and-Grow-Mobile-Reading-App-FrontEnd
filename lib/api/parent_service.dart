@@ -12,16 +12,16 @@ class ParentService {
       // Step 1: Find the parent record matching this auth user ID
       final parentRecord = await supabase
           .from('parents')
-          .select('id, user_id')
-          .eq('user_id', parentUserId)
+          .select('id, id')
+          .eq('id', parentUserId)
           .maybeSingle();
 
       if (parentRecord == null) {
-        debugPrint('⚠️ No parent record found for user_id: $parentUserId');
+        debugPrint('⚠️ No parent record found for id: $parentUserId');
         return [];
       }
 
-      final parentId = parentRecord['user_id'];
+      final parentId = parentRecord['id'];
       debugPrint('👨 Parent found: $parentId');
 
       // Step 2: Get linked students via parent_student_relationships
@@ -43,7 +43,7 @@ class ParentService {
       final studentsResp = await supabase
           .from('students')
           .select('id, student_name, current_reading_level_id')
-          .inFilter('user_id', studentIds); // ✅ Using user_id since that’s what relationship links to
+          .inFilter('id', studentIds); // ✅ Using user_id since that’s what relationship links to
 
       List<Map<String, dynamic>> childrenList = [];
 

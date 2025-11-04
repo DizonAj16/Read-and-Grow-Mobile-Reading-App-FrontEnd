@@ -4,17 +4,16 @@ import 'package:deped_reading_app_laravel/pages/student%20pages/student_page.dar
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher_page.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../widgets/appbar/theme_toggle_button.dart';
-import '../teacher pages/teacher classes/add_lesson_and_quiz/add_lesson_and_quiz.dart';
-import '../teacher pages/view_quiz_lessons.dart';
 import 'auth buttons widgets/login_button.dart';
 import 'form fields widgets/password_text_field.dart';
 import '../../widgets/navigation/page_transition.dart';
 import '../auth pages/student_signup_page.dart';
 import '../auth pages/teacher_signup_page.dart';
+import '../auth pages/parent_signup_page.dart';
+import '../parent pages/parent_dashboard_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -50,7 +49,7 @@ class _LoginPageState extends State<LoginPage> {
       final role = result['role'] ?? 'student';
 
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_id', userMap['id']);
+      await prefs.setString('id', userMap['id']);
       await prefs.setString('role', role);
 
       final session = Supabase.instance.client.auth.currentSession;
@@ -144,8 +143,11 @@ class _LoginPageState extends State<LoginPage> {
     Navigator.of(context).pop();
   }
 
-  void _navigateToDashboard(String? role) {
+  void _navigateToDashboard(String? role) async {
     debugPrint("Navigating to dashboard for role: $role");
+
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('id') ?? '';
 
     if (role == 'student') {
       Navigator.of(context).pushAndRemoveUntil(
@@ -161,6 +163,11 @@ class _LoginPageState extends State<LoginPage> {
       Navigator.of(
         context,
       ).pushAndRemoveUntil(PageTransition(page: AdminPage()), (route) => false);
+    } else if (role == 'parent') {
+      Navigator.of(context).pushAndRemoveUntil(
+        PageTransition(page: ParentDashboardPage(parentId: userId)),
+        (route) => false,
+      );
     } else {
       debugPrint("No valid role detected.");
     }
@@ -406,6 +413,28 @@ class _LoginPageState extends State<LoginPage> {
               Navigator.of(
                 context,
               ).push(PageTransition(page: TeacherSignUpPage()));
+            },
+          ),
+          const SizedBox(height: 10),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.purple.shade700,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: EdgeInsets.symmetric(vertical: 20),
+              elevation: 4,
+            ),
+            icon: const Icon(Icons.family_restroom, size: 30),
+            label: const Text(
+              "Sign up as Parent",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            onPressed: () {
+              Navigator.of(
+                context,
+              ).push(PageTransition(page: ParentSignUpPage()));
             },
           ),
         ],

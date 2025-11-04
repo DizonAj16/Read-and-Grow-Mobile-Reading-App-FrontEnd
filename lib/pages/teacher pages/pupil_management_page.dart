@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'teacher dashboard/create student and classes/create_class_or_student_dialog.dart';
 import '../../models/student_model.dart';
 import '../../api/classroom_service.dart';
+import 'edit_student_profile_teacher_page.dart';
 
 class PupilManagementPage extends StatefulWidget {
   const PupilManagementPage({super.key});
@@ -138,6 +139,32 @@ class _PupilManagementPageState extends State<PupilManagementPage> {
                   onTap: () {
                     Navigator.pop(context);
                     _showPupilDetails(context, pupil);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.edit, color: Colors.green),
+                  title: const Text('Edit Profile'),
+                  subtitle: const Text('Edit profile & assign reading level'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => EditStudentProfileTeacherPage(
+                          studentId: pupil.id,
+                        ),
+                      ),
+                    );
+                    if (result == true) {
+                      // Refresh pupil list
+                      _loadPupils();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('✅ Student profile updated successfully!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
                   },
                 ),
               ],

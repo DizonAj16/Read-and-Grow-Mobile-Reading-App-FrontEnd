@@ -1,3 +1,6 @@
+import 'package:deped_reading_app_laravel/pages/auth%20pages/parent_signup_page.dart';
+import 'package:deped_reading_app_laravel/pages/auth%20pages/student_signup_page.dart';
+import 'package:deped_reading_app_laravel/pages/auth%20pages/teacher_signup_page.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../../widgets/appbar/theme_toggle_button.dart';
@@ -101,31 +104,78 @@ class LandingPage extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 10),
-                      OutlinedButton(
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            PageTransition(
-                              page: ChooseRolePage(showLogin: false),
-                            ),
-                          );
-                        },
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(
-                            color: Theme.of(context).colorScheme.primary,
-                            width: 2,
-                          ),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          padding: EdgeInsets.symmetric(vertical: 20),
+                          elevation: 4,
                         ),
-                        child: Text(
-                          "Sign Up",
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                fontSize: 20,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
+                        icon: Image.asset(
+                          'assets/icons/graduating-student.png',
+                          width: 30,
+                          height: 30,
                         ),
+                        label: const Text(
+                          "Sign up as Student",
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                        ),
+                        onPressed: () {
+                          Navigator.of(
+                            context,
+                          ).push(PageTransition(page: StudentSignUpPage()));
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).colorScheme.secondary,
+                          foregroundColor: Theme.of(context).colorScheme.onSecondary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: EdgeInsets.symmetric(vertical: 20),
+                          elevation: 4,
+                        ),
+                        icon: Image.asset(
+                          'assets/icons/teacher.png',
+                          width: 30,
+                          height: 30,
+                        ),
+                        label: const Text(
+                          "Sign up as Teacher",
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                        ),
+                        onPressed: () {
+                          Navigator.of(
+                            context,
+                          ).push(PageTransition(page: TeacherSignUpPage()));
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.purple.shade700,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: EdgeInsets.symmetric(vertical: 20),
+                          elevation: 4,
+                        ),
+                        icon: const Icon(Icons.family_restroom, size: 30),
+                        label: const Text(
+                          "Sign up as Parent",
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                        ),
+                        onPressed: () {
+                          Navigator.of(
+                            context,
+                          ).push(PageTransition(page: ParentSignUpPage()));
+                        },
                       ),
                     ],
                   ),

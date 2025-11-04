@@ -638,7 +638,6 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
           children: [
             ClassInfoPage(classDetails: widget.classDetails),
             StudentsManagementPage(classId: widget.classDetails['id'].toString()),
-            ClassProgressPage(classId: widget.classDetails['id'].toString()), // Progress
             MaterialsPage(classId: widget.classDetails['id'].toString()),
             TasksPage(classId: widget.classDetails['id'].toString()), // Tasks
           ],
@@ -662,10 +661,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
             activeIcon: Icon(Icons.people),
             label: "Students",
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bar_chart_outlined),
-            label: "Progress",
-          ),
+
           BottomNavigationBarItem(
             icon: Icon(Icons.assignment_outlined),
             activeIcon: Icon(Icons.assignment),

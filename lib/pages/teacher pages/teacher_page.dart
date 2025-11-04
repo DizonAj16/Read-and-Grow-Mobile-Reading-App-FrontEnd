@@ -6,6 +6,8 @@ import 'teacher dashboard/teacher_dashboard_page.dart';
 import 'badges_list_page.dart';
 import 'teacher_profile_page.dart';
 import 'pupil_management_page.dart';
+import 'reading_recordings_grading_page.dart';
+import 'teacher_reading_materials_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../pages/auth pages/landing_page.dart';
 import '../../widgets/navigation/page_transition.dart';
@@ -286,6 +288,20 @@ class _TeacherPageState extends State<TeacherPage> {
                     route: '/submissions',
                     isSelected: _currentRoute == '/submissions',
                   ),
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.mic_rounded,
+                    title: 'Grade Reading Recordings',
+                    route: '/grade_recordings',
+                    isSelected: _currentRoute == '/grade_recordings',
+                  ),
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.library_books_rounded,
+                    title: 'Reading Materials',
+                    route: '/reading_materials',
+                    isSelected: _currentRoute == '/reading_materials',
+                  ),
                 ],
               ),
             ),
@@ -455,6 +471,12 @@ class _TeacherPageState extends State<TeacherPage> {
         break;
       case '/submissions':
         page = const StudentSubmissionsPage();
+        break;
+      case '/grade_recordings':
+        page = const ReadingRecordingsGradingPage();
+        break;
+      case '/reading_materials':
+        page = const TeacherReadingMaterialsPage();
         break;
       case '/dashboard':
       default:

@@ -232,10 +232,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
         MaterialsPage(classId: widget.classId),
         StudentListPage(classId: widget.classId),
         TeacherInfoPage(
-          teacherName: widget.teacherName,
-          teacherEmail: widget.teacherEmail,
-          teacherPosition: widget.teacherPosition,
-          teacherAvatar: widget.teacherAvatar,
+          classId: widget.classId,
         ),
       ],
     );
