@@ -196,16 +196,11 @@ class _CreateClassOrStudentDialogState
     if (!mounted) return;
 
     // Close the success dialog if still open
-    if (Navigator.of(context, rootNavigator: true).canPop()) {
+    while (Navigator.of(context, rootNavigator: true).canPop()) {
       Navigator.of(context, rootNavigator: true).pop();
     }
 
-    // Close the Create dialog
-    if (Navigator.of(context, rootNavigator: true).canPop()) {
-      Navigator.of(context, rootNavigator: true).pop();
-    }
-
-    // 🔄 Trigger refresh callback
+    // 🔄 Trigger refresh callback before closing
     if (selectedTab == 0) {
       widget.onClassAdded?.call();
     } else {
@@ -213,10 +208,12 @@ class _CreateClassOrStudentDialogState
     }
 
     // Reset form state
-    setState(() {
-      _isLoading = false;
-      _autoValidate = false;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        _autoValidate = false;
+      });
+    }
 
     // ✅ Optional snackbar
     _showSuccessSnackbar(message);

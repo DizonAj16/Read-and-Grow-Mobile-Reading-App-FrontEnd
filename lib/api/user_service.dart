@@ -89,8 +89,31 @@ class UserService {
         return {'error': 'LRN already exists'};
       }
 
-      // Step 1: Create user
+      // Step 1: Create Supabase Auth account first
+      final authEmail = "${data['student_username']}@student.app";
+      String? userId;
+      try {
+        final authResponse = await _sb.auth.signUp(
+          email: authEmail,
+          password: data['student_password'] as String,
+          data: {
+            'username': data['student_username'],
+            'name': data['student_name'],
+          },
+        );
+
+        if (authResponse.user == null) {
+          return {'error': 'Failed to create authentication account'};
+        }
+        userId = authResponse.user!.id;
+      } catch (e) {
+        print('❌ Auth signup error: $e');
+        return {'error': 'Failed to create authentication account: $e'};
+      }
+
+      // Step 2: Create user record
       final userData = {
+        'id': userId,
         'username': data['student_username'],
         'password': data['student_password'],
         'role': 'student',
@@ -103,12 +126,13 @@ class UserService {
       );
 
       if (userResponse == null || userResponse.containsKey('error')) {
+        // Rollback: delete auth user if user creation failed
+        try {
+          await _sb.auth.admin.deleteUser(userId);
+        } catch (e) {
+          print('Error rolling back auth user: $e');
+        }
         return userResponse ?? {'error': 'Failed to create user account'};
-      }
-
-      final userId = DatabaseHelpers.safeStringFromResult(userResponse, 'id');
-      if (userId.isEmpty) {
-        return {'error': 'Failed to get user ID'};
       }
 
       // Step 2: Create student linked to that user

@@ -205,7 +205,7 @@ class ApiService {
           final questionId = jsonDecode(questionResponse.body)[0]['id'];
           print('✅ Question ${i + 1} added with ID: $questionId');
 
-          if (q.type == QuestionType.multipleChoice && q.options != null) {
+          if ((q.type == QuestionType.multipleChoice || q.type == QuestionType.trueFalse) && q.options != null) {
             bool hasCorrect = false;
             for (var option in q.options!) {
               final isCorrect = option == q.correctAnswer;
@@ -227,7 +227,27 @@ class ApiService {
             }
 
             if (!hasCorrect) {
-              print('⚠️ Warning: MCQ ${i + 1} has no correct answer selected!');
+              print('⚠️ Warning: Question ${i + 1} has no correct answer selected!');
+            }
+          }
+          
+          if (q.type == QuestionType.dragAndDrop && q.options != null) {
+            // For drag and drop, save options in order (correct order is the original order)
+            for (int idx = 0; idx < q.options!.length; idx++) {
+              await http.post(
+                Uri.parse('$supabaseUrl/question_options'),
+                headers: {
+                  'apikey': supabaseKey,
+                  'Authorization': 'Bearer $supabaseKey',
+                  'Content-Type': 'application/json',
+                },
+                body: jsonEncode({
+                  'question_id': questionId,
+                  'option_text': q.options![idx],
+                  'is_correct': true, // All options are part of the correct sequence
+                  'sort_order': idx, // Store the correct order
+                }),
+              );
             }
           }
 

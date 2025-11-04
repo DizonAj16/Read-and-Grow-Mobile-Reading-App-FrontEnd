@@ -39,19 +39,21 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
     final supabase = Supabase.instance.client;
 
     try {
-      // Check if quiz has already been submitted (only 1 attempt allowed for class tasks)
+      // Check if quiz has already been submitted (up to 3 attempts allowed)
       // widget.assignmentId is already the assignment ID from assignments table
       final existingSubmissionRes = await supabase
           .from('student_submissions')
-          .select('id, score, max_score')
+          .select('id, score, max_score, attempt_number')
           .eq('assignment_id', widget.assignmentId)
           .eq('student_id', widget.studentId)
-          .order('submitted_at', ascending: false)
-          .limit(1);
+          .order('submitted_at', ascending: false);
 
-      if (existingSubmissionRes.isNotEmpty) {
+      final attemptCount = existingSubmissionRes.length;
+      final maxAttempts = 3;
+
+      if (attemptCount >= maxAttempts) {
         final existingSubmission = existingSubmissionRes.first;
-        // Quiz already taken, show message and go back
+        // Quiz already taken maximum times, show message and go back
         if (mounted) {
           showDialog(
             context: context,
@@ -67,9 +69,9 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
                 content: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      'You have already completed this quiz. You can only take it once.',
-                      style: TextStyle(fontSize: 16),
+                    Text(
+                      'You have already completed this quiz $maxAttempts times. Maximum attempts reached.',
+                      style: const TextStyle(fontSize: 16),
                     ),
                     const SizedBox(height: 16),
                     Container(
@@ -139,7 +141,29 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
               .map((p) => MatchingPair.fromMap(p))
               .toList();
         }
-        return QuizQuestion.fromMap(q).copyWith(matchingPairs: pairs);
+        
+        // For drag-and-drop, ensure options are loaded and sorted by sort_order
+        QuizQuestion question = QuizQuestion.fromMap(q).copyWith(matchingPairs: pairs);
+        if (question.type == QuestionType.dragAndDrop && q['question_options'] != null) {
+          // Sort by sort_order if available, otherwise keep original order
+          final sortedOptions = <Map<String, dynamic>>[];
+          for (var opt in q['question_options']) {
+            sortedOptions.add(opt);
+          }
+          sortedOptions.sort((a, b) {
+            final orderA = a['sort_order'] as int? ?? 0;
+            final orderB = b['sort_order'] as int? ?? 0;
+            return orderA.compareTo(orderB);
+          });
+          final optionTexts = sortedOptions
+              .map((opt) => opt['option_text'] as String)
+              .toList();
+          question = question.copyWith(options: optionTexts);
+          // Store correct order as JSON string in userAnswer for later comparison
+          question.userAnswer = ''; // Will be set when student reorders
+        }
+        
+        return question;
       }).toList();
 
       // Get task_id from assignment to pass to QuizHelper
@@ -151,12 +175,26 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
       
       final taskId = assignmentRes?['task_id'] as String? ?? widget.assignmentId;
 
+      // Determine current attempt number
+      final attemptRes = await supabase
+          .from('student_submissions')
+          .select('attempt_number')
+          .eq('assignment_id', widget.assignmentId)
+          .eq('student_id', widget.studentId)
+          .order('submitted_at', ascending: false)
+          .limit(1);
+      
+      final currentAttempt = attemptRes.isNotEmpty 
+          ? (attemptRes.first['attempt_number'] as int? ?? 0) + 1
+          : 1;
+
       quizHelper = QuizHelper(
         studentId: widget.studentId,
         taskId: taskId,
         questions: questions,
         supabase: supabase,
       );
+      quizHelper!.currentAttempt = currentAttempt;
 
       quizHelper!.startTimerFromDatabase(
             () => _submitQuiz(auto: true),
@@ -177,23 +215,24 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
 
     final supabase = quizHelper!.supabase;
 
-    // Check if already submitted (prevent multiple submissions)
-    // widget.assignmentId is already the assignment ID
-    // Double check if submission already exists (only 1 attempt allowed)
+    // Check attempt count (allow up to 3 attempts)
     final existingSubmissionRes = await supabase
         .from('student_submissions')
-        .select('id')
+        .select('id, attempt_number')
         .eq('assignment_id', widget.assignmentId)
-        .eq('student_id', widget.studentId)
-        .limit(1);
+        .eq('student_id', widget.studentId);
 
-    if (existingSubmissionRes.isNotEmpty) {
+    final attemptCount = existingSubmissionRes.length;
+    final maxAttempts = 3;
+    final nextAttemptNumber = attemptCount + 1;
+
+    if (attemptCount >= maxAttempts) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('You have already completed this quiz. Only one attempt is allowed.'),
+          SnackBar(
+            content: Text('You have already completed this quiz $maxAttempts times. Maximum attempts reached.'),
             backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
+            duration: const Duration(seconds: 3),
           ),
         );
         Navigator.pop(context);
@@ -249,8 +288,25 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
           break;
 
         case QuestionType.dragAndDrop:
-          isCorrect =
-              q.options!.asMap().entries.every((e) => e.key == e.value);
+          // Get correct order from database (sorted by sort_order)
+          final optionsRes = await supabase
+              .from('question_options')
+              .select('option_text, sort_order')
+              .eq('question_id', q.id as Object)
+              .order('sort_order', ascending: true);
+          
+          final correctOrder = (optionsRes as List)
+              .map((opt) => opt['option_text'] as String)
+              .toList();
+          
+          // Compare student's current order (q.options) with correct order
+          if (q.options != null && q.options!.length == correctOrder.length) {
+            isCorrect = q.options!.asMap().entries.every((entry) {
+              return entry.value == correctOrder[entry.key];
+            });
+          } else {
+            isCorrect = false;
+          }
           break;
 
         case QuestionType.audio:
@@ -311,11 +367,11 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
 
     await supabase.from('student_task_progress').upsert(progressUpdate);
 
-    // Insert submission
+    // Insert submission with attempt number
     await supabase.from('student_submissions').insert({
       'assignment_id': widget.assignmentId,
       'student_id': widget.studentId,
-      'attempt_number': quizHelper!.currentAttempt,
+      'attempt_number': nextAttemptNumber,
       'score': correct,
       'max_score': quizHelper!.questions.length,
       'quiz_answers': activityDetails,
@@ -379,15 +435,42 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
           break;
 
         case QuestionType.trueFalse:
-          correctAnswerText = q.correctAnswer ?? 'N/A';
+          // Fetch correct option from database
+          final optionsRes = await supabase
+              .from('question_options')
+              .select('option_text, is_correct')
+              .eq('question_id', q.id as Object);
+          
+          final correctOption = optionsRes.firstWhere(
+            (o) => o['is_correct'] == true,
+            orElse: () => {'option_text': q.correctAnswer ?? 'N/A'},
+          );
+          correctAnswerText = correctOption['option_text'] ?? q.correctAnswer ?? 'N/A';
           isCorrect = q.userAnswer.trim().toLowerCase() == correctAnswerText.trim().toLowerCase();
           break;
 
         case QuestionType.dragAndDrop:
-          if (q.options != null) {
-            correctAnswerText = q.options!.join(', ');
-            studentAnswerText = q.userAnswer;
-            isCorrect = q.options!.asMap().entries.every((e) => e.key.toString() == e.value);
+          // Get correct order from database
+          final optionsRes = await supabase
+              .from('question_options')
+              .select('option_text, sort_order')
+              .eq('question_id', q.id as Object)
+              .order('sort_order', ascending: true);
+          
+          final correctOrder = (optionsRes as List)
+              .map((opt) => opt['option_text'] as String)
+              .toList();
+          
+          correctAnswerText = correctOrder.join(' → ');
+          studentAnswerText = q.options?.join(' → ') ?? '(No answer)';
+          
+          // Compare student's current order with correct order
+          if (q.options != null && q.options!.length == correctOrder.length) {
+            isCorrect = q.options!.asMap().entries.every((entry) {
+              return entry.value == correctOrder[entry.key];
+            });
+          } else {
+            isCorrect = false;
           }
           break;
 
@@ -651,28 +734,29 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
           }).toList(),
         );
 
+      case QuestionType.trueFalse:
+        // For true/false, always show True and False options
+        return Column(
+          children: ['True', 'False'].map((option) {
+            return RadioListTile<String>(
+              title: Text(option),
+              value: option,
+              groupValue: question.userAnswer,
+              onChanged: (value) {
+                setState(() {
+                  question.userAnswer = value!;
+                });
+              },
+            );
+          }).toList(),
+        );
+
       case QuestionType.fillInTheBlank:
         return TextField(
           decoration: const InputDecoration(labelText: "Type your answer"),
           onChanged: (value) {
             question.userAnswer = value;
           },
-        );
-
-      case QuestionType.trueFalse:
-        return Column(
-          children: ["True", "False"]
-              .map((opt) => RadioListTile<String>(
-                    title: Text(opt),
-                    value: opt,
-                    groupValue: question.userAnswer,
-                    onChanged: (value) {
-                      setState(() {
-                        question.userAnswer = value!;
-                      });
-                    },
-                  ))
-              .toList(),
         );
 
       case QuestionType.matching:
@@ -852,6 +936,8 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
                   if (newIndex > oldIndex) newIndex -= 1;
                   final item = question.options!.removeAt(oldIndex);
                   question.options!.insert(newIndex, item);
+                  // Store the reordered list as user answer
+                  question.userAnswer = question.options!.join(',');
                 });
               },
               children: [

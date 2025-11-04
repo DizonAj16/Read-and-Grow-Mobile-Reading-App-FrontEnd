@@ -171,7 +171,21 @@ class _AddQuizScreenState extends State<AddQuizScreen> {
                             child: Text(e.name),
                           ))
                               .toList(),
-                          onChanged: (val) => setState(() => q.type = val!),
+                          onChanged: (val) {
+                            setState(() {
+                              q.type = val!;
+                              // Initialize options based on question type
+                              if (q.type == QuestionType.dragAndDrop && (q.options == null || q.options!.isEmpty)) {
+                                q.options = List.generate(3, (i) => 'Item ${i + 1}');
+                              } else if (q.type == QuestionType.trueFalse) {
+                                q.options = ['True', 'False'];
+                              } else if (q.type == QuestionType.multipleChoice && (q.options == null || q.options!.isEmpty)) {
+                                q.options = List.generate(4, (i) => 'Option ${i + 1}');
+                              }
+                              // Clear correct answer when type changes
+                              q.correctAnswer = null;
+                            });
+                          },
                         ),
                         const SizedBox(height: 8),
                         if (q.type == QuestionType.multipleChoice)
@@ -236,6 +250,37 @@ class _AddQuizScreenState extends State<AddQuizScreen> {
                           TextField(
                             decoration: const InputDecoration(labelText: 'Correct Answer'),
                             onChanged: (val) => q.correctAnswer = val,
+                          ),
+                        if (q.type == QuestionType.trueFalse)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Select the correct answer:',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 8),
+                              RadioListTile<String>(
+                                title: const Text('True'),
+                                value: 'True',
+                                groupValue: q.correctAnswer,
+                                onChanged: (val) {
+                                  setState(() {
+                                    q.correctAnswer = val;
+                                  });
+                                },
+                              ),
+                              RadioListTile<String>(
+                                title: const Text('False'),
+                                value: 'False',
+                                groupValue: q.correctAnswer,
+                                onChanged: (val) {
+                                  setState(() {
+                                    q.correctAnswer = val;
+                                  });
+                                },
+                              ),
+                            ],
                           ),
                         if (q.type == QuestionType.matching)
                           Column(
