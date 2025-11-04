@@ -83,16 +83,22 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
       // 2️⃣ Fetch assigned student IDs for this class only
       final assignedIds = await ClassroomService.getAssignedStudentIdsForClass(widget.classId);
 
-      // 3️⃣ Separate assigned and unassigned students
+      // 3️⃣ Fetch ALL globally assigned student IDs (students enrolled in ANY class)
+      final globallyAssignedIds = await ClassroomService.getGloballyAssignedStudentIds();
+
+      // 4️⃣ Separate assigned and unassigned students
       final assignedList = <Student>[];
       final unassignedList = <Student>[];
 
       for (var student in allStudentsList) {
         if (assignedIds.contains(student.id)) {
+          // Student is assigned to THIS class
           assignedList.add(student.copyWith(classRoomId: widget.classId));
-        } else {
+        } else if (!globallyAssignedIds.contains(student.id)) {
+          // Student is NOT enrolled in ANY class - they are truly available
           unassignedList.add(student.copyWith(classRoomId: null));
         }
+        // If student is enrolled in another class (not this one), they don't appear in either list
       }
 
       if (!mounted) return;
@@ -150,15 +156,10 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
     }
 
     // ✅ Success - Student assigned
+    // Reload students to ensure accurate filtering
+    await _loadStudents();
     currentUnassignedPage = 0;
     currentAssignedPage = 0;
-
-    setState(() {
-      final updatedStudent = student.copyWith(classRoomId: widget.classId);
-      allStudents.removeWhere((s) => s.id == student.id);
-      assignedStudents.add(updatedStudent);
-    });
-
     _showSnackBar("Student assigned successfully");
   }
 
@@ -170,11 +171,8 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
     );
 
     if (res.statusCode == 200) {
-      setState(() {
-        final updatedStudent = student.copyWith(classRoomId: null);
-        assignedStudents.removeWhere((s) => s.id == student.id);
-        allStudents.add(updatedStudent);
-      });
+      // Reload students to ensure accurate filtering (check if enrolled elsewhere)
+      await _loadStudents();
       _showSnackBar("Student unassigned successfully");
     } else {
       _showSnackBar("Failed to unassign student: ${res.body}", isError: true);

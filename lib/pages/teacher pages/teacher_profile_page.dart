@@ -275,74 +275,128 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
 
       setState(() => _isUploading = true);
 
-      final response = await UserService.uploadProfilePicture(
-        userId: userId,
-        role: role,
-        filePath: pickedFile.path,
-      );
-
       final uploadedUrl = await UserService.uploadProfilePicture(
         userId: userId,
         role: role,
         filePath: pickedFile.path,
       );
 
-      if (uploadedUrl != null) {
+      if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
         debugPrint('✅ Uploaded Profile URL: $uploadedUrl');
 
+        // Reload teacher data to get the updated profile picture
         setState(() {
-          _teacherFuture = _loadTeacherData();
+          _isUploading = false;
           _pickedImageFile = null;
         });
+        
+        // Reload teacher data
+        final updatedTeacher = await _loadTeacherData();
+        
+        if (mounted) {
+          setState(() {
+            _teacher = updatedTeacher;
+            _teacherFuture = Future.value(updatedTeacher);
+          });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.green.shade100, size: 24),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    "Profile picture updated successfully!",
-                    style: TextStyle(
-                      color: Colors.green.shade100,
-                      fontWeight: FontWeight.w600,
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green.shade100, size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      "Profile picture updated successfully!",
+                      style: TextStyle(
+                        color: Colors.green.shade100,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
+              backgroundColor: Colors.green.shade800,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              duration: const Duration(seconds: 3),
+              elevation: 6,
             ),
-            backgroundColor: Colors.green.shade800,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            duration: const Duration(seconds: 3),
-            elevation: 6,
-          ),
-        );
+          );
+        }
       }  else {
         // Error SnackBar
+        if (mounted) {
+          setState(() {
+            _isUploading = false;
+            _pickedImageFile = null;
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.error_outline, color: Colors.red.shade100, size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      "Failed to upload image. Please try again.",
+                      style: TextStyle(
+                        color: Colors.red.shade100,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.red.shade800,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              duration: const Duration(seconds: 4),
+              elevation: 6,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error uploading profile picture: $e');
+      // Exception SnackBar
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+          _pickedImageFile = null;
+        });
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
-                Icon(Icons.error_outline, color: Colors.red.shade100, size: 24),
+                Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.orange.shade100,
+                  size: 24,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    "Failed to upload image. Please try again.",
+                    "Error uploading image: ${e.toString().split(':').last}",
                     style: TextStyle(
-                      color: Colors.red.shade100,
+                      color: Colors.orange.shade100,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
               ],
             ),
-            backgroundColor: Colors.red.shade800,
+            backgroundColor: Colors.orange.shade800,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -354,43 +408,10 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
           ),
         );
       }
-    } catch (e) {
-      // Exception SnackBar
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(
-                Icons.warning_amber_rounded,
-                color: Colors.orange.shade100,
-                size: 24,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  "Error uploading image: ${e.toString().split(':').last}",
-                  style: TextStyle(
-                    color: Colors.orange.shade100,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.orange.shade800,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          duration: const Duration(seconds: 4),
-          elevation: 6,
-        ),
-      );
-      debugPrint('❌ Error uploading profile picture: $e');
     } finally {
-      setState(() => _isUploading = false);
+      if (mounted) {
+        setState(() => _isUploading = false);
+      }
     }
   }
 
@@ -443,30 +464,38 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
       // Handle profile picture URL - check if it's already a full URL or needs Supabase storage path
       String profileUrl = _teacher!.profilePicture!;
       
-      // If not a full URL, assume it's a Supabase storage path and get public URL
+      // If not a full URL, assume it's a Supabase storage file path and get public URL
       if (!profileUrl.startsWith('http')) {
         try {
           final supabase = Supabase.instance.client;
+          // Remove leading slash if present
+          final cleanPath = profileUrl.replaceFirst(RegExp(r'^/'), '');
           profileUrl = supabase.storage
               .from('materials')
-              .getPublicUrl(profileUrl);
-          debugPrint('🖼️ Normalized teacher profile URL: $profileUrl');
+              .getPublicUrl(cleanPath);
+          debugPrint('🖼️ Normalized teacher profile URL from path: $profileUrl');
         } catch (e) {
           debugPrint('⚠️ Error normalizing teacher profile URL: $e');
           // Fallback: try constructing URL from baseUrl if available
-          String cleanBaseUrl = baseUrl.replaceAll(RegExp(r'/api$'), '');
+          String cleanBaseUrl = baseUrl.replaceAll(RegExp(r'/api/?$'), '');
           final profilePath = _teacher!.profilePicture!.replaceFirst(
             RegExp(r'^/'),
             '',
           );
-          profileUrl = '$cleanBaseUrl/$profilePath?t=${DateTime.now().millisecondsSinceEpoch}';
+          profileUrl = '$cleanBaseUrl/$profilePath';
         }
       }
       
-      // Add cache buster for network images
-      if (!profileUrl.contains('?')) {
-        profileUrl += '?t=${DateTime.now().millisecondsSinceEpoch}';
+      // Add cache buster for network images to force refresh
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      if (profileUrl.contains('?')) {
+        // Replace existing query params with new timestamp
+        profileUrl = profileUrl.split('?').first + '?t=$timestamp';
+      } else {
+        profileUrl += '?t=$timestamp';
       }
+      
+      debugPrint('🖼️ Final teacher profile URL: $profileUrl');
 
       return FadeInImage.assetNetwork(
         placeholder: 'assets/placeholder/avatar_placeholder.jpg',

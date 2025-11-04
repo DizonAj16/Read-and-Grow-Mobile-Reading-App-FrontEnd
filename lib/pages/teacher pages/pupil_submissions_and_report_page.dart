@@ -266,44 +266,45 @@ class _StudentSubmissionsPageState extends State<StudentSubmissionsPage>
                       Text('Total Miscues: ${data['totalMiscues']}'),
                     ],
                   ),
-                  trailing: PopupMenuButton(
+                  trailing: PopupMenuButton<String>(
                     icon: const Icon(Icons.more_vert),
+                    onSelected: (value) {
+                      if (value == 'view_details') {
+                        setState(() => _selectedStudent = studentId);
+                        _tabController.animateTo(0);
+                      } else if (value == 'provide_feedback') {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => FeedbackAndRemedialPage(
+                              studentId: studentId,
+                              studentName: studentName,
+                              studentProgress: data,
+                            ),
+                          ),
+                        );
+                      }
+                    },
                     itemBuilder: (context) => [
-                      PopupMenuItem(
-                        child: const Row(
+                      const PopupMenuItem(
+                        value: 'view_details',
+                        child: Row(
                           children: [
                             Icon(Icons.visibility, size: 20),
                             SizedBox(width: 8),
                             Text('View Details'),
                           ],
                         ),
-                        onTap: () {
-                          Navigator.pop(context);
-                          setState(() => _selectedStudent = studentId);
-                          _tabController.animateTo(0);
-                        },
                       ),
-                      PopupMenuItem(
-                        child: const Row(
+                      const PopupMenuItem(
+                        value: 'provide_feedback',
+                        child: Row(
                           children: [
                             Icon(Icons.feedback, color: Colors.blue, size: 20),
                             SizedBox(width: 8),
                             Text('Provide Feedback'),
                           ],
                         ),
-                        onTap: () {
-                          Navigator.pop(context);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => FeedbackAndRemedialPage(
-                                studentId: studentId,
-                                studentName: studentName,
-                                studentProgress: data,
-                              ),
-                            ),
-                          );
-                        },
                       ),
                     ],
                   ),

@@ -327,19 +327,291 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
 
     if (!mounted) return;
 
+    // Show review dialog with correct answers
+    _showQuizReviewDialog(correct, quizHelper!.questions.length);
+  }
+
+  /// Show dialog with quiz results and correct answers for review
+  Future<void> _showQuizReviewDialog(int score, int totalQuestions) async {
+    if (quizHelper == null) return;
+    
+    final supabase = quizHelper!.supabase;
+    
+    // Build list of question reviews with correct answers
+    final List<Map<String, dynamic>> questionReviews = [];
+    
+    for (int i = 0; i < quizHelper!.questions.length; i++) {
+      final q = quizHelper!.questions[i];
+      String correctAnswerText = '';
+      String studentAnswerText = q.userAnswer.isEmpty ? '(No answer)' : q.userAnswer;
+      bool isCorrect = false;
+
+      // Get correct answer based on question type
+      switch (q.type) {
+        case QuestionType.multipleChoice:
+        case QuestionType.fillInTheBlank:
+          // Fetch correct option from database
+          final optionsRes = await supabase
+              .from('question_options')
+              .select('option_text, is_correct')
+              .eq('question_id', q.id as Object);
+          
+          final correctOption = optionsRes.firstWhere(
+            (o) => o['is_correct'] == true,
+            orElse: () => {'option_text': 'N/A'},
+          );
+          correctAnswerText = correctOption['option_text'] ?? 'N/A';
+          isCorrect = q.userAnswer.trim().toLowerCase() == correctAnswerText.trim().toLowerCase();
+          break;
+
+        case QuestionType.matching:
+          if (q.matchingPairs != null) {
+            final correctPairs = q.matchingPairs!
+                .map((p) => '${p.leftItem} → ${p.leftItem}')
+                .join(', ');
+            final userPairs = q.matchingPairs!
+                .map((p) => '${p.leftItem} → ${p.userSelected.isEmpty ? "(No match)" : p.userSelected}')
+                .join(', ');
+            correctAnswerText = correctPairs;
+            studentAnswerText = userPairs;
+            isCorrect = q.matchingPairs!.every((p) => p.userSelected == p.leftItem);
+          }
+          break;
+
+        case QuestionType.trueFalse:
+          correctAnswerText = q.correctAnswer ?? 'N/A';
+          isCorrect = q.userAnswer.trim().toLowerCase() == correctAnswerText.trim().toLowerCase();
+          break;
+
+        case QuestionType.dragAndDrop:
+          if (q.options != null) {
+            correctAnswerText = q.options!.join(', ');
+            studentAnswerText = q.userAnswer;
+            isCorrect = q.options!.asMap().entries.every((e) => e.key.toString() == e.value);
+          }
+          break;
+
+        case QuestionType.audio:
+          correctAnswerText = 'Audio recording submitted';
+          studentAnswerText = q.userAnswer.isNotEmpty ? 'Audio recorded' : '(No recording)';
+          isCorrect = q.userAnswer.isNotEmpty;
+          break;
+      }
+
+      questionReviews.add({
+        'questionNumber': i + 1,
+        'questionText': q.questionText,
+        'studentAnswer': studentAnswerText,
+        'correctAnswer': correctAnswerText,
+        'isCorrect': isCorrect,
+      });
+    }
+
+    if (!mounted) return;
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: Text(auto ? "Time's Up!" : "Quiz Submitted"),
-        content: Text("Your score: $correct / ${quizHelper!.questions.length}"),
-        actions: [
-          TextButton(
-            onPressed: () =>
-                Navigator.popUntil(context, (route) => route.isFirst),
-            child: const Text("OK"),
+      builder: (_) => Dialog(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(8),
+                    topRight: Radius.circular(8),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.quiz, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Quiz Review",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            "Score: $score / $totalQuestions",
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Scrollable content with questions and answers
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  shrinkWrap: true,
+                  itemCount: questionReviews.length,
+                  itemBuilder: (context, index) {
+                    final review = questionReviews[index];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      color: review['isCorrect'] 
+                          ? Colors.green.shade50 
+                          : Colors.red.shade50,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Question number and text
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: review['isCorrect']
+                                        ? Colors.green
+                                        : Colors.red,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    "Q${review['questionNumber']}",
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Icon(
+                                  review['isCorrect']
+                                      ? Icons.check_circle
+                                      : Icons.cancel,
+                                  color: review['isCorrect']
+                                      ? Colors.green
+                                      : Colors.red,
+                                  size: 20,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              review['questionText'],
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            
+                            // Student's answer
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  "Your Answer: ",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    review['studentAnswer'],
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade700,
+                                      fontStyle: review['studentAnswer'] == '(No answer)' 
+                                          ? FontStyle.italic 
+                                          : FontStyle.normal,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            
+                            // Correct answer
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Correct Answer: ",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                    color: Colors.green.shade700,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    review['correctAnswer'],
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.green.shade700,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              
+              // OK Button
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: Colors.grey.shade300),
+                  ),
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context); // Close dialog
+                      Navigator.popUntil(context, (route) => route.isFirst);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: Theme.of(context).primaryColor,
+                    ),
+                    child: const Text(
+                      "OK",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
