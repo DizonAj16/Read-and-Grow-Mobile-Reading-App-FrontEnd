@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:deped_reading_app_laravel/api/classroom_service.dart';
 import 'package:deped_reading_app_laravel/api/user_service.dart';
 import 'package:flutter/material.dart';
@@ -85,15 +84,18 @@ class _CreateClassOrStudentDialogState
             : null,
       });
 
-      // Close loading dialog first
-      if (Navigator.of(context, rootNavigator: true).canPop()) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-
       if (response != null && !response.containsKey('error')) {
+        // Close loading dialog
+        if (Navigator.of(context, rootNavigator: true).canPop()) {
+          Navigator.of(context, rootNavigator: true).pop();
+        }
         await Future.delayed(const Duration(milliseconds: 100));
         await _handleSuccess("Student account created successfully!");
       } else {
+        // Close loading dialog
+        if (Navigator.of(context, rootNavigator: true).canPop()) {
+          Navigator.of(context, rootNavigator: true).pop();
+        }
         // Show error message
         setState(() => _isLoading = false);
         final errorMsg = response?['error'] ?? 'Student registration failed. Please try again.';
@@ -178,9 +180,6 @@ class _CreateClassOrStudentDialogState
   Future<void> _handleSuccess(String message) async {
     if (!mounted) return;
     
-    // Close the loading dialog first
-    Navigator.of(context, rootNavigator: true).pop();
-
     // Hide keyboard just in case
     FocusScope.of(context).unfocus();
 
@@ -190,15 +189,7 @@ class _CreateClassOrStudentDialogState
     // ✅ Show success modal
     await DialogUtils.showSuccessDialog(context, message);
 
-    // 🕐 Wait a bit so user sees the success dialog clearly
-    await Future.delayed(const Duration(seconds: 1));
-
     if (!mounted) return;
-
-    // Close the success dialog if still open
-    while (Navigator.of(context, rootNavigator: true).canPop()) {
-      Navigator.of(context, rootNavigator: true).pop();
-    }
 
     // 🔄 Trigger refresh callback before closing
     if (selectedTab == 0) {
@@ -212,11 +203,33 @@ class _CreateClassOrStudentDialogState
       setState(() {
         _isLoading = false;
         _autoValidate = false;
+        // Clear form fields
+        if (selectedTab == 1) {
+          studentNameController.clear();
+          studentLrnController.clear();
+          studentSectionController.clear();
+          studentGradeController.clear();
+          studentUsernameController.clear();
+          studentPasswordController.clear();
+          confirmStudentPasswordController.clear();
+        } else {
+          classNameController.clear();
+          classSectionController.clear();
+          gradeLevelController.clear();
+          schoolYearController.clear();
+        }
       });
     }
 
+    // Close the main dialog
+    if (mounted && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+
     // ✅ Optional snackbar
-    _showSuccessSnackbar(message);
+    if (mounted) {
+      _showSuccessSnackbar(message);
+    }
   }
 
 

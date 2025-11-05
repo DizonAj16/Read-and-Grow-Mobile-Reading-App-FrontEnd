@@ -362,6 +362,27 @@ CREATE TRIGGER update_users_updated_at
 -- USING (bucket_id = 'teacher-avatars' OR bucket_id = 'student-avatars');
 
 -- ============================================================================
+-- 12. ADD BACKGROUND_IMAGE COLUMN TO CLASS_ROOMS TABLE
+-- ============================================================================
+-- Add background_image column to class_rooms table for storing class background images
+
+DO $$
+BEGIN
+    -- Add background_image column if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'class_rooms' AND column_name = 'background_image'
+    ) THEN
+        ALTER TABLE public.class_rooms 
+        ADD COLUMN background_image text;
+        
+        -- Add comment for documentation
+        COMMENT ON COLUMN public.class_rooms.background_image IS 
+        'URL or path to the background image for this classroom';
+    END IF;
+END $$;
+
+-- ============================================================================
 -- VERIFICATION QUERIES
 -- ============================================================================
 -- Run these to verify the schema is correct:
@@ -381,4 +402,10 @@ CREATE TRIGGER update_users_updated_at
 -- SELECT trigger_name, event_manipulation, event_object_table 
 -- FROM information_schema.triggers 
 -- WHERE trigger_schema = 'public';
+
+-- Check class_rooms table structure (including background_image)
+-- SELECT column_name, data_type, is_nullable 
+-- FROM information_schema.columns 
+-- WHERE table_name = 'class_rooms' 
+-- ORDER BY ordinal_position;
 

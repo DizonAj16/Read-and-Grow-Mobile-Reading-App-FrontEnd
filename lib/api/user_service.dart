@@ -379,12 +379,15 @@ class UserService {
       // 🔟 Update database record
       final table = role == 'teacher' ? 'teachers' : 'students';
       debugPrint('📸 [UPLOAD_PROFILE] Updating $table table...');
+      debugPrint('📸 [UPLOAD_PROFILE] Using userId: $userId, table: $table');
       
+      // For teachers and students, the id in their respective tables matches the user id
       final updateResult = await supabase.from(table).update({
         'profile_picture': publicUrl,
-        if (role == 'student') 'updated_at': DateTime.now().toIso8601String(),
-        if (role == 'teacher') 'updated_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
       }).eq('id', userId).select();
+      
+      debugPrint('📸 [UPLOAD_PROFILE] Update result: ${updateResult.length} rows updated');
 
       if (updateResult.isEmpty) {
         debugPrint('❌ [UPLOAD_PROFILE] Failed to update database');

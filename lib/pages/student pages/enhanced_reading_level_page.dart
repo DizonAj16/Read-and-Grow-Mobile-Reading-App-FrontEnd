@@ -51,7 +51,9 @@ class _EnhancedReadingLevelPageState extends State<EnhancedReadingLevelPage> wit
           .maybeSingle();
 
       if (studentRes == null || studentRes['current_reading_level_id'] == null) {
-        setState(() => isLoading = false);
+        if (mounted) {
+          setState(() => isLoading = false);
+        }
         return;
       }
 
@@ -124,15 +126,19 @@ class _EnhancedReadingLevelPageState extends State<EnhancedReadingLevelPage> wit
         }
       }
 
-      setState(() {
-        currentLevel = levelRes;
-        materials = List<Map<String, dynamic>>.from(materialsRes);
-        submissionMap = submissions;
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          currentLevel = levelRes;
+          materials = List<Map<String, dynamic>>.from(materialsRes);
+          submissionMap = submissions;
+          isLoading = false;
+        });
+      }
     } catch (e) {
       debugPrint('Error loading reading level: $e');
-      setState(() => isLoading = false);
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
@@ -404,7 +410,11 @@ class _EnhancedReadingLevelPageState extends State<EnhancedReadingLevelPage> wit
             MaterialPageRoute(
               builder: (_) => EnhancedReadingMaterialPage(material: material),
             ),
-          ).then((_) => _loadReadingLevel());
+          ).then((_) {
+            if (mounted) {
+              _loadReadingLevel();
+            }
+          });
         },
         child: Padding(
           padding: const EdgeInsets.all(16),

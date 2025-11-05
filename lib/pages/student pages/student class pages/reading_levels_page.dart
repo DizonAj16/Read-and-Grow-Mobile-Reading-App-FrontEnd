@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:deped_reading_app_laravel/pages/student%20pages/student%20class%20pages/reading_tasks_page.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -71,13 +72,16 @@ class _ReadingLevelsPageState extends State<ReadingLevelsPage> with SingleTicker
       }
 
       // Fetch graded recordings for the current student
+      // Include both with task_id and without (for reading materials)
       final recordingsRes = await supabase
           .from('student_recordings')
-          .select('task_id, score, teacher_comments, graded_at, tasks(*)')
+          .select('id, task_id, score, teacher_comments, graded_at, recorded_at, recording_url, tasks(*)')
           .eq('student_id', userId)
           .eq('needs_grading', false)
           .not('score', 'is', null)
           .order('graded_at', ascending: false);
+      
+      debugPrint('📊 [GRADED_READINGS] Found ${recordingsRes.length} graded recordings for student: $userId');
 
       final gradedRecordings = List<Map<String, dynamic>>.from(recordingsRes);
       
@@ -86,11 +90,13 @@ class _ReadingLevelsPageState extends State<ReadingLevelsPage> with SingleTicker
       
       for (var recording in gradedRecordings) {
         try {
+          final recordingId = recording['id']?.toString() ?? '';
           final taskId = recording['task_id']?.toString();
           final score = recording['score'];
           
-          // Validate task ID and score
-          if (taskId == null || taskId.isEmpty || score == null) {
+          // Validate score exists
+          if (score == null) {
+            debugPrint('⚠️ [GRADED_READINGS] Skipping recording $recordingId: no score');
             continue;
           }
 
@@ -106,28 +112,66 @@ class _ReadingLevelsPageState extends State<ReadingLevelsPage> with SingleTicker
             }
           }
 
-          if (taskData != null && taskData.isNotEmpty && !gradedTasksMap.containsKey(taskId)) {
-            // Safely extract values
-            final title = taskData['title']?.toString() ?? 'Untitled Task';
-            final description = taskData['description']?.toString();
-            final teacherComments = recording['teacher_comments']?.toString();
-            final gradedAt = recording['graded_at']?.toString();
+          // Handle recordings with task_id (reading tasks)
+          if (taskId != null && taskId.isNotEmpty) {
+            if (taskData != null && taskData.isNotEmpty && !gradedTasksMap.containsKey(taskId)) {
+              // Safely extract values
+              final title = taskData['title']?.toString() ?? 'Untitled Task';
+              final description = taskData['description']?.toString();
+              final teacherComments = recording['teacher_comments']?.toString();
+              final gradedAt = recording['graded_at']?.toString();
 
-            gradedTasksMap[taskId] = {
-              ...taskData,
-              'id': taskId,
-              'title': title,
-              'description': description,
-              'score': score is num ? score.toDouble() : double.tryParse(score.toString()) ?? 0.0,
-              'teacher_comments': teacherComments,
-              'graded_at': gradedAt,
-            };
+              gradedTasksMap[taskId] = {
+                ...taskData,
+                'id': taskId,
+                'title': title,
+                'description': description,
+                'score': score is num ? score.toDouble() : double.tryParse(score.toString()) ?? 0.0,
+                'teacher_comments': teacherComments,
+                'graded_at': gradedAt,
+                'recording_id': recordingId,
+              };
+            }
+          } else {
+            // Handle recordings without task_id (reading materials)
+            // Use recording_id as the key to avoid duplicates
+            final key = 'material_$recordingId';
+            if (!gradedTasksMap.containsKey(key)) {
+              final teacherComments = recording['teacher_comments']?.toString();
+              final gradedAt = recording['graded_at']?.toString();
+              final recordedAt = recording['recorded_at']?.toString();
+              
+              // Try to parse material info from teacher_comments if it contains JSON
+              String? materialTitle;
+              try {
+                if (teacherComments != null && teacherComments.startsWith('{')) {
+                  final materialInfo = jsonDecode(teacherComments);
+                  materialTitle = materialInfo['material_id']?.toString() ?? 'Reading Material';
+                }
+              } catch (_) {
+                // Not JSON, use default
+              }
+              
+              gradedTasksMap[key] = {
+                'id': recordingId,
+                'title': materialTitle ?? 'Reading Material',
+                'description': 'Reading material recording',
+                'score': score is num ? score.toDouble() : double.tryParse(score.toString()) ?? 0.0,
+                'teacher_comments': teacherComments,
+                'graded_at': gradedAt,
+                'recorded_at': recordedAt,
+                'recording_id': recordingId,
+              };
+            }
           }
-        } catch (e) {
-          debugPrint('Error processing recording: $e');
+        } catch (e, stackTrace) {
+          debugPrint('❌ [GRADED_READINGS] Error processing recording: $e');
+          debugPrint('❌ [GRADED_READINGS] Stack trace: $stackTrace');
           // Continue with next recording
         }
       }
+      
+      debugPrint('📊 [GRADED_READINGS] Processed ${gradedTasksMap.length} unique graded tasks/materials');
 
       if (mounted) {
         setState(() {

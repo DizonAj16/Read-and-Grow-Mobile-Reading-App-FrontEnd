@@ -74,6 +74,44 @@ class _QuizPreviewScreenState extends State<QuizPreviewScreen> {
       );
     }
 
+    if (q.type == QuestionType.trueFalse) {
+      // True/False questions always have "True" and "False" as options
+      final trueFalseOptions = q.options != null && q.options!.isNotEmpty 
+          ? q.options! 
+          : ['True', 'False'];
+      
+      return Column(
+        children: trueFalseOptions.map((opt) {
+          final isCorrect = q.correctAnswer?.toLowerCase() == opt.toLowerCase();
+          return ListTile(
+            title: Text(
+              opt,
+              style: TextStyle(
+                color: widget.isPreview && isCorrect ? Colors.green : null,
+                fontWeight: widget.isPreview && isCorrect
+                    ? FontWeight.bold
+                    : FontWeight.normal,
+              ),
+            ),
+            leading: widget.isPreview
+                ? Icon(
+              isCorrect
+                  ? Icons.check_circle
+                  : Icons.radio_button_unchecked,
+              color: isCorrect ? Colors.green : Colors.grey,
+            )
+                : Radio<String>(
+              value: opt,
+              groupValue: q.userAnswer,
+              onChanged: (val) => setState(() {
+                q.userAnswer = val ?? '';
+              }),
+            ),
+          );
+        }).toList(),
+      );
+    }
+
     if (q.type == QuestionType.fillInTheBlank) {
       return widget.isPreview
           ? Text(

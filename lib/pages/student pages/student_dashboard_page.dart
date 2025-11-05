@@ -9,6 +9,7 @@ import 'student page widgets/horizontal_card.dart';
 import 'student page widgets/activity_tile.dart';
 import 'enhanced_reading_level_page.dart';
 import 'student_badges_page.dart';
+import 'my_grades_page.dart';
 
 class StudentDashboardPage extends StatefulWidget {
   const StudentDashboardPage({super.key});
@@ -55,14 +56,16 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
     try {
       final response = await SupabaseAuthService.getAuthProfile();
       final profileJson = (response?['profile'] ?? {}) as Map<String, dynamic>;
       final student = Student.fromJson(profileJson);
       await student.saveToPrefs();
 
-      if (student.username != null && student.username!.isNotEmpty) {
+      if (mounted && student.username != null && student.username!.isNotEmpty) {
         setState(() => username = student.username);
       }
 
@@ -71,13 +74,17 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
     } catch (e) {
       debugPrint('API fetch failed: $e');
       final fallbackStudent = await Student.fromPrefs();
-      setState(() => username = fallbackStudent.username ?? '');
+      if (mounted) {
+        setState(() => username = fallbackStudent.username ?? '');
+      }
       await _loadAssignedBadgesAndLevel();
     } finally {
-      setState(() {
-        _dataLoaded = true;
-        _updateLoadingState();
-      });
+      if (mounted) {
+        setState(() {
+          _dataLoaded = true;
+          _updateLoadingState();
+        });
+      }
     }
   }
 
@@ -203,11 +210,13 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
         }
       }
 
-      setState(() {
-        _assignedTasks = assignedCount;
-        _badgesCount = badges;
-        _levelDisplay = levelText;
-      });
+      if (mounted) {
+        setState(() {
+          _assignedTasks = assignedCount;
+          _badgesCount = badges;
+          _levelDisplay = levelText;
+        });
+      }
     } catch (e) {
       debugPrint('⚠️ Failed to load assigned/badges/level: $e');
     }
@@ -220,11 +229,13 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
   }
 
   Future<void> _handleRefresh() async {
-    setState(() {
-      _isLoading = true;
-      _minimumLoadingTimeElapsed = false;
-      _dataLoaded = false;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _minimumLoadingTimeElapsed = false;
+        _dataLoaded = false;
+      });
+    }
 
     _startMinimumLoadingTimer();
     await _loadData();
@@ -272,6 +283,8 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
                         _buildProgressSection(),
                         const SizedBox(height: 30),
                         _buildQuickAccessSection(context),
+                        const SizedBox(height: 20),
+                        _buildMyGradesCard(context),
                         const SizedBox(height: 30),
                         _buildRecentActivitiesSection(context),
                       ],
@@ -577,6 +590,77 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
                     const SizedBox(height: 4),
                     Text(
                       'Continue your reading journey',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_ios,
+                color: Colors.white,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMyGradesCard(BuildContext context) {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const MyGradesPage()),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.amber.shade400, Colors.orange.shade400],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.grade,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '📊 My Grades',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'View quiz scores & reading grades',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.white.withOpacity(0.9),

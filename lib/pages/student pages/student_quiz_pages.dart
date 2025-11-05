@@ -28,11 +28,22 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
   List<QuizQuestion> questions = [];
   String quizTitle = "Quiz";
   QuizHelper? quizHelper;
+  final Map<String, TextEditingController> _textControllers = {};
 
   @override
   void initState() {
     super.initState();
     _loadQuiz();
+  }
+
+  @override
+  void dispose() {
+    // Dispose all text controllers
+    for (var controller in _textControllers.values) {
+      controller.dispose();
+    }
+    _textControllers.clear();
+    super.dispose();
   }
 
   Future<void> _loadQuiz() async {
@@ -106,8 +117,13 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
                 actions: [
                   TextButton(
                     onPressed: () {
-                      Navigator.pop(context); // Close dialog
-                      Navigator.pop(context); // Go back
+                      if (!mounted) return;
+                      if (Navigator.of(context).canPop()) {
+                        Navigator.pop(context); // Close dialog
+                      }
+                      if (mounted && Navigator.of(context).canPop()) {
+                        Navigator.pop(context); // Go back
+                      }
                     },
                     child: const Text('OK'),
                   ),
@@ -144,21 +160,44 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
         
         // For drag-and-drop, ensure options are loaded and sorted by sort_order
         QuizQuestion question = QuizQuestion.fromMap(q).copyWith(matchingPairs: pairs);
-        if (question.type == QuestionType.dragAndDrop && q['question_options'] != null) {
-          // Sort by sort_order if available, otherwise keep original order
-          final sortedOptions = <Map<String, dynamic>>[];
-          for (var opt in q['question_options']) {
-            sortedOptions.add(opt);
+        if (question.type == QuestionType.dragAndDrop) {
+          // Check if question_options exist
+          if (q['question_options'] != null && q['question_options'] is List) {
+            final optionsList = q['question_options'] as List;
+            if (optionsList.isNotEmpty) {
+              // Sort by sort_order if available, otherwise keep original order
+              final sortedOptions = <Map<String, dynamic>>[];
+              for (var opt in optionsList) {
+                if (opt is Map<String, dynamic>) {
+                  sortedOptions.add(opt);
+                } else if (opt is Map) {
+                  sortedOptions.add(Map<String, dynamic>.from(opt));
+                }
+              }
+              sortedOptions.sort((a, b) {
+                final orderA = a['sort_order'] as int? ?? 0;
+                final orderB = b['sort_order'] as int? ?? 0;
+                return orderA.compareTo(orderB);
+              });
+              final optionTexts = sortedOptions
+                  .map((opt) => opt['option_text']?.toString() ?? '')
+                  .where((text) => text.isNotEmpty)
+                  .toList();
+              
+              if (optionTexts.isNotEmpty) {
+                question = question.copyWith(options: optionTexts);
+              } else {
+                // Fallback: create empty options list to prevent null errors
+                question = question.copyWith(options: []);
+              }
+            } else {
+              // Empty options list
+              question = question.copyWith(options: []);
+            }
+          } else {
+            // No question_options, create empty list to prevent null errors
+            question = question.copyWith(options: []);
           }
-          sortedOptions.sort((a, b) {
-            final orderA = a['sort_order'] as int? ?? 0;
-            final orderB = b['sort_order'] as int? ?? 0;
-            return orderA.compareTo(orderB);
-          });
-          final optionTexts = sortedOptions
-              .map((opt) => opt['option_text'] as String)
-              .toList();
-          question = question.copyWith(options: optionTexts);
           // Store correct order as JSON string in userAnswer for later comparison
           question.userAnswer = ''; // Will be set when student reorders
         }
@@ -198,7 +237,9 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
 
       quizHelper!.startTimerFromDatabase(
             () => _submitQuiz(auto: true),
-            () => setState(() {}),
+            () {
+              if (mounted) setState(() {});
+            },
       );
     } catch (e, stack) {
       debugPrint("❌ Error loading quiz: $e");
@@ -208,6 +249,25 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
     if (mounted) {
       setState(() => loading = false);
     }
+  }
+
+  /// Normalize answer for comparison: trim, lowercase, and normalize whitespace
+  String _normalizeAnswer(String answer) {
+    if (answer.isEmpty) return '';
+    
+    // Trim leading/trailing whitespace
+    String normalized = answer.trim();
+    
+    // Convert to lowercase
+    normalized = normalized.toLowerCase();
+    
+    // Normalize whitespace: replace multiple spaces/tabs/newlines with single space
+    normalized = normalized.replaceAll(RegExp(r'\s+'), ' ');
+    
+    // Remove any zero-width characters or other invisible unicode
+    normalized = normalized.replaceAll(RegExp(r'[\u200B-\u200D\uFEFF]'), '');
+    
+    return normalized;
   }
 
   Future<void> _submitQuiz({bool auto = false}) async {
@@ -235,7 +295,9 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
             duration: const Duration(seconds: 3),
           ),
         );
-        Navigator.pop(context);
+        if (Navigator.of(context).canPop()) {
+          Navigator.pop(context);
+        }
       }
       return;
     }
@@ -267,19 +329,51 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
       switch (q.type) {
         case QuestionType.multipleChoice:
         case QuestionType.fillInTheBlank:
+          // Try to get correct answer from question_options first
           final optionsRes = await supabase
               .from('question_options')
               .select('question_id, option_text, is_correct')
-              .filter('question_id', 'in', '(${q.id})');
-          final opts = optionsRes as List? ?? [];
-
-          if (opts.isNotEmpty) {
-            final correctOption = opts.firstWhere(
-                  (o) => o['is_correct'] == true,
-              orElse: () => opts.first as Map<String, dynamic>,
-            );
-            isCorrect =
-                q.userAnswer.trim() == correctOption['option_text'].trim();
+              .eq('question_id', q.id as Object)
+              .eq('is_correct', true);
+          
+          String? correctAnswerText;
+          
+          if (optionsRes.isNotEmpty) {
+            correctAnswerText = optionsRes.first['option_text']?.toString().trim();
+          } else {
+            // Fallback: try fill_in_the_blank_answers table
+            try {
+              final fillBlankRes = await supabase
+                  .from('fill_in_the_blank_answers')
+                  .select('correct_answer')
+                  .eq('question_id', q.id as Object)
+                  .maybeSingle();
+              
+              if (fillBlankRes != null) {
+                correctAnswerText = fillBlankRes['correct_answer']?.toString().trim();
+              }
+            } catch (e) {
+              debugPrint('Error fetching fill-in-the-blank answer: $e');
+            }
+          }
+          
+          if (correctAnswerText != null && correctAnswerText.isNotEmpty) {
+            // Normalize both answers for comparison (trim, lowercase, normalize whitespace)
+            final normalizedUserAnswer = _normalizeAnswer(q.userAnswer);
+            final normalizedCorrectAnswer = _normalizeAnswer(correctAnswerText);
+            
+            isCorrect = normalizedUserAnswer == normalizedCorrectAnswer;
+            
+            // Debug logging for fill-in-the-blank
+            debugPrint('📝 [FILL_BLANK] Q${quizHelper!.questions.indexOf(q) + 1}:');
+            debugPrint('📝 [FILL_BLANK] Raw user: "${q.userAnswer}"');
+            debugPrint('📝 [FILL_BLANK] Raw correct: "$correctAnswerText"');
+            debugPrint('📝 [FILL_BLANK] Normalized user: "$normalizedUserAnswer"');
+            debugPrint('📝 [FILL_BLANK] Normalized correct: "$normalizedCorrectAnswer"');
+            debugPrint('📝 [FILL_BLANK] Match: $isCorrect');
+          } else {
+            debugPrint('⚠️ [FILL_BLANK] No correct answer found for question ${q.id}');
+            isCorrect = false;
           }
           break;
 
@@ -296,16 +390,27 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
               .order('sort_order', ascending: true);
           
           final correctOrder = (optionsRes as List)
-              .map((opt) => opt['option_text'] as String)
+              .map((opt) => opt['option_text']?.toString().trim() ?? '')
+              .where((text) => text.isNotEmpty)
               .toList();
           
-          // Compare student's current order (q.options) with correct order
-          if (q.options != null && q.options!.length == correctOrder.length) {
-            isCorrect = q.options!.asMap().entries.every((entry) {
+          // Get student's answer - prefer options list, fallback to userAnswer if parsed
+          List<String>? studentOrder;
+          if (q.options != null && q.options!.isNotEmpty) {
+            studentOrder = q.options!.map((opt) => opt.toString().trim()).where((text) => text.isNotEmpty).toList();
+          } else if (q.userAnswer.isNotEmpty) {
+            // Try to parse from userAnswer (comma-separated)
+            studentOrder = q.userAnswer.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+          }
+          
+          // Compare student's order with correct order
+          if (studentOrder != null && studentOrder.length == correctOrder.length) {
+            isCorrect = studentOrder.asMap().entries.every((entry) {
               return entry.value == correctOrder[entry.key];
             });
           } else {
             isCorrect = false;
+            debugPrint('⚠️ [DRAG_DROP] Order mismatch - Student: ${studentOrder?.length ?? 0}, Correct: ${correctOrder.length}');
           }
           break;
 
@@ -350,6 +455,10 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
     }
 
     quizHelper!.score = correct;
+    
+    debugPrint('📊 [SUBMIT_QUIZ] Score calculation:');
+    debugPrint('📊 [SUBMIT_QUIZ] Correct: $correct, Wrong: $wrong, Total: ${quizHelper!.questions.length}');
+    debugPrint('📊 [SUBMIT_QUIZ] Score percentage: ${quizHelper!.questions.length > 0 ? (correct / quizHelper!.questions.length * 100).toStringAsFixed(1) : 0}%');
 
     // Update progress
     final progressUpdate = {
@@ -365,10 +474,11 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
       'updated_at': DateTime.now().toIso8601String(),
     };
 
-    await supabase.from('student_task_progress').upsert(progressUpdate);
+    final progressResult = await supabase.from('student_task_progress').upsert(progressUpdate).select();
+    debugPrint('📊 [SUBMIT_QUIZ] Progress updated: ${progressResult.length} row(s)');
 
     // Insert submission with attempt number
-    await supabase.from('student_submissions').insert({
+    final submissionResult = await supabase.from('student_submissions').insert({
       'assignment_id': widget.assignmentId,
       'student_id': widget.studentId,
       'attempt_number': nextAttemptNumber,
@@ -377,7 +487,10 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
       'quiz_answers': activityDetails,
       'audio_file_path': audioFileUrl,
       'submitted_at': DateTime.now().toIso8601String(),
-    });
+    }).select();
+    
+    debugPrint('📊 [SUBMIT_QUIZ] Submission created: ${submissionResult.length} row(s)');
+    debugPrint('📊 [SUBMIT_QUIZ] Submission ID: ${submissionResult.isNotEmpty ? submissionResult.first['id'] : 'N/A'}');
 
     quizHelper!.currentAttempt++;
 
@@ -393,8 +506,11 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
     
     final supabase = quizHelper!.supabase;
     
+    debugPrint('📊 [REVIEW] Showing quiz review - Score: $score / $totalQuestions');
+    
     // Build list of question reviews with correct answers
     final List<Map<String, dynamic>> questionReviews = [];
+    int recalculatedCorrect = 0;
     
     for (int i = 0; i < quizHelper!.questions.length; i++) {
       final q = quizHelper!.questions[i];
@@ -410,14 +526,35 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
           final optionsRes = await supabase
               .from('question_options')
               .select('option_text, is_correct')
-              .eq('question_id', q.id as Object);
+              .eq('question_id', q.id as Object)
+              .eq('is_correct', true);
           
-          final correctOption = optionsRes.firstWhere(
-            (o) => o['is_correct'] == true,
-            orElse: () => {'option_text': 'N/A'},
-          );
-          correctAnswerText = correctOption['option_text'] ?? 'N/A';
-          isCorrect = q.userAnswer.trim().toLowerCase() == correctAnswerText.trim().toLowerCase();
+          if (optionsRes.isNotEmpty) {
+            correctAnswerText = optionsRes.first['option_text']?.toString().trim() ?? 'N/A';
+          } else {
+            // Fallback: try fill_in_the_blank_answers table
+            try {
+              final fillBlankRes = await supabase
+                  .from('fill_in_the_blank_answers')
+                  .select('correct_answer')
+                  .eq('question_id', q.id as Object)
+                  .maybeSingle();
+              
+              if (fillBlankRes != null) {
+                correctAnswerText = fillBlankRes['correct_answer']?.toString().trim() ?? 'N/A';
+              } else {
+                correctAnswerText = 'N/A';
+              }
+            } catch (e) {
+              debugPrint('Error fetching fill-in-the-blank answer for review: $e');
+              correctAnswerText = 'N/A';
+            }
+          }
+          
+          // Normalize both answers for comparison (trim, lowercase, normalize whitespace)
+          final normalizedUserAnswer = _normalizeAnswer(q.userAnswer);
+          final normalizedCorrectAnswer = _normalizeAnswer(correctAnswerText);
+          isCorrect = normalizedUserAnswer == normalizedCorrectAnswer;
           break;
 
         case QuestionType.matching:
@@ -458,15 +595,27 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
               .order('sort_order', ascending: true);
           
           final correctOrder = (optionsRes as List)
-              .map((opt) => opt['option_text'] as String)
+              .map((opt) => opt['option_text']?.toString().trim() ?? '')
+              .where((text) => text.isNotEmpty)
               .toList();
           
           correctAnswerText = correctOrder.join(' → ');
-          studentAnswerText = q.options?.join(' → ') ?? '(No answer)';
+          
+          // Get student's answer - prefer options list, fallback to userAnswer
+          List<String>? studentOrder;
+          if (q.options != null && q.options!.isNotEmpty) {
+            studentOrder = q.options!.map((opt) => opt.toString().trim()).where((text) => text.isNotEmpty).toList();
+          } else if (q.userAnswer.isNotEmpty) {
+            studentOrder = q.userAnswer.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+          }
+          
+          studentAnswerText = studentOrder != null && studentOrder.isNotEmpty 
+              ? studentOrder.join(' → ') 
+              : '(No answer)';
           
           // Compare student's current order with correct order
-          if (q.options != null && q.options!.length == correctOrder.length) {
-            isCorrect = q.options!.asMap().entries.every((entry) {
+          if (studentOrder != null && studentOrder.length == correctOrder.length) {
+            isCorrect = studentOrder.asMap().entries.every((entry) {
               return entry.value == correctOrder[entry.key];
             });
           } else {
@@ -481,6 +630,8 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
           break;
       }
 
+      if (isCorrect) recalculatedCorrect++;
+      
       questionReviews.add({
         'questionNumber': i + 1,
         'questionText': q.questionText,
@@ -488,6 +639,67 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
         'correctAnswer': correctAnswerText,
         'isCorrect': isCorrect,
       });
+      
+      debugPrint('📊 [REVIEW] Q${i + 1}: ${isCorrect ? "✓" : "✗"} - Student: "$studentAnswerText" vs Correct: "$correctAnswerText"');
+    }
+    
+    // Use recalculated score (more accurate as it recalculates on the fly)
+    final finalScore = recalculatedCorrect;
+    debugPrint('📊 [REVIEW] Final score: $finalScore / $totalQuestions (Original: $score)');
+    
+    // Update the quizHelper score to match recalculated value
+    if (finalScore != score) {
+      debugPrint('⚠️ [REVIEW] Score mismatch detected! Original: $score, Recalculated: $finalScore');
+      debugPrint('✅ [REVIEW] Updating database with correct score: $finalScore');
+      
+      // Update quizHelper
+      quizHelper!.score = finalScore;
+      
+      // Update database records with correct score
+      try {
+        // Get the most recent submission ID
+        final submissionRes = await supabase
+            .from('student_submissions')
+            .select('id')
+            .eq('assignment_id', widget.assignmentId)
+            .eq('student_id', widget.studentId)
+            .order('submitted_at', ascending: false)
+            .limit(1)
+            .maybeSingle();
+        
+        if (submissionRes != null && submissionRes['id'] != null) {
+          // Update student_submissions with correct score
+          await supabase
+              .from('student_submissions')
+              .update({
+                'score': finalScore,
+                'max_score': totalQuestions,
+              })
+              .eq('id', submissionRes['id']);
+          
+          debugPrint('✅ [REVIEW] Updated student_submissions with correct score');
+        }
+        
+        // Update student_task_progress with correct score
+        try {
+          await supabase
+              .from('student_task_progress')
+              .update({
+                'score': finalScore,
+                'max_score': totalQuestions,
+                'correct_answers': finalScore,
+                'wrong_answers': totalQuestions - finalScore,
+              })
+              .eq('student_id', widget.studentId)
+              .eq('task_id', quizHelper!.taskId);
+          
+          debugPrint('✅ [REVIEW] Updated student_task_progress with correct score');
+        } catch (e) {
+          debugPrint('⚠️ [REVIEW] Could not update student_task_progress: $e');
+        }
+      } catch (e) {
+        debugPrint('❌ [REVIEW] Error updating database with correct score: $e');
+      }
     }
 
     if (!mounted) return;
@@ -528,7 +740,7 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
                             ),
                           ),
                           Text(
-                            "Score: $score / $totalQuestions",
+                            "Score: $finalScore / $totalQuestions (${((finalScore / totalQuestions) * 100).toStringAsFixed(0)}%)",
                             style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 14,
@@ -674,8 +886,13 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      Navigator.pop(context); // Close dialog
-                      Navigator.popUntil(context, (route) => route.isFirst);
+                      if (!mounted) return;
+                      if (Navigator.of(context).canPop()) {
+                        Navigator.pop(context); // Close dialog
+                      }
+                      if (mounted) {
+                        Navigator.popUntil(context, (route) => route.isFirst);
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -712,9 +929,11 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
           studentId: widget.studentId,
           quizQuestionId: question.id!,
           onRecordComplete: (filePath) {
-            setState(() {
-              question.userAnswer = filePath; // store local path for upload later
-            });
+            if (mounted) {
+              setState(() {
+                question.userAnswer = filePath; // store local path for upload later
+              });
+            }
           },
         );
 
@@ -726,9 +945,11 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
               value: option,
               groupValue: question.userAnswer,
               onChanged: (value) {
-                setState(() {
-                  question.userAnswer = value!;
-                });
+                if (mounted) {
+                  setState(() {
+                    question.userAnswer = value!;
+                  });
+                }
               },
             );
           }).toList(),
@@ -743,18 +964,39 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
               value: option,
               groupValue: question.userAnswer,
               onChanged: (value) {
-                setState(() {
-                  question.userAnswer = value!;
-                });
+                if (mounted) {
+                  setState(() {
+                    question.userAnswer = value!;
+                  });
+                }
               },
             );
           }).toList(),
         );
 
       case QuestionType.fillInTheBlank:
+        // Get or create controller for this question
+        final questionId = question.id ?? question.questionText;
+        if (!_textControllers.containsKey(questionId)) {
+          _textControllers[questionId] = TextEditingController(text: question.userAnswer);
+        }
+        final controller = _textControllers[questionId]!;
+        
+        // Update controller text if question.userAnswer changed externally
+        if (controller.text != question.userAnswer) {
+          controller.text = question.userAnswer;
+        }
+        
         return TextField(
-          decoration: const InputDecoration(labelText: "Type your answer"),
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: "Type your answer",
+            hintText: "Enter your answer here",
+            border: OutlineInputBorder(),
+          ),
+          textCapitalization: TextCapitalization.none,
           onChanged: (value) {
+            // Store the answer as-is (normalization happens during comparison)
             question.userAnswer = value;
           },
         );
@@ -846,9 +1088,11 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
                   ),
                   child: DragTarget<String>(
                     onAccept: (received) {
-                      setState(() {
-                        pair.userSelected = received;
-                      });
+                      if (mounted) {
+                        setState(() {
+                          pair.userSelected = received;
+                        });
+                      }
                     },
                     builder: (context, candidateData, rejectedData) {
                       return Row(
@@ -917,7 +1161,29 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
       case QuestionType.dragAndDrop:
         // For drag and drop, ensure options list exists
         if (question.options == null || question.options!.isEmpty) {
-          return const Text("No options available for this question.");
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.orange.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    "No options available for this drag-and-drop question. Please contact your teacher.",
+                    style: TextStyle(
+                      color: Colors.orange.shade900,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
         }
         
         return Column(
@@ -925,32 +1191,49 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
           children: [
             const Text(
               'Drag items to reorder them:',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 12),
-            ReorderableListView(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              onReorder: (oldIndex, newIndex) {
-                setState(() {
-                  if (newIndex > oldIndex) newIndex -= 1;
-                  final item = question.options!.removeAt(oldIndex);
-                  question.options!.insert(newIndex, item);
-                  // Store the reordered list as user answer
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: ReorderableListView(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                onReorder: (oldIndex, newIndex) {
+                  if (mounted) {
+                    setState(() {
+                      if (newIndex > oldIndex) newIndex -= 1;
+                      final item = question.options!.removeAt(oldIndex);
+                      question.options!.insert(newIndex, item);
+                    });
+                  }
+                  // Store the reordered list as user answer (comma-separated)
                   question.userAnswer = question.options!.join(',');
-                });
-              },
-              children: [
-                for (int i = 0; i < question.options!.length; i++)
-                  Card(
-                    key: ValueKey('${question.options![i]}-$i'),
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    child: ListTile(
-                      title: Text(question.options![i]),
-                      trailing: const Icon(Icons.drag_handle, color: Colors.grey),
-                    ),
-                  )
-              ],
+                  // Also ensure options list is preserved
+                  debugPrint('📝 [DRAG_DROP] Reordered: ${question.options!.join(" → ")}');
+                  debugPrint('📝 [DRAG_DROP] UserAnswer: ${question.userAnswer}');
+                },
+                children: [
+                  for (int i = 0; i < question.options!.length; i++)
+                    Card(
+                      key: ValueKey('${question.options![i]}-$i'),
+                      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      elevation: 2,
+                      child: ListTile(
+                        title: Text(
+                          question.options![i],
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                        trailing: const Icon(Icons.drag_handle, color: Colors.grey),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      ),
+                    )
+                ],
+              ),
             ),
           ],
         );
@@ -1008,7 +1291,18 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _submitQuiz,
+        onPressed: () {
+          // Ensure all drag-and-drop answers are saved before submission
+          if (quizHelper != null) {
+            for (var q in quizHelper!.questions) {
+              if (q.type == QuestionType.dragAndDrop && q.options != null && q.options!.isNotEmpty) {
+                q.userAnswer = q.options!.join(',');
+                debugPrint('✅ [SUBMIT] Saved drag-drop answer: ${q.userAnswer}');
+              }
+            }
+          }
+          _submitQuiz();
+        },
         label: const Text("Submit Quiz"),
         icon: const Icon(Icons.check),
       ),

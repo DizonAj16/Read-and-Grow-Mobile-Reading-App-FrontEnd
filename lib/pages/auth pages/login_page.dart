@@ -30,9 +30,11 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> login() async {
     if (!_formKey.currentState!.validate()) {
-      setState(() {
-        _autoValidate = true;
-      });
+      if (mounted) {
+        setState(() {
+          _autoValidate = true;
+        });
+      }
       return;
     }
 
@@ -140,34 +142,46 @@ class _LoginPageState extends State<LoginPage> {
     );
 
     await Future.delayed(const Duration(milliseconds: 2100));
-    Navigator.of(context).pop();
+    if (mounted && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
   }
 
   void _navigateToDashboard(String? role) async {
+    if (!mounted) return;
     debugPrint("Navigating to dashboard for role: $role");
 
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('id') ?? '';
 
     if (role == 'student') {
-      Navigator.of(context).pushAndRemoveUntil(
-        PageTransition(page: StudentPage()),
-        (route) => false,
-      );
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          PageTransition(page: StudentPage()),
+          (route) => false,
+        );
+      }
     } else if (role == 'teacher') {
-      Navigator.of(context).pushAndRemoveUntil(
-        PageTransition(page: TeacherPage()),
-        (route) => false,
-      );
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          PageTransition(page: TeacherPage()),
+          (route) => false,
+        );
+      }
     } else if (role == 'admin') {
-      Navigator.of(
-        context,
-      ).pushAndRemoveUntil(PageTransition(page: AdminPage()), (route) => false);
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          PageTransition(page: AdminPage()),
+          (route) => false,
+        );
+      }
     } else if (role == 'parent') {
-      Navigator.of(context).pushAndRemoveUntil(
-        PageTransition(page: ParentDashboardPage(parentId: userId)),
-        (route) => false,
-      );
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          PageTransition(page: ParentDashboardPage(parentId: userId)),
+          (route) => false,
+        );
+      }
     } else {
       debugPrint("No valid role detected.");
     }

@@ -161,16 +161,44 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
           Colors.black.withOpacity(0.3),
           BlendMode.darken,
         ),
-        child:
-            widget.backgroundImage.startsWith('http')
-                ? Image.network(
-                  widget.backgroundImage,
-                  fit: BoxFit.cover,
-                  errorBuilder:
-                      (_, __, ___) =>
-                          Container(color: avatarColor.withOpacity(0.2)),
-                )
-                : Image.asset(widget.backgroundImage, fit: BoxFit.cover),
+        child: widget.backgroundImage.startsWith('http')
+            ? Image.network(
+                widget.backgroundImage,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    color: avatarColor.withOpacity(0.2),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                loadingProgress.expectedTotalBytes!
+                            : null,
+                        color: Colors.white,
+                      ),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: avatarColor.withOpacity(0.2),
+                    child: const Center(
+                      child: Icon(
+                        Icons.image_not_supported,
+                        color: Colors.white54,
+                        size: 48,
+                      ),
+                    ),
+                  );
+                },
+              )
+            : Image.asset(
+                widget.backgroundImage,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) =>
+                    Container(color: avatarColor.withOpacity(0.2)),
+              ),
       ),
     );
   }

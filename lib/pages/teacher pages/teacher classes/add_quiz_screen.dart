@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:deped_reading_app_laravel/pages/teacher%20pages/quiz_preview_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../api/supabase_api_service.dart';
@@ -8,11 +7,15 @@ import '../../../../models/quiz_questions.dart';
 class AddQuizScreen extends StatefulWidget {
   final String? lessonId;
   final Map<String, dynamic>? classDetails;
+  final String? quizId; // For editing mode
+  final Map<String, dynamic>? initialQuizData; // For editing mode
 
   const AddQuizScreen({
     super.key,
     this.lessonId,
     this.classDetails,
+    this.quizId,
+    this.initialQuizData,
   });
 
   @override
@@ -23,12 +26,118 @@ class _AddQuizScreenState extends State<AddQuizScreen> {
   final _quizTitleController = TextEditingController();
   List<QuizQuestion> _questions = [];
   bool _isLoading = false;
+  bool _isLoadingData = false;
   String? _selectedLessonId;
+
+  bool get _isEditMode => widget.quizId != null;
 
   @override
   void initState() {
     super.initState();
     _selectedLessonId = widget.lessonId;
+    if (_isEditMode && widget.initialQuizData != null) {
+      _loadQuizData();
+    }
+  }
+
+  Future<void> _loadQuizData() async {
+    if (widget.initialQuizData == null) return;
+
+    setState(() => _isLoadingData = true);
+
+    try {
+      final quiz = widget.initialQuizData!['quiz'] as Map<String, dynamic>?;
+      final questions = widget.initialQuizData!['questions'] as List<dynamic>?;
+
+      if (quiz != null) {
+        _quizTitleController.text = quiz['title']?.toString() ?? '';
+      }
+
+      if (questions != null && questions.isNotEmpty) {
+        _questions = questions.map<QuizQuestion>((q) {
+          // Convert database question to QuizQuestion
+          final questionType = _parseQuestionType(q['question_type']?.toString() ?? '');
+          List<String>? options;
+          String? correctAnswer;
+          List<MatchingPair>? matchingPairs;
+
+          // Handle options for multiple choice, true/false, drag and drop
+          if (q['question_options'] != null && q['question_options'] is List) {
+            final opts = q['question_options'] as List;
+            if (questionType == QuestionType.dragAndDrop) {
+              // For drag and drop, sort by sort_order
+              opts.sort((a, b) {
+                final orderA = a['sort_order'] as int? ?? 0;
+                final orderB = b['sort_order'] as int? ?? 0;
+                return orderA.compareTo(orderB);
+              });
+              options = opts.map<String>((opt) => opt['option_text']?.toString() ?? '').toList();
+            } else {
+              options = opts.map<String>((opt) => opt['option_text']?.toString() ?? '').toList();
+              // Find correct answer
+              for (var opt in opts) {
+                if (opt['is_correct'] == true) {
+                  correctAnswer = opt['option_text']?.toString();
+                  break;
+                }
+              }
+            }
+          }
+
+          // Handle fill in the blank
+          if (questionType == QuestionType.fillInTheBlank && q['question_options'] != null) {
+            final opts = q['question_options'] as List;
+            for (var opt in opts) {
+              if (opt['is_correct'] == true) {
+                correctAnswer = opt['option_text']?.toString();
+                break;
+              }
+            }
+          }
+
+          // Handle matching pairs
+          if (questionType == QuestionType.matching && q['matching_pairs'] != null) {
+            matchingPairs = (q['matching_pairs'] as List)
+                .map((p) => MatchingPair.fromMap(p))
+                .toList();
+          }
+
+          return QuizQuestion(
+            id: q['id']?.toString(),
+            questionText: q['question_text']?.toString() ?? '',
+            type: questionType,
+            options: options,
+            correctAnswer: correctAnswer,
+            matchingPairs: matchingPairs,
+          );
+        }).toList();
+      }
+    } catch (e) {
+      debugPrint('Error loading quiz data: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingData = false);
+      }
+    }
+  }
+
+  QuestionType _parseQuestionType(String typeStr) {
+    switch (typeStr.toLowerCase()) {
+      case 'multiple_choice':
+        return QuestionType.multipleChoice;
+      case 'true_false':
+        return QuestionType.trueFalse;
+      case 'fill_in_the_blank':
+        return QuestionType.fillInTheBlank;
+      case 'drag_and_drop':
+        return QuestionType.dragAndDrop;
+      case 'matching':
+        return QuestionType.matching;
+      case 'audio':
+        return QuestionType.audio;
+      default:
+        return QuestionType.multipleChoice;
+    }
   }
 
   void _addQuestion() {
@@ -59,57 +168,106 @@ class _AddQuizScreenState extends State<AddQuizScreen> {
   }
 
   Future<void> _submitQuiz() async {
-    final lessonId = _selectedLessonId;
-    if (lessonId == null ||
-        _quizTitleController.text.isEmpty ||
-        _questions.isEmpty) {
+    if (_quizTitleController.text.isEmpty || _questions.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a lesson and add questions')),
+        SnackBar(
+          content: Text(_isEditMode 
+              ? 'Please add questions' 
+              : 'Please select a lesson and add questions'),
+        ),
       );
       return;
     }
 
-    setState(() => _isLoading = true);
-
-    final quiz = await ApiService.addQuiz(
-      taskId: lessonId,
-      title: _quizTitleController.text,
-      questions: _questions,
-    );
-
-    setState(() => _isLoading = false);
-
-    if (quiz != null) {
+    if (!_isEditMode && _selectedLessonId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Quiz added successfully!')),
+        const SnackBar(content: Text('Please select a lesson')),
       );
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => QuizPreviewScreen(
-            questions: _questions,
-            title: _quizTitleController.text,
-            isPreview: true,
-            classDetails: widget.classDetails,
+      return;
+    }
+
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
+
+    try {
+      bool success;
+      if (_isEditMode) {
+        // Update existing quiz
+        success = await ApiService.updateQuiz(
+          quizId: widget.quizId!,
+          title: _quizTitleController.text,
+          questions: _questions,
+        );
+      } else {
+        // Create new quiz
+        final quiz = await ApiService.addQuiz(
+          taskId: _selectedLessonId!,
+          title: _quizTitleController.text,
+          questions: _questions,
+        );
+        success = quiz != null;
+      }
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+
+      if (success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_isEditMode 
+                  ? 'Quiz updated successfully!' 
+                  : 'Quiz added successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          
+          // Return true to indicate success
+          Navigator.pop(context, true);
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_isEditMode 
+                  ? 'Failed to update quiz' 
+                  : 'Failed to add quiz'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
           ),
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to add quiz')),
-      );
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoadingData) {
+      return Scaffold(
+        appBar: AppBar(title: Text(_isEditMode ? 'Edit Quiz' : 'Add Quiz')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Quiz')),
+      appBar: AppBar(title: Text(_isEditMode ? 'Edit Quiz' : 'Add Quiz')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: ListView(
           children: [
-            if (widget.lessonId == null)
+            if (!_isEditMode && widget.lessonId == null)
               FutureBuilder<List<Map<String, dynamic>>>(
                 future: ApiService.getLessons(),
                 builder: (context, snapshot) {
@@ -360,7 +518,7 @@ class _AddQuizScreenState extends State<AddQuizScreen> {
               onPressed: _isLoading ? null : _submitQuiz,
               child: _isLoading
                   ? const CircularProgressIndicator()
-                  : const Text('Save Quiz'),
+                  : Text(_isEditMode ? 'Update Quiz' : 'Save Quiz'),
             ),
           ],
         ),

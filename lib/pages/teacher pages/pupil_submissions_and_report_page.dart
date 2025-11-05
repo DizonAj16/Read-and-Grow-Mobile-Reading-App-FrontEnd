@@ -430,8 +430,12 @@ class _StudentSubmissionsPageState extends State<StudentSubmissionsPage>
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildStatChip(Icons.quiz, 'Score', '$score / $maxScore'),
-                _buildStatChip(Icons.refresh, 'Attempt', '${sub['attempt_number']}'),
+                _buildStatChip(
+                  Icons.quiz, 
+                  'Score', 
+                  '${(score is num ? score.toDouble() : double.tryParse(score.toString()) ?? 0.0).toInt()} / ${(maxScore is num ? maxScore.toDouble() : double.tryParse(maxScore.toString()) ?? 0.0).toInt()}'
+                ),
+                _buildStatChip(Icons.refresh, 'Attempt', '${sub['attempt_number'] ?? 1}'),
               ],
             ),
             if (hasAudio) ...[

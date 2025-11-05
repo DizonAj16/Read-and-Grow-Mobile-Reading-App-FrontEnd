@@ -1,10 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/quiz_questions.dart';
-import 'package:mime/mime.dart';
 
 
 class ApiService {
@@ -18,9 +16,14 @@ class ApiService {
       String fileName =
           'file_${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
       // Using 'materials' bucket as per user's Supabase storage setup
-      final response = await supabase.storage.from('materials').upload(fileName, file);
-      if (response == null) {
-        print('❌ Failed to upload file: $fileName');
+      try {
+        final response = await supabase.storage.from('materials').upload(fileName, file);
+        if (response.isEmpty) {
+          print('❌ Failed to upload file: $fileName');
+          return null;
+        }
+      } catch (e) {
+        print('❌ Error uploading file: $e');
         return null;
       }
 
@@ -271,6 +274,21 @@ class ApiService {
           }
 
           if (q.type == QuestionType.fillInTheBlank && q.correctAnswer != null) {
+            // Save fill-in-the-blank answer to question_options for consistency
+            await http.post(
+              Uri.parse('$supabaseUrl/question_options'),
+              headers: {
+                'apikey': supabaseKey,
+                'Authorization': 'Bearer $supabaseKey',
+                'Content-Type': 'application/json',
+              },
+              body: jsonEncode({
+                'question_id': questionId,
+                'option_text': q.correctAnswer!.trim(),
+                'is_correct': true,
+              }),
+            );
+            // Also save to fill_in_the_blank_answers table for backward compatibility
             await http.post(
               Uri.parse('$supabaseUrl/fill_in_the_blank_answers'),
               headers: {
@@ -280,7 +298,7 @@ class ApiService {
               },
               body: jsonEncode({
                 'question_id': questionId,
-                'correct_answer': q.correctAnswer,
+                'correct_answer': q.correctAnswer!.trim(),
               }),
             );
           }
@@ -292,6 +310,245 @@ class ApiService {
       return {'quiz_id': quizId};
     } catch (e) {
       print('❌ Failed to create quiz: $e');
+      return null;
+    }
+  }
+
+  /// Update an existing quiz
+  static Future<bool> updateQuiz({
+    required String quizId,
+    required String title,
+    required List<QuizQuestion> questions,
+  }) async {
+    try {
+      // Update quiz title
+      final quizResponse = await http.patch(
+        Uri.parse('$supabaseUrl/quizzes?id=eq.$quizId'),
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': 'Bearer $supabaseKey',
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation',
+        },
+        body: jsonEncode({'title': title}),
+      );
+
+      if (quizResponse.statusCode != 200 && quizResponse.statusCode != 204) {
+        print('❌ Error updating quiz: ${quizResponse.statusCode} ${quizResponse.body}');
+        return false;
+      }
+
+      // Delete existing questions and their related data
+      final existingQuestions = await supabase
+          .from('quiz_questions')
+          .select('id')
+          .eq('quiz_id', quizId);
+
+      for (var q in existingQuestions) {
+        final questionId = q['id'].toString();
+        // Delete question options
+        await supabase.from('question_options').delete().eq('question_id', questionId);
+        // Delete matching pairs
+        await supabase.from('matching_pairs').delete().eq('question_id', questionId);
+        // Delete question
+        await supabase.from('quiz_questions').delete().eq('id', questionId);
+      }
+
+      // Add new questions (same logic as addQuiz)
+      for (var i = 0; i < questions.length; i++) {
+        final q = questions[i];
+        try {
+          final questionResponse = await http.post(
+            Uri.parse('$supabaseUrl/quiz_questions'),
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': 'Bearer $supabaseKey',
+              'Content-Type': 'application/json',
+              'Prefer': 'return=representation',
+            },
+            body: jsonEncode({
+              'quiz_id': quizId,
+              'question_text': q.questionText,
+              'question_type': questionTypeToSnakeCase(q.type),
+              'sort_order': i,
+            }),
+          );
+
+          if (questionResponse.statusCode != 201) {
+            print('❌ Error adding question ${i + 1}: ${questionResponse.body}');
+            continue;
+          }
+
+          final questionId = jsonDecode(questionResponse.body)[0]['id'];
+          print('✅ Question ${i + 1} added with ID: $questionId');
+
+          if ((q.type == QuestionType.multipleChoice || q.type == QuestionType.trueFalse) && q.options != null) {
+            bool hasCorrect = false;
+            for (var option in q.options!) {
+              final isCorrect = option == q.correctAnswer;
+              if (isCorrect) hasCorrect = true;
+
+              await http.post(
+                Uri.parse('$supabaseUrl/question_options'),
+                headers: {
+                  'apikey': supabaseKey,
+                  'Authorization': 'Bearer $supabaseKey',
+                  'Content-Type': 'application/json',
+                },
+                body: jsonEncode({
+                  'question_id': questionId,
+                  'option_text': option,
+                  'is_correct': isCorrect,
+                }),
+              );
+            }
+
+            if (!hasCorrect) {
+              print('⚠️ Warning: Question ${i + 1} has no correct answer selected!');
+            }
+          }
+          
+          if (q.type == QuestionType.dragAndDrop && q.options != null) {
+            for (int idx = 0; idx < q.options!.length; idx++) {
+              await http.post(
+                Uri.parse('$supabaseUrl/question_options'),
+                headers: {
+                  'apikey': supabaseKey,
+                  'Authorization': 'Bearer $supabaseKey',
+                  'Content-Type': 'application/json',
+                },
+                body: jsonEncode({
+                  'question_id': questionId,
+                  'option_text': q.options![idx],
+                  'sort_order': idx,
+                  'is_correct': false,
+                }),
+              );
+            }
+          }
+
+          if (q.type == QuestionType.fillInTheBlank && q.correctAnswer != null) {
+            await http.post(
+              Uri.parse('$supabaseUrl/question_options'),
+              headers: {
+                'apikey': supabaseKey,
+                'Authorization': 'Bearer $supabaseKey',
+                'Content-Type': 'application/json',
+              },
+              body: jsonEncode({
+                'question_id': questionId,
+                'option_text': q.correctAnswer!.trim(),
+                'is_correct': true,
+              }),
+            );
+          }
+
+          if (q.type == QuestionType.matching && q.matchingPairs != null) {
+            for (var pair in q.matchingPairs!) {
+              await http.post(
+                Uri.parse('$supabaseUrl/matching_pairs'),
+                headers: {
+                  'apikey': supabaseKey,
+                  'Authorization': 'Bearer $supabaseKey',
+                  'Content-Type': 'application/json',
+                },
+                body: jsonEncode({
+                  'question_id': questionId,
+                  'left_item': pair.leftItem,
+                  'right_item_url': pair.rightItemUrl,
+                }),
+              );
+            }
+          }
+
+          if (q.type == QuestionType.trueFalse && q.correctAnswer != null) {
+            await http.post(
+              Uri.parse('$supabaseUrl/question_options'),
+              headers: {
+                'apikey': supabaseKey,
+                'Authorization': 'Bearer $supabaseKey',
+                'Content-Type': 'application/json',
+              },
+              body: jsonEncode({
+                'question_id': questionId,
+                'correct_answer': q.correctAnswer!.trim(),
+              }),
+            );
+          }
+        } catch (e) {
+          print('⚠️ Failed to add question ${i + 1}: $e');
+        }
+      }
+
+      return true;
+    } catch (e) {
+      print('❌ Failed to update quiz: $e');
+      return false;
+    }
+  }
+
+  /// Delete a quiz and all its related data
+  static Future<bool> deleteQuiz(String quizId) async {
+    try {
+      // Get all questions for this quiz
+      final questions = await supabase
+          .from('quiz_questions')
+          .select('id')
+          .eq('quiz_id', quizId);
+
+      // Delete related data for each question
+      for (var question in questions) {
+        final questionId = question['id'].toString();
+        // Delete question options
+        await supabase.from('question_options').delete().eq('question_id', questionId);
+        // Delete matching pairs
+        await supabase.from('matching_pairs').delete().eq('question_id', questionId);
+      }
+
+      // Delete all questions
+      await supabase.from('quiz_questions').delete().eq('quiz_id', quizId);
+
+      // Delete the quiz
+      await supabase.from('quizzes').delete().eq('id', quizId);
+
+      print('✅ Quiz deleted successfully');
+      return true;
+    } catch (e) {
+      print('❌ Failed to delete quiz: $e');
+      return false;
+    }
+  }
+
+  /// Fetch quiz data for editing
+  static Future<Map<String, dynamic>?> fetchQuizForEdit(String quizId) async {
+    try {
+      final quiz = await supabase
+          .from('quizzes')
+          .select('id, title, task_id')
+          .eq('id', quizId)
+          .maybeSingle();
+
+      if (quiz == null) return null;
+
+      final questions = await supabase
+          .from('quiz_questions')
+          .select('''
+            id,
+            question_text,
+            question_type,
+            sort_order,
+            question_options(*),
+            matching_pairs(*)
+          ''')
+          .eq('quiz_id', quizId)
+          .order('sort_order', ascending: true);
+
+      return {
+        'quiz': quiz,
+        'questions': questions,
+      };
+    } catch (e) {
+      print('❌ Failed to fetch quiz: $e');
       return null;
     }
   }

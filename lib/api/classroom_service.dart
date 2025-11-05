@@ -247,6 +247,7 @@ class ClassroomService {
         section,
         school_year,
         teacher_id,
+        background_image,
         teacher:teachers (
           teacher_name,
           teacher_email,
@@ -725,29 +726,48 @@ class ClassroomService {
           .millisecondsSinceEpoch}.jpg';
 
       final fileBytes = await File(filePath).readAsBytes();
-      // Using 'materials' bucket as per user's Supabase storage setup
-      await supabase.storage.from('materials').uploadBinary(
-        fileName,
-        fileBytes,
-        fileOptions: const FileOptions(upsert: true),
-      );
+      
+      // Upload file to Supabase storage
+      try {
+        await supabase.storage.from('materials').uploadBinary(
+          fileName,
+          fileBytes,
+          fileOptions: const FileOptions(upsert: true),
+        );
+      } catch (storageError) {
+        print('Error uploading file to storage: $storageError');
+        return null; // File upload failed, return null
+      }
 
       final publicUrl =
-      supabase.storage.from('materials').getPublicUrl(fileName);
+          supabase.storage.from('materials').getPublicUrl(fileName);
 
-      // Update class_rooms table - using background_image field as per schema
-      // Note: If schema uses background_url, change this accordingly
-      await supabase.from('class_rooms').update({
-        'background_image': publicUrl, // Changed from background_url to background_image
-      }).eq('id', classId);
+      // Try to update class_rooms table - this may fail if column doesn't exist yet
+      // But we still return success since the file was uploaded and SharedPreferences will handle it
+      try {
+        await supabase.from('class_rooms').update({
+          'background_image': publicUrl,
+        }).eq('id', classId);
+        
+        print('✅ Successfully updated class_rooms table with background_image');
+      } catch (dbError) {
+        // Database update failed (likely column doesn't exist), but file upload succeeded
+        // Log the error but continue - SharedPreferences will handle the storage
+        print('⚠️ Warning: Could not update class_rooms.background_image column: $dbError');
+        print('⚠️ This may be because the column does not exist in the database yet.');
+        print('⚠️ Please run the SQL migration to add the background_image column.');
+        print('⚠️ The image was uploaded successfully and will work with SharedPreferences.');
+      }
 
+      // Return success response even if database update failed
+      // The file is uploaded and the URL is valid
       return http.Response(
         jsonEncode({'background_image': publicUrl}),
         200,
         headers: {'content-type': 'application/json'},
       );
     } catch (e) {
-      print('Error uploading class background: $e');
+      print('❌ Error uploading class background: $e');
       return null;
     }
   }

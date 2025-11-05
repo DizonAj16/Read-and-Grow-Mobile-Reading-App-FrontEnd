@@ -159,17 +159,31 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
                           child: Text("No quizzes for this lesson."),
                         )
                       else
-                        ...quizzes.map((quiz) => FutureBuilder<bool>(
-                          future: _isQuizAlreadyTaken(lesson['assignment_id'], quiz['id']),
-                          builder: (context, takenSnapshot) {
-                            final isTaken = takenSnapshot.data ?? false;
-                            
-                            return FutureBuilder<Map<String, dynamic>?>(
-                              future: isTaken ? _getQuizScore(lesson['assignment_id']) : Future.value(null),
-                              builder: (context, scoreSnapshot) {
-                                final score = scoreSnapshot.data;
-                                
-                                return ListTile(
+                        ...quizzes.map<Widget>((quiz) {
+                          final quizId = quiz['id']?.toString();
+                          final assignmentId = lesson['assignment_id']?.toString();
+                          
+                          // Skip if quiz ID or assignment ID is missing
+                          if (quizId == null || quizId.isEmpty || assignmentId == null || assignmentId.isEmpty) {
+                            return ListTile(
+                              leading: const Icon(Icons.error, color: Colors.red),
+                              title: const Text('Invalid Quiz'),
+                              subtitle: const Text('Quiz data is missing', style: TextStyle(color: Colors.red)),
+                              enabled: false,
+                            );
+                          }
+                          
+                          return FutureBuilder<bool>(
+                            future: _isQuizAlreadyTaken(assignmentId, quizId),
+                            builder: (context, takenSnapshot) {
+                              final isTaken = takenSnapshot.data ?? false;
+                              
+                              return FutureBuilder<Map<String, dynamic>?>(
+                                future: isTaken ? _getQuizScore(assignmentId) : Future.value(null),
+                                builder: (context, scoreSnapshot) {
+                                  final score = scoreSnapshot.data;
+                                  
+                                  return ListTile(
                                   leading: Icon(
                                     isTaken ? Icons.check_circle : Icons.quiz,
                                     color: isTaken ? Colors.green : Colors.orange,
@@ -215,7 +229,7 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
                                   onTap: isTaken
                                       ? () {
                                           // Show quiz results dialog
-                                          if (score != null) {
+                                          if (score != null && mounted) {
                                             showDialog(
                                               context: context,
                                               builder: (context) => AlertDialog(
@@ -248,7 +262,7 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
                                                           ),
                                                           const SizedBox(height: 8),
                                                           Text(
-                                                            '${score['score']} / ${score['max_score']}',
+                                                            '${score['score'] ?? 0} / ${score['max_score'] ?? 0}',
                                                             style: TextStyle(
                                                               fontSize: 32,
                                                               fontWeight: FontWeight.bold,
@@ -262,7 +276,11 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
                                                 ),
                                                 actions: [
                                                   TextButton(
-                                                    onPressed: () => Navigator.pop(context),
+                                                    onPressed: () {
+                                                      if (Navigator.of(context).canPop()) {
+                                                        Navigator.pop(context);
+                                                      }
+                                                    },
                                                     child: const Text('OK'),
                                                   ),
                                                 ],
@@ -271,26 +289,75 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
                                           }
                                         }
                                       : () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) => StudentQuizPage(
-                                                quizId: quiz['id'],
-                                                assignmentId: lesson['assignment_id'],
-                                                studentId: Supabase.instance.client
-                                                    .auth.currentUser!.id,
+                                          final quizId = quiz['id']?.toString();
+                                          final assignmentId = lesson['assignment_id']?.toString();
+                                          final user = Supabase.instance.client.auth.currentUser;
+                                          
+                                          // Validate required data
+                                          if (quizId == null || quizId.isEmpty) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('Error: Quiz ID is missing'),
+                                                backgroundColor: Colors.red,
                                               ),
-                                            ),
-                                          ).then((_) {
-                                            // Refresh after returning from quiz
-                                            _refreshLessons();
-                                          });
+                                            );
+                                            return;
+                                          }
+                                          
+                                          if (assignmentId == null || assignmentId.isEmpty) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('Error: Assignment ID is missing'),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                            return;
+                                          }
+                                          
+                                          if (user == null || user.id.isEmpty) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('Error: User not authenticated'),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                            return;
+                                          }
+                                          
+                                          if (mounted) {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) => StudentQuizPage(
+                                                  quizId: quizId,
+                                                  assignmentId: assignmentId,
+                                                  studentId: user.id,
+                                                ),
+                                              ),
+                                            ).then((_) {
+                                              // Refresh after returning from quiz
+                                              if (mounted) {
+                                                _refreshLessons();
+                                              }
+                                            }).catchError((error) {
+                                              debugPrint('Error navigating to quiz: $error');
+                                              if (mounted) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text('Error opening quiz: ${error.toString()}'),
+                                                    backgroundColor: Colors.red,
+                                                  ),
+                                                );
+                                              }
+                                            });
+                                          }
                                         },
-                                );
-                              },
-                            );
-                          },
-                        )),
+                                  );
+                                },
+                              );
+                            },
+                          );
+                        }).toList(),
                     ],
                   ),
                 );

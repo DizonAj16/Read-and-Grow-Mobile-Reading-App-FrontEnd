@@ -41,7 +41,7 @@ class SupabaseAuthService {
           };
         }
       } catch (e) {
-        // Student format failed, try to find teacher email or use original as-is
+        // Student format failed, try to find teacher email
         try {
           // Try to find teacher email
           final userCheck = await _supabase
@@ -61,17 +61,26 @@ class SupabaseAuthService {
               
               if (teacherCheck != null && teacherCheck['teacher_email'] != null) {
                 email = teacherCheck['teacher_email'] as String;
+              } else {
+                // Couldn't find teacher email, rethrow original error
+                throw e;
               }
+            } else {
+              // Not a teacher, rethrow original error
+              throw e;
             }
+          } else {
+            // User not found, rethrow original error
+            throw e;
           }
         } catch (e2) {
-          // If we can't find teacher email, use original input (might be admin email)
-          email = emailOrUsername;
+          // If we can't find teacher email, rethrow original error
+          throw e;
         }
       }
     }
     
-    // Final attempt with determined email
+    // Final attempt with determined email (or original if it already contained @)
     final response = await _supabase.auth.signInWithPassword(
       email: email,
       password: password,
@@ -106,19 +115,48 @@ class SupabaseAuthService {
     await prefs.clear();
   }
 
-  /// Get current session profile (from Supabase Auth + custom users table)
+  /// Get current session profile (from Supabase Auth + custom users table + role-specific table)
   static Future<Map<String, dynamic>?> getAuthProfile() async {
     final user = _supabase.auth.currentUser;
     if (user == null) throw Exception('No logged in user');
-    final profile = await _supabase
+    
+    // Get user data from users table
+    final userProfile = await _supabase
         .from('users')
         .select()
         .eq('id', user.id)
         .maybeSingle();
 
+    // Get role-specific profile data
+    Map<String, dynamic>? roleProfile;
+    final role = userProfile?['role'] as String?;
+    
+    if (role == 'teacher') {
+      // Get teacher-specific data from teachers table
+      roleProfile = await _supabase
+          .from('teachers')
+          .select()
+          .eq('id', user.id)
+          .maybeSingle();
+    } else if (role == 'student') {
+      // Get student-specific data from students table
+      roleProfile = await _supabase
+          .from('students')
+          .select()
+          .eq('id', user.id)
+          .maybeSingle();
+    } else if (role == 'parent') {
+      // Get parent-specific data from parents table
+      roleProfile = await _supabase
+          .from('parents')
+          .select()
+          .eq('id', user.id)
+          .maybeSingle();
+    }
+
     return {
       'user': user.toJson(),
-      'profile': profile,
+      'profile': roleProfile ?? userProfile,
     };
   }
 
