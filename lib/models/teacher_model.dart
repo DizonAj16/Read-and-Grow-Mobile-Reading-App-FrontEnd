@@ -8,6 +8,7 @@ class Teacher {
   final String? email;
   final String? username;
   String? profilePicture;
+  final bool? isApproved;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -18,6 +19,7 @@ class Teacher {
   static const String _kEmailKey = 'teacher_email';
   static const String _kUsernameKey = 'username';
   static const String _kProfilePictureKey = 'profile_picture';
+  static const String _kIsApprovedKey = 'is_approved';
   static const String _kCreatedAtKey = 'created_at';
   static const String _kUpdatedAtKey = 'updated_at';
 
@@ -29,6 +31,7 @@ class Teacher {
     this.email,
     this.username,
     this.profilePicture,
+    this.isApproved,
     this.createdAt,
     this.updatedAt,
   });
@@ -42,6 +45,7 @@ class Teacher {
         email: '',
         username: '',
         profilePicture: null,
+        isApproved: false,
         createdAt: null,
         updatedAt: null,
       );
@@ -49,17 +53,18 @@ class Teacher {
   /// Create a Teacher object from SharedPreferences
   static Future<Teacher> fromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
-    return Teacher(
-      id: _parseInt(prefs.getString(_kTeacherIdKey)),
-      userId: _parseInt(prefs.getString(_kUserIdKey)),
-      name: prefs.getString(_kNameKey) ?? 'Teacher',
-      position: prefs.getString(_kPositionKey),
-      email: prefs.getString(_kEmailKey),
-      username: prefs.getString(_kUsernameKey),
-      profilePicture: prefs.getString(_kProfilePictureKey),
-      createdAt: DateTime.tryParse(prefs.getString(_kCreatedAtKey) ?? ''),
-      updatedAt: DateTime.tryParse(prefs.getString(_kUpdatedAtKey) ?? ''),
-    );
+      return Teacher(
+        id: _parseInt(prefs.getString(_kTeacherIdKey)),
+        userId: _parseInt(prefs.getString(_kUserIdKey)),
+        name: prefs.getString(_kNameKey) ?? 'Teacher',
+        position: prefs.getString(_kPositionKey),
+        email: prefs.getString(_kEmailKey),
+        username: prefs.getString(_kUsernameKey),
+        profilePicture: prefs.getString(_kProfilePictureKey),
+        isApproved: prefs.getBool(_kIsApprovedKey),
+        createdAt: DateTime.tryParse(prefs.getString(_kCreatedAtKey) ?? ''),
+        updatedAt: DateTime.tryParse(prefs.getString(_kUpdatedAtKey) ?? ''),
+      );
   }
 
   /// Create a Teacher object from JSON or Map - handles both API response formats
@@ -78,6 +83,7 @@ class Teacher {
         email: profileData['teacher_email'],
         username: userData['username'] ?? profileData['username'],
         profilePicture: profileData['profile_picture'],
+        isApproved: profileData['is_approved'] as bool?,
         createdAt: profileData['created_at'] != null
             ? DateTime.tryParse(profileData['created_at'])
             : null,
@@ -94,6 +100,7 @@ class Teacher {
         email: json['teacher_email'],
         username: json['username'],
         profilePicture: json['profile_picture'],
+        isApproved: json['is_approved'] as bool?,
         createdAt: json['created_at'] != null
             ? DateTime.tryParse(json['created_at'])
             : null,
@@ -113,6 +120,7 @@ class Teacher {
         'teacher_email': email,
         'username': username,
         'profile_picture': profilePicture,
+        'is_approved': isApproved,
         'created_at': createdAt?.toIso8601String(),
         'updated_at': updatedAt?.toIso8601String(),
       };
@@ -125,6 +133,7 @@ class Teacher {
     await prefs.setString(_kEmailKey, email ?? '');
     await prefs.setString(_kUsernameKey, username ?? '');
     await prefs.setString(_kProfilePictureKey, profilePicture ?? '');
+    await prefs.setBool(_kIsApprovedKey, isApproved ?? false);
     await prefs.setString(_kCreatedAtKey, createdAt?.toIso8601String() ?? '');
     await prefs.setString(_kUpdatedAtKey, updatedAt?.toIso8601String() ?? '');
 
@@ -146,6 +155,7 @@ class Teacher {
     await prefs.remove(_kEmailKey);
     await prefs.remove(_kUsernameKey);
     await prefs.remove(_kProfilePictureKey);
+    await prefs.remove(_kIsApprovedKey);
     await prefs.remove(_kCreatedAtKey);
     await prefs.remove(_kUpdatedAtKey);
   }

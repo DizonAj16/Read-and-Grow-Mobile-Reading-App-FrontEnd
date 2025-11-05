@@ -1,6 +1,7 @@
 import 'package:deped_reading_app_laravel/api/user_service.dart';
 import 'package:deped_reading_app_laravel/models/teacher_model.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AdminViewTeachersPage extends StatefulWidget {
   const AdminViewTeachersPage({super.key});
@@ -213,33 +214,99 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
                                                           CrossAxisAlignment
                                                               .center,
                                                       children: [
-                                                        CircleAvatar(
-                                                          radius: 55,
-                                                          backgroundColor:
-                                                              _getDynamicColor(
-                                                                index,
+                                                        FutureBuilder<String?>(
+                                                          future: _getBaseUrl(),
+                                                          builder:
+                                                              (context,
+                                                                  snapshot) {
+                                                            final String?
+                                                                profileUrl = (snapshot
+                                                                        .hasData &&
+                                                                    teacher.profilePicture !=
+                                                                        null &&
+                                                                    teacher
+                                                                        .profilePicture!
+                                                                        .isNotEmpty)
+                                                                ? "${snapshot.data}/${teacher.profilePicture}"
+                                                                : null;
+
+                                                            final String initial =
+                                                                teacher.name
+                                                                        .isNotEmpty
+                                                                    ? teacher
+                                                                        .name[0]
+                                                                        .toUpperCase()
+                                                                    : "T";
+
+                                                            if (profileUrl == null || !snapshot.hasData) {
+                                                              return CircleAvatar(
+                                                                radius: 55,
+                                                                backgroundColor:
+                                                                    _getDynamicColor(
+                                                                      index,
+                                                                    ),
+                                                                child: Text(
+                                                                  initial,
+                                                                  style:
+                                                                      TextStyle(
+                                                                    color: Theme.of(
+                                                                            context)
+                                                                        .colorScheme
+                                                                        .primary,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold,
+                                                                    fontSize:
+                                                                        48,
+                                                                  ),
+                                                                ),
+                                                              );
+                                                            }
+
+                                                            return CircleAvatar(
+                                                              radius: 55,
+                                                              backgroundColor:
+                                                                  _getDynamicColor(
+                                                                    index,
+                                                                  ),
+                                                              child: ClipOval(
+                                                                child: FadeInImage.assetNetwork(
+                                                                  placeholder:
+                                                                      'assets/placeholder/avatar_placeholder.jpg',
+                                                                  image: profileUrl,
+                                                                  fit: BoxFit.cover,
+                                                                  width: 110,
+                                                                  height: 110,
+                                                                  imageErrorBuilder:
+                                                                      (_, __, ___) {
+                                                                    return Container(
+                                                                      color: _getDynamicColor(
+                                                                        index,
+                                                                      ),
+                                                                      alignment:
+                                                                          Alignment
+                                                                              .center,
+                                                                      child: Text(
+                                                                        initial,
+                                                                        style:
+                                                                            TextStyle(
+                                                                          color: Theme.of(
+                                                                                  context)
+                                                                              .colorScheme
+                                                                              .primary,
+                                                                          fontWeight:
+                                                                              FontWeight
+                                                                                  .bold,
+                                                                          fontSize:
+                                                                              48,
+                                                                        ),
+                                                                      ),
+                                                                    );
+                                                                  },
+                                                                ),
                                                               ),
-                                                          child: Text(
-                                                            teacher
-                                                                    .name
-                                                                    .isNotEmpty
-                                                                ? teacher
-                                                                    .name[0]
-                                                                    .toUpperCase()
-                                                                : "T",
-                                                            style: TextStyle(
-                                                              color:
-                                                                  Theme.of(
-                                                                        context,
-                                                                      )
-                                                                      .colorScheme
-                                                                      .primary,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                              fontSize: 48,
-                                                            ),
-                                                          ),
+                                                            );
+                                                          },
                                                         ),
                                                         SizedBox(height: 24),
                                                         Text(
@@ -259,6 +326,56 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
                                                           textAlign:
                                                               TextAlign.center,
                                                         ),
+                                                        // Approval status in dialog
+                                                        if (teacher.isApproved != null)
+                                                          Padding(
+                                                            padding: const EdgeInsets.only(top: 12),
+                                                            child: Container(
+                                                              padding: const EdgeInsets.symmetric(
+                                                                horizontal: 16,
+                                                                vertical: 8,
+                                                              ),
+                                                              decoration: BoxDecoration(
+                                                                color: teacher.isApproved == true
+                                                                    ? Colors.green.withOpacity(0.2)
+                                                                    : Colors.orange.withOpacity(0.2),
+                                                                borderRadius: BorderRadius.circular(12),
+                                                                border: Border.all(
+                                                                  color: teacher.isApproved == true
+                                                                      ? Colors.green
+                                                                      : Colors.orange,
+                                                                  width: 1.5,
+                                                                ),
+                                                              ),
+                                                              child: Row(
+                                                                mainAxisSize: MainAxisSize.min,
+                                                                children: [
+                                                                  Icon(
+                                                                    teacher.isApproved == true
+                                                                        ? Icons.check_circle
+                                                                        : Icons.pending,
+                                                                    size: 20,
+                                                                    color: teacher.isApproved == true
+                                                                        ? Colors.green
+                                                                        : Colors.orange,
+                                                                  ),
+                                                                  const SizedBox(width: 8),
+                                                                  Text(
+                                                                    teacher.isApproved == true
+                                                                        ? 'Approved Teacher'
+                                                                        : 'Pending Approval',
+                                                                    style: TextStyle(
+                                                                      fontSize: 14,
+                                                                      fontWeight: FontWeight.bold,
+                                                                      color: teacher.isApproved == true
+                                                                          ? Colors.green[700]
+                                                                          : Colors.orange[700],
+                                                                    ),
+                                                                  ),
+                                                                ],
+                                                              ),
+                                                            ),
+                                                          ),
                                                         Divider(
                                                           color: Theme.of(
                                                                 context,
@@ -474,6 +591,10 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
                                           );
                                         }
                                       }
+                                    } else if (value == 'approve') {
+                                      await _handleTeacherApproval(teacher, true);
+                                    } else if (value == 'reject') {
+                                      await _handleTeacherApproval(teacher, false);
                                     } else if (value == 'delete') {
                                       final confirm = await showDialog<bool>(
                                         context: context,
@@ -638,6 +759,34 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
                                             ],
                                           ),
                                         ),
+                                        if (teacher.isApproved != true)
+                                          PopupMenuItem(
+                                            value: 'approve',
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.check_circle,
+                                                  color: Colors.green,
+                                                ),
+                                                SizedBox(width: 8),
+                                                Text('Approve'),
+                                              ],
+                                            ),
+                                          ),
+                                        if (teacher.isApproved == true)
+                                          PopupMenuItem(
+                                            value: 'reject',
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.cancel,
+                                                  color: Colors.orange,
+                                                ),
+                                                SizedBox(width: 8),
+                                                Text('Reject'),
+                                              ],
+                                            ),
+                                          ),
                                         PopupMenuItem(
                                           value: 'delete',
                                           child: Row(
@@ -655,19 +804,68 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
                                 ),
                               ],
                             ),
-                            CircleAvatar(
-                              radius: 50,
-                              backgroundColor: _getDynamicColor(index),
-                              child: Text(
-                                teacher.name.isNotEmpty
+                            // Avatar with profile picture or initials
+                            FutureBuilder<String?>(
+                              future: _getBaseUrl(),
+                              builder: (context, snapshot) {
+                                final String? profileUrl = (snapshot.hasData &&
+                                        teacher.profilePicture != null &&
+                                        teacher.profilePicture!.isNotEmpty)
+                                    ? "${snapshot.data}/${teacher.profilePicture}"
+                                    : null;
+
+                                final String initial = teacher.name.isNotEmpty
                                     ? teacher.name[0].toUpperCase()
-                                    : "T",
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.primary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 32,
-                                ),
-                              ),
+                                    : "T";
+
+                                if (profileUrl == null || !snapshot.hasData) {
+                                  return CircleAvatar(
+                                    radius: 50,
+                                    backgroundColor: _getDynamicColor(index),
+                                    child: Text(
+                                      initial,
+                                      style: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 32,
+                                      ),
+                                    ),
+                                  );
+                                }
+
+                                return CircleAvatar(
+                                  radius: 50,
+                                  backgroundColor: _getDynamicColor(index),
+                                  child: ClipOval(
+                                    child: FadeInImage.assetNetwork(
+                                      placeholder:
+                                          'assets/placeholder/avatar_placeholder.jpg',
+                                      image: profileUrl,
+                                      fit: BoxFit.cover,
+                                      width: 100,
+                                      height: 100,
+                                      imageErrorBuilder: (_, __, ___) {
+                                        return Container(
+                                          color: _getDynamicColor(index),
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            initial,
+                                            style: TextStyle(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 32,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
                             SizedBox(height: 12),
                             Text(
@@ -680,6 +878,56 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
                               ),
                               textAlign: TextAlign.center,
                             ),
+                            // Approval status badge
+                            if (teacher.isApproved != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: teacher.isApproved == true
+                                        ? Colors.green.withOpacity(0.2)
+                                        : Colors.orange.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: teacher.isApproved == true
+                                          ? Colors.green
+                                          : Colors.orange,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        teacher.isApproved == true
+                                            ? Icons.check_circle
+                                            : Icons.pending,
+                                        size: 14,
+                                        color: teacher.isApproved == true
+                                            ? Colors.green
+                                            : Colors.orange,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        teacher.isApproved == true
+                                            ? 'Approved'
+                                            : 'Pending',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: teacher.isApproved == true
+                                              ? Colors.green[700]
+                                              : Colors.orange[700],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                             SizedBox(height: 10),
                             Text(
                               "Email:",
@@ -822,5 +1070,173 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
       Colors.lime.shade100,
     ];
     return colors[index % colors.length];
+  }
+
+  Future<String?> _getBaseUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? baseUrl = prefs.getString('base_url');
+    if (baseUrl != null) {
+      baseUrl = baseUrl.replaceAll(RegExp(r'/api/?$'), '');
+    }
+    return baseUrl;
+  }
+
+  Future<void> _handleTeacherApproval(Teacher teacher, bool isApproved) async {
+    if (teacher.id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Teacher ID is missing'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Icon(
+              isApproved ? Icons.check_circle : Icons.cancel,
+              color: isApproved ? Colors.green : Colors.orange,
+              size: 28,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                isApproved ? 'Approve Teacher' : 'Reject Teacher',
+                style: const TextStyle(fontSize: 20),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          isApproved
+              ? 'Are you sure you want to approve ${teacher.name}? They will gain full access to the system.'
+              : 'Are you sure you want to reject ${teacher.name}? They will lose access to the system.',
+          style: const TextStyle(fontSize: 16),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(fontSize: 16)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isApproved ? Colors.green : Colors.orange,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              isApproved ? 'Approve' : 'Reject',
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Updating approval status...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final success = await UserService.updateTeacherApprovalStatus(
+        teacherId: teacher.id.toString(),
+        isApproved: isApproved,
+      );
+
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      if (success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  Icon(
+                    isApproved ? Icons.check_circle : Icons.cancel,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      isApproved
+                          ? 'Teacher approved successfully!'
+                          : 'Teacher rejected successfully!',
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: isApproved ? Colors.green[700] : Colors.orange[700],
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.only(top: 20, left: 20, right: 20),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 8,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+        // Refresh the list
+        if (mounted) {
+          setState(() {
+            _teachersFuture = _loadTeachers();
+          });
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to update teacher approval status. Please try again.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Close loading dialog if still open
+      if (mounted) Navigator.pop(context);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 }

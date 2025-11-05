@@ -238,22 +238,60 @@ class UserService {
 
 
   static Future<List<Teacher>> fetchAllTeachers() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
-    if (token == null) throw Exception('No auth token found');
+    final supabase = Supabase.instance.client;
+    try {
+      // Fetch teachers directly from Supabase to ensure we get is_approved field
+      final response = await supabase
+          .from('teachers')
+          .select('id, teacher_name, teacher_position, teacher_email, profile_picture, is_approved, created_at, updated_at')
+          .order('created_at', ascending: false);
 
-    final response = await http.get(
-      Uri.parse('${await _getBaseUrl()}/teachers/'),
-      headers: _authHeaders(token),
-    );
+      // Fetch usernames for all teachers in parallel
+      final teachersList = <Teacher>[];
+      for (final json in response) {
+        final data = Map<String, dynamic>.from(json);
+        // Try to get username from users table
+        try {
+          final userData = await supabase
+              .from('users')
+              .select('username')
+              .eq('id', data['id'])
+              .maybeSingle();
+          if (userData != null) {
+            data['username'] = userData['username'];
+          }
+        } catch (e) {
+          debugPrint('Could not fetch username for teacher ${data['id']}: $e');
+        }
+        teachersList.add(Teacher.fromJson(data));
+      }
+      
+      return teachersList;
+    } catch (e) {
+      debugPrint('Error fetching teachers from Supabase: $e');
+      // Fallback to HTTP API if Supabase fails
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final token = prefs.getString('token');
+        if (token == null) throw Exception('No auth token found');
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return (data['teachers'] as List)
-          .map((json) => Teacher.fromJson(Map<String, dynamic>.from(json)))
-          .toList();
-    } else {
-      throw Exception('Failed to load teachers');
+        final response = await http.get(
+          Uri.parse('${await _getBaseUrl()}/teachers/'),
+          headers: _authHeaders(token),
+        );
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          return (data['teachers'] as List)
+              .map((json) => Teacher.fromJson(Map<String, dynamic>.from(json)))
+              .toList();
+        } else {
+          throw Exception('Failed to load teachers');
+        }
+      } catch (fallbackError) {
+        debugPrint('Error in fallback HTTP fetch: $fallbackError');
+        throw Exception('Failed to load teachers: $e');
+      }
     }
   }
 
@@ -525,6 +563,35 @@ class UserService {
       return true;
     } catch (e) {
       print('Error assigning reading level: $e');
+      return false;
+    }
+  }
+
+  /// Approve or reject a teacher account
+  static Future<bool> updateTeacherApprovalStatus({
+    required String teacherId,
+    required bool isApproved,
+  }) async {
+    final supabase = Supabase.instance.client;
+    try {
+      final result = await supabase
+          .from('teachers')
+          .update({
+            'is_approved': isApproved,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', teacherId)
+          .select();
+      
+      if (result.isEmpty) {
+        debugPrint('No teacher found with ID: $teacherId');
+        return false;
+      }
+      
+      debugPrint('✅ Teacher approval status updated successfully: $isApproved');
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error updating teacher approval status: $e');
       return false;
     }
   }

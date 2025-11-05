@@ -2,6 +2,7 @@ import 'package:deped_reading_app_laravel/api/prefs_service.dart';
 import 'package:deped_reading_app_laravel/api/user_service.dart';
 import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AdminViewStudentsPage extends StatefulWidget {
   const AdminViewStudentsPage({super.key});
@@ -222,31 +223,105 @@ class _AdminViewStudentsPageState extends State<AdminViewStudentsPage> {
                                                           CrossAxisAlignment
                                                               .center,
                                                       children: [
-                                                        CircleAvatar(
-                                                          radius: 55,
-                                                          backgroundColor:
-                                                              Theme.of(context)
-                                                                  .colorScheme
-                                                                  .primary
-                                                                  .withOpacity(
-                                                                    0.15,
+                                                        FutureBuilder<String?>(
+                                                          future: _getBaseUrl(),
+                                                          builder:
+                                                              (context,
+                                                                  snapshot) {
+                                                            final String?
+                                                                profileUrl = (snapshot
+                                                                        .hasData &&
+                                                                    student.profilePicture !=
+                                                                        null &&
+                                                                    student
+                                                                        .profilePicture!
+                                                                        .isNotEmpty)
+                                                                ? "${snapshot.data}/${student.profilePicture}"
+                                                                : null;
+
+                                                            if (profileUrl == null || !snapshot.hasData) {
+                                                              return CircleAvatar(
+                                                                radius: 55,
+                                                                backgroundColor:
+                                                                    Theme.of(
+                                                                            context)
+                                                                        .colorScheme
+                                                                        .primary
+                                                                        .withOpacity(
+                                                                          0.15,
+                                                                        ),
+                                                                child: Text(
+                                                                  student
+                                                                      .avatarLetter,
+                                                                  style:
+                                                                      TextStyle(
+                                                                    color: Theme.of(
+                                                                            context)
+                                                                        .colorScheme
+                                                                        .primary,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold,
+                                                                    fontSize:
+                                                                        48,
                                                                   ),
-                                                          child: Text(
-                                                            student
-                                                                .avatarLetter,
-                                                            style: TextStyle(
-                                                              color:
+                                                                ),
+                                                              );
+                                                            }
+
+                                                            return CircleAvatar(
+                                                              radius: 55,
+                                                              backgroundColor:
                                                                   Theme.of(
-                                                                        context,
-                                                                      )
+                                                                          context)
                                                                       .colorScheme
-                                                                      .primary,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                              fontSize: 48,
-                                                            ),
-                                                          ),
+                                                                      .primary
+                                                                      .withOpacity(
+                                                                        0.15,
+                                                                      ),
+                                                              child: ClipOval(
+                                                                child: FadeInImage.assetNetwork(
+                                                                  placeholder:
+                                                                      'assets/placeholder/avatar_placeholder.jpg',
+                                                                  image: profileUrl,
+                                                                  fit: BoxFit.cover,
+                                                                  width: 110,
+                                                                  height: 110,
+                                                                  imageErrorBuilder:
+                                                                      (_, __, ___) {
+                                                                    return Container(
+                                                                      color: Theme.of(
+                                                                              context)
+                                                                          .colorScheme
+                                                                          .primary
+                                                                          .withOpacity(
+                                                                            0.15,
+                                                                          ),
+                                                                      alignment:
+                                                                          Alignment
+                                                                              .center,
+                                                                      child: Text(
+                                                                        student
+                                                                            .avatarLetter,
+                                                                        style:
+                                                                            TextStyle(
+                                                                          color: Theme.of(
+                                                                                  context)
+                                                                              .colorScheme
+                                                                              .primary,
+                                                                          fontWeight:
+                                                                              FontWeight
+                                                                                  .bold,
+                                                                          fontSize:
+                                                                              48,
+                                                                        ),
+                                                                      ),
+                                                                    );
+                                                                  },
+                                                                ),
+                                                              ),
+                                                            );
+                                                          },
                                                         ),
                                                         SizedBox(height: 24),
                                                         Text(
@@ -677,18 +752,64 @@ class _AdminViewStudentsPageState extends State<AdminViewStudentsPage> {
                                 ),
                               ],
                             ),
-                            // Avatar with dynamic color
-                            CircleAvatar(
-                              radius: 50,
-                              backgroundColor: _getDynamicColor(index),
-                              child: Text(
-                                student.avatarLetter,
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.primary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 32,
-                                ),
-                              ),
+                            // Avatar with profile picture or initials
+                            FutureBuilder<String?>(
+                              future: _getBaseUrl(),
+                              builder: (context, snapshot) {
+                                final String? profileUrl = (snapshot.hasData &&
+                                        student.profilePicture != null &&
+                                        student.profilePicture!.isNotEmpty)
+                                    ? "${snapshot.data}/${student.profilePicture}"
+                                    : null;
+
+                                if (profileUrl == null || !snapshot.hasData) {
+                                  return CircleAvatar(
+                                    radius: 50,
+                                    backgroundColor: _getDynamicColor(index),
+                                    child: Text(
+                                      student.avatarLetter,
+                                      style: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 32,
+                                      ),
+                                    ),
+                                  );
+                                }
+
+                                return CircleAvatar(
+                                  radius: 50,
+                                  backgroundColor: _getDynamicColor(index),
+                                  child: ClipOval(
+                                    child: FadeInImage.assetNetwork(
+                                      placeholder:
+                                          'assets/placeholder/avatar_placeholder.jpg',
+                                      image: profileUrl,
+                                      fit: BoxFit.cover,
+                                      width: 100,
+                                      height: 100,
+                                      imageErrorBuilder: (_, __, ___) {
+                                        return Container(
+                                          color: _getDynamicColor(index),
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            student.avatarLetter,
+                                            style: TextStyle(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 32,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
                             SizedBox(height: 12),
                             // Name
@@ -849,5 +970,14 @@ class _AdminViewStudentsPageState extends State<AdminViewStudentsPage> {
       Colors.lime.shade100,
     ];
     return colors[index % colors.length];
+  }
+
+  Future<String?> _getBaseUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? baseUrl = prefs.getString('base_url');
+    if (baseUrl != null) {
+      baseUrl = baseUrl.replaceAll(RegExp(r'/api/?$'), '');
+    }
+    return baseUrl;
   }
 }

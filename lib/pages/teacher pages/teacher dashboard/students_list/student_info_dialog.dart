@@ -108,28 +108,52 @@ class StudentInfoDialog extends StatelessWidget {
         CircleAvatar(
           radius: 56,
           backgroundColor: colorScheme.primary.withOpacity(0.9),
-          backgroundImage:
-              profileUrl != null && profileUrl!.isNotEmpty
-                  ? NetworkImage(profileUrl!)
-                  : null,
-          child:
-              profileUrl == null || profileUrl!.isEmpty
-                  ? Text(
-                    student.avatarLetter,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 48,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 4,
-                          offset: const Offset(1, 1),
+          child: profileUrl != null && profileUrl!.isNotEmpty
+              ? ClipOval(
+                  child: FadeInImage.assetNetwork(
+                    placeholder: 'assets/placeholder/avatar_placeholder.jpg',
+                    image: profileUrl!,
+                    fit: BoxFit.cover,
+                    width: 112,
+                    height: 112,
+                    imageErrorBuilder: (_, __, ___) {
+                      return Container(
+                        color: colorScheme.primary.withOpacity(0.9),
+                        alignment: Alignment.center,
+                        child: Text(
+                          student.avatarLetter,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 48,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withOpacity(0.3),
+                                blurRadius: 4,
+                                offset: const Offset(1, 1),
+                              ),
+                            ],
+                          ),
                         ),
-                      ],
-                    ),
-                  )
-                  : null,
+                      );
+                    },
+                  ),
+                )
+              : Text(
+                  student.avatarLetter,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 48,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: 4,
+                        offset: const Offset(1, 1),
+                      ),
+                    ],
+                  ),
+                ),
         ),
       ],
     );

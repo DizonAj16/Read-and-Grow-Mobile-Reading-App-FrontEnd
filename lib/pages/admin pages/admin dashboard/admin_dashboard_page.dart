@@ -2,6 +2,7 @@ import 'package:deped_reading_app_laravel/pages/admin%20pages/admin%20dashboard/
 import 'package:flutter/material.dart';
 import 'student and teachers list/admin_view_students_page.dart';
 import 'student and teachers list/admin_view_teachers_page.dart';
+import 'admin_analytics_page.dart';
 
 /// Admin dashboard page with options to view teachers/students and create accounts.
 class AdminDashboardPage extends StatelessWidget {
@@ -69,6 +70,31 @@ class AdminDashboardPage extends StatelessWidget {
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) => AdminViewStudentsPage(),
+                  ),
+                );
+              },
+            ),
+            SizedBox(height: 20),
+            // Button to view analytics
+            ElevatedButton.icon(
+              icon: Icon(Icons.analytics, size: 40),
+              label: Text(
+                "View Analytics & Performance",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 18),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                elevation: 3,
+              ),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const AdminAnalyticsPage(),
                   ),
                 );
               },
