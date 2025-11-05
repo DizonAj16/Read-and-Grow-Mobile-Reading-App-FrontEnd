@@ -342,15 +342,31 @@ class _GradingDialogState extends State<_GradingDialog> {
   Future<void> _saveGrade() async {
     setState(() => _isLoading = true);
     try {
-      await supabase
+      final recordingId = widget.recording['id'];
+      debugPrint('📝 [GRADE] Saving grade for recording ID: $recordingId');
+      debugPrint('📝 [GRADE] Score: $_score, Comments: ${_commentsController.text.trim()}');
+      
+      // Ensure recording ID is properly formatted
+      final updateResult = await supabase
           .from('student_recordings')
           .update({
-        'score': _score,
-        'teacher_comments': _commentsController.text.trim(),
-        'needs_grading': false,
-        'graded_at': DateTime.now().toIso8601String(),
-      })
-          .eq('id', widget.recording['id']);
+            'score': _score,
+            'teacher_comments': _commentsController.text.trim().isEmpty 
+                ? null 
+                : _commentsController.text.trim(),
+            'needs_grading': false,
+            'graded_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', recordingId)
+          .select();
+      
+      debugPrint('📝 [GRADE] Update result: ${updateResult.length} row(s) updated');
+      
+      if (updateResult.isEmpty) {
+        throw Exception('No rows were updated. Recording may not exist or ID mismatch.');
+      }
+      
+      debugPrint('✅ [GRADE] Grade saved successfully: ${updateResult.first}');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -359,11 +375,16 @@ class _GradingDialogState extends State<_GradingDialog> {
         ));
         widget.onGraded();
       }
-    } catch (e) {
-      debugPrint('Error saving grade: $e');
+    } catch (e, stackTrace) {
+      debugPrint('❌ [GRADE] Error saving grade: $e');
+      debugPrint('❌ [GRADE] Stack trace: $stackTrace');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving grade: $e')),
+          SnackBar(
+            content: Text('Error saving grade: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
         );
       }
     } finally {

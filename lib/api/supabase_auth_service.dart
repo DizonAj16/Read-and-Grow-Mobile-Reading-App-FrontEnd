@@ -5,7 +5,73 @@ class SupabaseAuthService {
   static final _supabase = Supabase.instance.client;
 
   /// Login with email + password using Supabase Auth
-  static Future<Map<String, dynamic>> login(String email, String password) async {
+  /// Supports both email and username (for students, converts username to email format)
+  static Future<Map<String, dynamic>> login(String emailOrUsername, String password) async {
+    String email = emailOrUsername;
+    
+    // If input doesn't contain @, try to convert it to email format
+    if (!emailOrUsername.contains('@')) {
+      // First try: assume it's a student username (format: username@student.app)
+      email = '$emailOrUsername@student.app';
+      
+      try {
+        // Try logging in with student email format
+        final response = await _supabase.auth.signInWithPassword(
+          email: email,
+          password: password,
+        );
+        
+        if (response.user != null) {
+          // Success with student format
+          final user = response.user!;
+          final roleRow = await _supabase
+              .from('users')
+              .select('role')
+              .eq('id', user.id)
+              .maybeSingle();
+          
+          final role = roleRow?['role'] ?? 'student';
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('id', user.id);
+          await prefs.setString('role', role);
+          
+          return {
+            'user': user.toJson(),
+            'role': role,
+          };
+        }
+      } catch (e) {
+        // Student format failed, try to find teacher email or use original as-is
+        try {
+          // Try to find teacher email
+          final userCheck = await _supabase
+              .from('users')
+              .select('id, role')
+              .eq('username', emailOrUsername)
+              .maybeSingle();
+          
+          if (userCheck != null) {
+            final role = userCheck['role'] as String?;
+            if (role == 'teacher') {
+              final teacherCheck = await _supabase
+                  .from('teachers')
+                  .select('teacher_email')
+                  .eq('id', userCheck['id'])
+                  .maybeSingle();
+              
+              if (teacherCheck != null && teacherCheck['teacher_email'] != null) {
+                email = teacherCheck['teacher_email'] as String;
+              }
+            }
+          }
+        } catch (e2) {
+          // If we can't find teacher email, use original input (might be admin email)
+          email = emailOrUsername;
+        }
+      }
+    }
+    
+    // Final attempt with determined email
     final response = await _supabase.auth.signInWithPassword(
       email: email,
       password: password,
