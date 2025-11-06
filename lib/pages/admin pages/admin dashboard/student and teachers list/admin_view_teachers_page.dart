@@ -25,12 +25,31 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
   }
 
   Future<List<Teacher>> _loadTeachers() async {
-    final teachers = await UserService.fetchAllTeachers();
-    setState(() {
-      _allTeachers = teachers;
-      _currentPage = 0;
-    });
-    return teachers;
+    try {
+      final teachers = await UserService.fetchAllTeachers();
+      if (mounted) {
+        setState(() {
+          _allTeachers = teachers;
+          _currentPage = 0;
+        });
+      }
+      return teachers;
+    } catch (e) {
+      debugPrint('Error loading teachers: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load teachers: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        setState(() {
+          _allTeachers = [];
+        });
+      }
+      return [];
+    }
   }
 
   List<Teacher> _getPaginatedTeachers() {

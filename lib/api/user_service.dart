@@ -241,56 +241,129 @@ class UserService {
     final supabase = Supabase.instance.client;
     try {
       // Fetch teachers directly from Supabase to ensure we get is_approved field
+      // Use a simpler approach - fetch all fields and handle username separately if needed
       final response = await supabase
           .from('teachers')
-          .select('id, teacher_name, teacher_position, teacher_email, profile_picture, is_approved, created_at, updated_at')
+          .select('*')
           .order('created_at', ascending: false);
 
-      // Fetch usernames for all teachers in parallel
+      if (response.isEmpty) {
+        debugPrint('No teachers found in database');
+        return [];
+      }
+
+      // Convert to Teacher objects
       final teachersList = <Teacher>[];
-      for (final json in response) {
-        final data = Map<String, dynamic>.from(json);
-        // Try to get username from users table
+      
+      // Fetch usernames individually (more reliable)
+      // Note: Batch fetching with .in_() may not be available in all Supabase versions
+      Map<String, String> usernameMap = {};
+      
+      // Try to fetch usernames in parallel for better performance
+      final userIds = response.map((json) => json['id']?.toString()).whereType<String>().toSet().toList();
+      
+      if (userIds.isNotEmpty && userIds.length <= 50) { // Limit to avoid too many queries
         try {
-          final userData = await supabase
-              .from('users')
-              .select('username')
-              .eq('id', data['id'])
-              .maybeSingle();
-          if (userData != null) {
-            data['username'] = userData['username'];
+          // Fetch usernames in parallel
+          final futures = userIds.map((userId) async {
+            try {
+              final userData = await supabase
+                  .from('users')
+                  .select('id, username')
+                  .eq('id', userId)
+                  .maybeSingle();
+              if (userData != null && userData['username'] != null) {
+                return MapEntry(userId, userData['username'].toString());
+              }
+            } catch (e) {
+              debugPrint('Could not fetch username for user $userId: $e');
+            }
+            return null;
+          });
+          
+          final results = await Future.wait(futures);
+          for (final entry in results) {
+            if (entry != null) {
+              usernameMap[entry.key] = entry.value;
+            }
           }
         } catch (e) {
-          debugPrint('Could not fetch username for teacher ${data['id']}: $e');
+          debugPrint('Could not fetch usernames: $e');
+          // Continue without usernames - they're optional
         }
-        teachersList.add(Teacher.fromJson(data));
       }
       
+      for (final json in response) {
+        try {
+          final data = Map<String, dynamic>.from(json);
+          
+          // Add username if available
+          final userId = data['id']?.toString();
+          if (userId != null && usernameMap.containsKey(userId)) {
+            data['username'] = usernameMap[userId];
+          }
+          
+          // Ensure is_approved defaults to false if null
+          if (data['is_approved'] == null) {
+            data['is_approved'] = false;
+          }
+          
+          // Handle teacher_id field if id is not present
+          if (data['id'] == null && data['teacher_id'] != null) {
+            data['id'] = data['teacher_id'];
+          }
+          
+          teachersList.add(Teacher.fromJson(data));
+        } catch (e, stackTrace) {
+          debugPrint('Error parsing teacher data: $e');
+          debugPrint('Stack trace: $stackTrace');
+          debugPrint('Problematic JSON: $json');
+          // Skip this teacher and continue with others
+          continue;
+        }
+      }
+      
+      debugPrint('✅ Successfully fetched ${teachersList.length} teachers');
       return teachersList;
     } catch (e) {
-      debugPrint('Error fetching teachers from Supabase: $e');
+      debugPrint('❌ Error fetching teachers from Supabase: $e');
       // Fallback to HTTP API if Supabase fails
       try {
+        debugPrint('Attempting HTTP API fallback...');
         final prefs = await SharedPreferences.getInstance();
         final token = prefs.getString('token');
-        if (token == null) throw Exception('No auth token found');
+        if (token == null) {
+          debugPrint('No auth token found for HTTP fallback');
+          throw Exception('No auth token found');
+        }
 
+        final baseUrl = await _getBaseUrl();
+        final url = Uri.parse('$baseUrl/teachers/');
+        debugPrint('Fetching from: $url');
+        
         final response = await http.get(
-          Uri.parse('${await _getBaseUrl()}/teachers/'),
+          url,
           headers: _authHeaders(token),
         );
 
+        debugPrint('HTTP Response status: ${response.statusCode}');
+        
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
-          return (data['teachers'] as List)
+          final teachers = (data['teachers'] as List? ?? data as List)
               .map((json) => Teacher.fromJson(Map<String, dynamic>.from(json)))
               .toList();
+          debugPrint('✅ Successfully fetched ${teachers.length} teachers from HTTP API');
+          return teachers;
         } else {
-          throw Exception('Failed to load teachers');
+          debugPrint('HTTP API returned error: ${response.statusCode} - ${response.body}');
+          throw Exception('Failed to load teachers: HTTP ${response.statusCode}');
         }
       } catch (fallbackError) {
-        debugPrint('Error in fallback HTTP fetch: $fallbackError');
-        throw Exception('Failed to load teachers: $e');
+        debugPrint('❌ Error in fallback HTTP fetch: $fallbackError');
+        // Return empty list instead of throwing to prevent UI crash
+        debugPrint('Returning empty teacher list');
+        return [];
       }
     }
   }

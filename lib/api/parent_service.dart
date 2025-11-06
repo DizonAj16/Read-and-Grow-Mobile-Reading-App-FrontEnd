@@ -63,15 +63,52 @@ class ParentService {
           readingLevel = levelResp?['title'] ?? 'Unknown';
         }
 
-        // Step 5: Task progress
+        // Step 5: Get all tasks assigned to student's classes
+        // First, get all classes the student is enrolled in
+        final enrollments = await supabase
+            .from('student_enrollments')
+            .select('class_room_id')
+            .eq('student_id', studentId);
+        
+        final classIds = enrollments.map((e) => e['class_room_id'] as String).toList();
+        
+        // Get all assignments for these classes
+        int totalAssignedTasks = 0;
+        if (classIds.isNotEmpty) {
+          final assignments = await supabase
+              .from('assignments')
+              .select('task_id')
+              .inFilter('class_room_id', classIds);
+          
+          // Count unique tasks (assignments can have the same task_id)
+          totalAssignedTasks = assignments
+              .map((a) => a['task_id'] as String?)
+              .whereType<String>()
+              .toSet()
+              .length;
+        }
+        
+        // Step 6: Get task progress - count based on completed and pending
         final taskProgress = await supabase
             .from('student_task_progress')
-            .select('score, max_score, completed')
+            .select('task_id, score, max_score, completed')
             .eq('student_id', studentId);
 
-        int totalTasks = taskProgress.length;
-        int completedTasks =
-            taskProgress.where((t) => t['completed'] == true).length;
+        // Count completed tasks (completed == true)
+        int completedTasks = taskProgress.where((t) => t['completed'] == true).length;
+        
+        // Count pending tasks (completed == false or null)
+        int pendingTasks = taskProgress.where((t) => 
+          t['completed'] == false || t['completed'] == null
+        ).length;
+        
+        // Total tasks = completed + pending (based on student_task_progress)
+        int totalTasks = completedTasks + pendingTasks;
+        
+        // If no tasks attempted yet, use assigned tasks count as fallback
+        if (totalTasks == 0 && totalAssignedTasks > 0) {
+          totalTasks = totalAssignedTasks;
+        }
 
         double totalScore = 0;
         double totalMax = 0;
@@ -138,29 +175,65 @@ class ParentService {
         readingLevel = levelResp?['title'] ?? 'Not Set';
       }
 
-      // Step 2: Task progress
-      final taskProgress = await supabase
-          .from('student_task_progress')
-          .select('score, max_score, correct_answers, wrong_answers, completed')
-          .eq('student_id', studentId);
+        // Step 2: Get all classes the student is enrolled in
+        final enrollments = await supabase
+            .from('student_enrollments')
+            .select('class_room_id')
+            .eq('student_id', studentId);
+        
+        final classIds = enrollments.map((e) => e['class_room_id'] as String).toList();
+        
+        // Step 3: Get all tasks assigned to student's classes through assignments
+        int totalAssignedTasks = 0;
+        if (classIds.isNotEmpty) {
+          final assignments = await supabase
+              .from('assignments')
+              .select('task_id')
+              .inFilter('class_room_id', classIds);
+          
+          // Count unique tasks (assignments can have the same task_id)
+          totalAssignedTasks = assignments
+              .map((a) => a['task_id'] as String?)
+              .whereType<String>()
+              .toSet()
+              .length;
+        }
+        
+        // Step 4: Task progress - count based on completed and pending
+        final taskProgress = await supabase
+            .from('student_task_progress')
+            .select('task_id, score, max_score, correct_answers, wrong_answers, completed')
+            .eq('student_id', studentId);
 
-      int totalTasks = taskProgress.length;
-      int completedTasks =
-          taskProgress.where((t) => t['completed'] == true).length;
+        // Count completed tasks (completed == true)
+        int completedTasks = taskProgress.where((t) => t['completed'] == true).length;
+        
+        // Count pending tasks (completed == false or null)
+        int pendingTasks = taskProgress.where((t) => 
+          t['completed'] == false || t['completed'] == null
+        ).length;
+        
+        // Total tasks = completed + pending (based on student_task_progress)
+        int totalTasks = completedTasks + pendingTasks;
+        
+        // If no tasks attempted yet, use assigned tasks count as fallback
+        if (totalTasks == 0 && totalAssignedTasks > 0) {
+          totalTasks = totalAssignedTasks;
+        }
 
-      double totalScore = 0;
-      double totalMax = 0;
-      int totalCorrect = 0;
-      int totalWrong = 0;
+        double totalScore = 0;
+        double totalMax = 0;
+        int totalCorrect = 0;
+        int totalWrong = 0;
 
-      for (final t in taskProgress) {
-        totalScore += (t['score'] ?? 0).toDouble();
-        totalMax += (t['max_score'] ?? 0).toDouble();
-        totalCorrect += (t['correct_answers'] ?? 0) as int;
-        totalWrong += (t['wrong_answers'] ?? 0) as int;
-      }
+        for (final t in taskProgress) {
+          totalScore += (t['score'] ?? 0).toDouble();
+          totalMax += (t['max_score'] ?? 0).toDouble();
+          totalCorrect += (t['correct_answers'] ?? 0) as int;
+          totalWrong += (t['wrong_answers'] ?? 0) as int;
+        }
 
-      double averageScore = totalMax > 0 ? (totalScore / totalMax) * 100 : 0;
+        double averageScore = totalMax > 0 ? (totalScore / totalMax) * 100 : 0;
 
       // Step 3: Quiz submissions
       final quizSubmissions = await supabase

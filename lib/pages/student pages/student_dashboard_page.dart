@@ -29,6 +29,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
   // Progress data
   double _averageScore = 0;
   int _completedTasks = 0;
+  int _pendingTasks = 0;
   int _totalCorrect = 0;
   int _totalWrong = 0;
   DateTime? _lastUpdated;
@@ -96,7 +97,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
 
       final response = await supabase
           .from('student_task_progress')
-          .select('score, max_score, correct_answers, wrong_answers, updated_at')
+          .select('score, max_score, correct_answers, wrong_answers, completed, updated_at')
           .eq('student_id', userId)
           .order('updated_at', ascending: false);
 
@@ -109,6 +110,14 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
       DateTime? latest;
 
       List<double> scores = [];
+
+      // Count completed tasks (completed == true)
+      int completedCount = response.where((t) => t['completed'] == true).length;
+      
+      // Count pending tasks (completed == false or null)
+      int pendingCount = response.where((t) => 
+        t['completed'] == false || t['completed'] == null
+      ).length;
 
       for (var row in response) {
         double score = (row['score'] ?? 0).toDouble();
@@ -132,7 +141,8 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
 
       setState(() {
         _averageScore = totalMax > 0 ? totalScore / totalMax : 0;
-        _completedTasks = response.length;
+        _completedTasks = completedCount; // Only count completed tasks
+        _pendingTasks = pendingCount; // Count pending tasks
         _totalCorrect = correct;
         _totalWrong = wrong;
         _lastUpdated = latest;
@@ -359,10 +369,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
           const SizedBox(width: 16),
           StudentDashboardHorizontalCard(
             title: "Pending",
-            value: (_assignedTasks - _completedTasks > 0
-                    ? _assignedTasks - _completedTasks
-                    : 0)
-                .toString(),
+            value: _pendingTasks.toString(),
             gradientColors: [Colors.orangeAccent, Colors.deepOrange],
             icon: Icons.pending_actions,
           ),

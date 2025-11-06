@@ -92,20 +92,24 @@ class Teacher {
             : null,
       );
     } else {
+      // Handle both UUID (string) and integer IDs
+      final idValue = json['id'] ?? json['teacher_id'];
+      final parsedId = idValue is int ? idValue : _parseInt(idValue?.toString());
+      
       return Teacher(
-        id: _parseInt(json['id'] ?? json['teacher_id']),
-        userId: _parseInt(json['id']),
+        id: parsedId,
+        userId: parsedId,
         name: json['teacher_name'] ?? 'Teacher',
         position: json['teacher_position'],
         email: json['teacher_email'],
         username: json['username'],
         profilePicture: json['profile_picture'],
-        isApproved: json['is_approved'] as bool?,
+        isApproved: json['is_approved'] == null ? false : (json['is_approved'] as bool? ?? false),
         createdAt: json['created_at'] != null
-            ? DateTime.tryParse(json['created_at'])
+            ? DateTime.tryParse(json['created_at'].toString())
             : null,
         updatedAt: json['updated_at'] != null
-            ? DateTime.tryParse(json['updated_at'])
+            ? DateTime.tryParse(json['updated_at'].toString())
             : null,
       );
     }
