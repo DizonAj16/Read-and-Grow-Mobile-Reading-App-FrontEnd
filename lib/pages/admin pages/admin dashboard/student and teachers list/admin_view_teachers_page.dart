@@ -328,22 +328,26 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
                                                           },
                                                         ),
                                                         SizedBox(height: 24),
-                                                        Text(
-                                                          teacher.name,
-                                                          style: TextStyle(
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                            fontSize: 28,
-                                                            color:
-                                                                Theme.of(
-                                                                      context,
-                                                                    )
-                                                                    .colorScheme
-                                                                    .primary,
-                                                            letterSpacing: 1.1,
+                                                        Flexible(
+                                                          child: Text(
+                                                            teacher.name,
+                                                            style: TextStyle(
+                                                              fontWeight:
+                                                                  FontWeight.bold,
+                                                              fontSize: 28,
+                                                              color:
+                                                                  Theme.of(
+                                                                        context,
+                                                                      )
+                                                                      .colorScheme
+                                                                      .primary,
+                                                              letterSpacing: 1.1,
+                                                            ),
+                                                            textAlign:
+                                                                TextAlign.center,
+                                                            maxLines: 2,
+                                                            overflow: TextOverflow.ellipsis,
                                                           ),
-                                                          textAlign:
-                                                              TextAlign.center,
                                                         ),
                                                         // Approval status in dialog
                                                         if (teacher.isApproved != null)
@@ -379,16 +383,19 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
                                                                         : Colors.orange,
                                                                   ),
                                                                   const SizedBox(width: 8),
-                                                                  Text(
-                                                                    teacher.isApproved == true
-                                                                        ? 'Approved Teacher'
-                                                                        : 'Pending Approval',
-                                                                    style: TextStyle(
-                                                                      fontSize: 14,
-                                                                      fontWeight: FontWeight.bold,
-                                                                      color: teacher.isApproved == true
-                                                                          ? Colors.green[700]
-                                                                          : Colors.orange[700],
+                                                                  Flexible(
+                                                                    child: Text(
+                                                                      teacher.isApproved == true
+                                                                          ? 'Approved Teacher'
+                                                                          : 'Pending Approval',
+                                                                      style: TextStyle(
+                                                                        fontSize: 14,
+                                                                        fontWeight: FontWeight.bold,
+                                                                        color: teacher.isApproved == true
+                                                                            ? Colors.green[700]
+                                                                            : Colors.orange[700],
+                                                                      ),
+                                                                      overflow: TextOverflow.ellipsis,
                                                                     ),
                                                                   ),
                                                                 ],
@@ -887,15 +894,22 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
                               },
                             ),
                             SizedBox(height: 12),
-                            Text(
-                              teacher.name,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                                color: Theme.of(context).colorScheme.primary,
-                                letterSpacing: 1.1,
+                            Expanded(
+                              flex: 2,
+                              child: Center(
+                                child: Text(
+                                  teacher.name,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                    color: Theme.of(context).colorScheme.primary,
+                                    letterSpacing: 1.1,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                              textAlign: TextAlign.center,
                             ),
                             // Approval status badge
                             if (teacher.isApproved != null)
@@ -931,16 +945,19 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
                                             : Colors.orange,
                                       ),
                                       const SizedBox(width: 4),
-                                      Text(
-                                        teacher.isApproved == true
-                                            ? 'Approved'
-                                            : 'Pending',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                          color: teacher.isApproved == true
-                                              ? Colors.green[700]
-                                              : Colors.orange[700],
+                                      Flexible(
+                                        child: Text(
+                                          teacher.isApproved == true
+                                              ? 'Approved'
+                                              : 'Pending',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: teacher.isApproved == true
+                                                ? Colors.green[700]
+                                                : Colors.orange[700],
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                     ],
@@ -956,12 +973,20 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
                                 fontSize: 13,
                               ),
                             ),
-                            Text(
-                              teacher.email ?? "N/A",
-                              style: TextStyle(
-                                color: Colors.black87,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 15,
+                            Expanded(
+                              flex: 1,
+                              child: Center(
+                                child: Text(
+                                  teacher.email ?? "N/A",
+                                  style: TextStyle(
+                                    color: Colors.black87,
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 15,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                ),
                               ),
                             ),
                           ],
@@ -1061,14 +1086,18 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
             ),
           ),
           SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              color: Colors.black87,
-              fontWeight: FontWeight.w600,
-              fontSize: valueFontSize,
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: Colors.black87,
+                fontWeight: FontWeight.w600,
+                fontSize: valueFontSize,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),

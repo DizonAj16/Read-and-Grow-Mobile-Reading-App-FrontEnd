@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:just_audio/just_audio.dart';
@@ -17,6 +18,8 @@ class _ReadingRecordingsGradingPageState
   List<Map<String, dynamic>> recordings = [];
   Map<String, String> studentNames = {};
   Map<String, Map<String, dynamic>> taskDetails = {};
+  Map<String, Map<String, dynamic>> materialDetails = {};
+  Map<String, String> recordingToMaterialId = {}; // Maps recording_id to material_id
 
   @override
   void initState() {
@@ -28,27 +31,84 @@ class _ReadingRecordingsGradingPageState
     setState(() => isLoading = true);
 
     try {
+      // Clear previous data
+      studentNames.clear();
+      taskDetails.clear();
+      materialDetails.clear();
+      recordingToMaterialId.clear();
+
       final recordingsRes = await supabase
           .from('student_recordings')
           .select('*')
           .eq('needs_grading', true)
           .order('recorded_at', ascending: false);
 
-      setState(() {
-        recordings = List<Map<String, dynamic>>.from(recordingsRes);
-      });
+      final recordingsList = List<Map<String, dynamic>>.from(recordingsRes);
 
-      final studentIds = recordings
+      final studentIds = recordingsList
           .map((r) => r['student_id'])
           .where((id) => id != null)
           .toSet()
           .toList();
 
-      final taskIds = recordings
+      final taskIds = recordingsList
           .map((r) => r['task_id'])
           .where((id) => id != null)
           .toSet()
           .toList();
+
+      // Extract material IDs from recordings with null task_id
+      final materialIds = <String>[];
+      for (var recording in recordingsList) {
+        final taskId = recording['task_id'];
+        final recordingId = recording['id']?.toString();
+        
+        // If task_id is null, try to extract material_id from teacher_comments
+        if (taskId == null && recordingId != null) {
+          final teacherComments = recording['teacher_comments']?.toString();
+          if (teacherComments != null && teacherComments.isNotEmpty) {
+            try {
+              // Try to parse as JSON
+              if (teacherComments.trim().startsWith('{')) {
+                final jsonData = jsonDecode(teacherComments);
+                final materialId = jsonData['material_id']?.toString();
+                if (materialId != null) {
+                  materialIds.add(materialId);
+                  recordingToMaterialId[recordingId] = materialId;
+                }
+              } else {
+                // Try regex extraction as fallback
+                final regex = RegExp(r'"material_id":\s*"([^"]+)"');
+                final match = regex.firstMatch(teacherComments);
+                if (match != null) {
+                  final materialId = match.group(1);
+                  if (materialId != null) {
+                    materialIds.add(materialId);
+                    recordingToMaterialId[recordingId] = materialId;
+                  }
+                }
+              }
+            } catch (e) {
+              debugPrint('Error parsing material_id from comments: $e');
+              // Try extracting from file_url as backup
+              final fileUrl = recording['file_url']?.toString() ?? '';
+              if (fileUrl.isNotEmpty) {
+                // Look for UUID pattern in file_url
+                final uuidRegex = RegExp(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', caseSensitive: false);
+                final matches = uuidRegex.allMatches(fileUrl);
+                for (var match in matches) {
+                  final potentialId = match.group(0);
+                  if (potentialId != null) {
+                    materialIds.add(potentialId);
+                    recordingToMaterialId[recordingId] = potentialId;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
 
       if (studentIds.isNotEmpty) {
         final studentsRes = await supabase
@@ -77,15 +137,42 @@ class _ReadingRecordingsGradingPageState
           }
         }
       }
+
+      // Fetch reading materials for recordings with null task_id
+      final uniqueMaterialIds = materialIds.toSet().toList();
+      if (uniqueMaterialIds.isNotEmpty) {
+        try {
+          final materialsRes = await supabase
+              .from('reading_materials')
+              .select('id, title, description')
+              .inFilter('id', uniqueMaterialIds);
+
+          for (var material in materialsRes) {
+            final mid = material['id']?.toString();
+            if (mid != null) {
+              materialDetails[mid] = Map<String, dynamic>.from(material);
+            }
+          }
+        } catch (e) {
+          debugPrint('Error fetching reading materials: $e');
+        }
+      }
+
+      // Update state after all data is loaded
+      if (mounted) {
+        setState(() {
+          recordings = recordingsList;
+          isLoading = false;
+        });
+      }
     } catch (e) {
       debugPrint('Error loading recordings: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error loading recordings: $e')),
         );
+        setState(() => isLoading = false);
       }
-    } finally {
-      if (mounted) setState(() => isLoading = false);
     }
   }
 
@@ -133,16 +220,36 @@ class _ReadingRecordingsGradingPageState
 
   Widget _buildRecordingCard(Map<String, dynamic> recording) {
     final studentId = recording['student_id']?.toString() ?? '';
-    final taskId = recording['task_id']?.toString() ?? '';
+    final taskId = recording['task_id']?.toString();
+    final recordingId = recording['id']?.toString() ?? '';
     final studentName = studentNames[studentId] ?? 'Unknown Student';
-    final task = taskDetails[taskId];
-    final taskTitle = task?['title']?.toString() ?? 'Unknown Task';
+    
+    // Determine if this is a task or a reading material
+    String taskTitle = 'Unknown Task';
+    Map<String, dynamic>? taskOrMaterial;
+    
+    if (taskId != null && taskId.isNotEmpty) {
+      // This is a task recording
+      final task = taskDetails[taskId];
+      taskTitle = task?['title']?.toString() ?? 'Unknown Task';
+      taskOrMaterial = task;
+    } else {
+      // This is a reading material recording
+      final materialId = recordingToMaterialId[recordingId];
+      if (materialId != null) {
+        final material = materialDetails[materialId];
+        taskTitle = material?['title']?.toString() ?? 'Unknown Reading Material';
+        taskOrMaterial = material;
+      } else {
+        taskTitle = 'Unknown Reading Material';
+      }
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 3,
       child: InkWell(
-        onTap: () => _showGradingDialog(recording, studentName, taskTitle, task),
+        onTap: () => _showGradingDialog(recording, studentName, taskTitle, taskOrMaterial),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),

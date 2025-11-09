@@ -94,13 +94,13 @@ class ParentService {
             .select('task_id, score, max_score, completed')
             .eq('student_id', studentId);
 
-        // Count completed tasks (completed == true)
-        int completedTasks = taskProgress.where((t) => t['completed'] == true).length;
-        
-        // Count pending tasks (completed == false or null)
-        int pendingTasks = taskProgress.where((t) => 
+        // Count completed tasks (completed == false or null means completed)
+        int completedTasks = taskProgress.where((t) => 
           t['completed'] == false || t['completed'] == null
         ).length;
+        
+        // Count pending tasks (completed == true means pending/in progress)
+        int pendingTasks = taskProgress.where((t) => t['completed'] == true).length;
         
         // Total tasks = completed + pending (based on student_task_progress)
         int totalTasks = completedTasks + pendingTasks;
@@ -205,13 +205,13 @@ class ParentService {
             .select('task_id, score, max_score, correct_answers, wrong_answers, completed')
             .eq('student_id', studentId);
 
-        // Count completed tasks (completed == true)
-        int completedTasks = taskProgress.where((t) => t['completed'] == true).length;
-        
-        // Count pending tasks (completed == false or null)
-        int pendingTasks = taskProgress.where((t) => 
+        // Count completed tasks (completed == false or null means completed)
+        int completedTasks = taskProgress.where((t) => 
           t['completed'] == false || t['completed'] == null
         ).length;
+        
+        // Count pending tasks (completed == true means pending/in progress)
+        int pendingTasks = taskProgress.where((t) => t['completed'] == true).length;
         
         // Total tasks = completed + pending (based on student_task_progress)
         int totalTasks = completedTasks + pendingTasks;

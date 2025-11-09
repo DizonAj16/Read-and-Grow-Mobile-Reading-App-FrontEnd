@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/quiz_questions.dart';
@@ -68,7 +69,7 @@ class ApiService {
       final data = jsonDecode(response.body) as List<dynamic>;
       return data.map((e) => Map<String, dynamic>.from(e)).toList();
     } else {
-      print('Error fetching lessons: ${response.body}');
+      debugPrint('Error fetching lessons: ${response.body}');
       return [];
     }
   }
@@ -84,7 +85,7 @@ class ApiService {
     if (response.statusCode == 200) {
       return List<Map<String, dynamic>>.from(jsonDecode(response.body));
     } else {
-      print('Error fetching quizzes: ${response.body}');
+      debugPrint('Error fetching quizzes: ${response.body}');
       return null;
     }
   }
@@ -100,7 +101,7 @@ class ApiService {
     );
 
     if (response.statusCode != 200) {
-      print('Error fetching questions: ${response.body}');
+      debugPrint('Error fetching questions: ${response.body}');
       return null;
     }
 
@@ -488,33 +489,224 @@ class ApiService {
   }
 
   /// Delete a quiz and all its related data
+  /// This includes:
+  /// - Quiz questions and their options/matching pairs
+  /// - Assignments that reference this quiz
+  /// - Student submissions for those assignments
+  /// - Student recordings related to quiz questions
+  /// - The quiz itself
+  /// 
+  /// Returns true if deletion was successful, false otherwise
   static Future<bool> deleteQuiz(String quizId) async {
-    try {
-      // Get all questions for this quiz
-      final questions = await supabase
-          .from('quiz_questions')
-          .select('id')
-          .eq('quiz_id', quizId);
+    // Validate quiz ID
+    if (quizId.isEmpty || quizId.trim().isEmpty) {
+      debugPrint('❌ [DELETE_QUIZ] Invalid quiz ID provided');
+      return false;
+    }
 
-      // Delete related data for each question
-      for (var question in questions) {
-        final questionId = question['id'].toString();
-        // Delete question options
-        await supabase.from('question_options').delete().eq('question_id', questionId);
-        // Delete matching pairs
-        await supabase.from('matching_pairs').delete().eq('question_id', questionId);
+    try {
+      debugPrint('🗑️ [DELETE_QUIZ] Starting deletion of quiz: $quizId');
+
+      // 1. Verify quiz exists before attempting deletion
+      final quizExists = await supabase
+          .from('quizzes')
+          .select('id, title')
+          .eq('id', quizId)
+          .maybeSingle();
+
+      if (quizExists == null) {
+        debugPrint('❌ [DELETE_QUIZ] Quiz not found: $quizId');
+        return false;
       }
 
-      // Delete all questions
-      await supabase.from('quiz_questions').delete().eq('quiz_id', quizId);
+      final quizTitle = quizExists['title']?.toString() ?? 'Unknown Quiz';
+      debugPrint('✅ [DELETE_QUIZ] Quiz found: $quizTitle');
 
-      // Delete the quiz
-      await supabase.from('quizzes').delete().eq('id', quizId);
+      // 2. Get all assignments that reference this quiz
+      List<Map<String, dynamic>> assignments = [];
+      try {
+        assignments = List<Map<String, dynamic>>.from(
+          await supabase
+              .from('assignments')
+              .select('id')
+              .eq('quiz_id', quizId),
+        );
+        debugPrint('📋 [DELETE_QUIZ] Found ${assignments.length} assignments referencing this quiz');
+      } catch (e) {
+        debugPrint('⚠️ [DELETE_QUIZ] Error fetching assignments: $e');
+        // Continue with deletion even if we can't fetch assignments
+      }
 
-      print('✅ Quiz deleted successfully');
-      return true;
-    } catch (e) {
-      print('❌ Failed to delete quiz: $e');
+      // 3. Delete student submissions for those assignments
+      int totalSubmissionsDeleted = 0;
+      for (var assignment in assignments) {
+        final assignmentId = assignment['id']?.toString();
+        if (assignmentId != null && assignmentId.isNotEmpty) {
+          try {
+            // Delete student submissions
+            await supabase
+                .from('student_submissions')
+                .delete()
+                .eq('assignment_id', assignmentId);
+            
+            debugPrint('✅ [DELETE_QUIZ] Deleted student submissions for assignment $assignmentId');
+            totalSubmissionsDeleted++;
+          } catch (e) {
+            debugPrint('⚠️ [DELETE_QUIZ] Error deleting submissions for assignment $assignmentId: $e');
+            // Continue with deletion even if submissions deletion fails
+          }
+        }
+      }
+      
+      if (totalSubmissionsDeleted > 0) {
+        debugPrint('📊 [DELETE_QUIZ] Processed $totalSubmissionsDeleted assignments with submissions');
+      }
+
+      // 4. Delete assignments that reference this quiz
+      if (assignments.isNotEmpty) {
+        try {
+          final deleteResult = await supabase
+              .from('assignments')
+              .delete()
+              .eq('quiz_id', quizId)
+              .select();
+          
+          final deletedCount = (deleteResult as List).length;
+          debugPrint('✅ [DELETE_QUIZ] Deleted $deletedCount assignments');
+        } catch (e) {
+          debugPrint('⚠️ [DELETE_QUIZ] Error deleting assignments: $e');
+          // This is important but not critical - continue with question deletion
+        }
+      }
+
+      // 5. Get all questions for this quiz
+      List<Map<String, dynamic>> questions = [];
+      try {
+        questions = List<Map<String, dynamic>>.from(
+          await supabase
+              .from('quiz_questions')
+              .select('id')
+              .eq('quiz_id', quizId),
+        );
+        debugPrint('❓ [DELETE_QUIZ] Found ${questions.length} questions to delete');
+      } catch (e) {
+        debugPrint('⚠️ [DELETE_QUIZ] Error fetching questions: $e');
+        // Continue - we'll try to delete quiz anyway
+      }
+
+      // 6. Collect question IDs and delete related data for each question
+      final questionIds = <String>[];
+      int optionsDeleted = 0;
+      int pairsDeleted = 0;
+
+      for (var question in questions) {
+        final questionId = question['id']?.toString();
+        if (questionId != null && questionId.isNotEmpty) {
+          questionIds.add(questionId);
+          
+          try {
+            // Delete question options
+            await supabase
+                .from('question_options')
+                .delete()
+                .eq('question_id', questionId);
+            optionsDeleted++;
+            
+            // Delete matching pairs
+            await supabase
+                .from('matching_pairs')
+                .delete()
+                .eq('question_id', questionId);
+            pairsDeleted++;
+            
+            debugPrint('✅ [DELETE_QUIZ] Deleted options and pairs for question $questionId');
+          } catch (e) {
+            debugPrint('⚠️ [DELETE_QUIZ] Error deleting question data for $questionId: $e');
+            // Continue with deletion even if question data deletion fails
+          }
+        }
+      }
+
+      debugPrint('📊 [DELETE_QUIZ] Deleted $optionsDeleted question options and $pairsDeleted matching pairs');
+
+      // 7. Delete student recordings related to quiz questions (before deleting questions)
+      // This must happen before deleting questions to avoid foreign key constraint issues
+      if (questionIds.isNotEmpty) {
+        try {
+          int recordingsDeleted = 0;
+          for (var questionId in questionIds) {
+            try {
+              await supabase
+                  .from('student_recordings')
+                  .delete()
+                  .eq('quiz_question_id', questionId);
+              recordingsDeleted++;
+            } catch (e) {
+              debugPrint('⚠️ [DELETE_QUIZ] Error deleting recordings for question $questionId: $e');
+              // Continue with other questions
+            }
+          }
+          if (recordingsDeleted > 0) {
+            debugPrint('✅ [DELETE_QUIZ] Cleaned up $recordingsDeleted student recordings');
+          }
+        } catch (e) {
+          debugPrint('⚠️ [DELETE_QUIZ] Error deleting student recordings: $e');
+          // Continue with deletion even if recordings deletion fails
+        }
+      }
+
+      // 8. Delete all questions (CRITICAL STEP - must succeed)
+      if (questions.isNotEmpty) {
+        try {
+          final deleteResult = await supabase
+              .from('quiz_questions')
+              .delete()
+              .eq('quiz_id', quizId)
+              .select();
+          
+          final deletedCount = (deleteResult as List).length;
+          debugPrint('✅ [DELETE_QUIZ] Deleted $deletedCount questions');
+        } catch (e) {
+          debugPrint('❌ [DELETE_QUIZ] Error deleting questions: $e');
+          return false; // Critical failure
+        }
+      }
+
+      // 9. Delete the quiz itself (CRITICAL - must succeed)
+      try {
+        final deleteResult = await supabase
+            .from('quizzes')
+            .delete()
+            .eq('id', quizId)
+            .select();
+
+        // Verify deletion was successful
+        final deletedList = deleteResult as List;
+        if (deletedList.isEmpty) {
+          debugPrint('⚠️ [DELETE_QUIZ] Quiz deletion returned no rows');
+          // Verify quiz is actually deleted
+          final verifyDeleted = await supabase
+              .from('quizzes')
+              .select('id')
+              .eq('id', quizId)
+              .maybeSingle();
+          
+          if (verifyDeleted != null) {
+            debugPrint('❌ [DELETE_QUIZ] Quiz still exists after deletion attempt');
+            return false;
+          }
+        }
+
+        debugPrint('✅ [DELETE_QUIZ] Quiz "$quizTitle" deleted successfully');
+        debugPrint('📊 [DELETE_QUIZ] Deletion completed: ${assignments.length} assignments, ${questions.length} questions');
+        return true;
+      } catch (e) {
+        debugPrint('❌ [DELETE_QUIZ] Error deleting quiz: $e');
+        return false;
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ [DELETE_QUIZ] Failed to delete quiz: $e');
+      debugPrint('❌ [DELETE_QUIZ] Stack trace: $stackTrace');
       return false;
     }
   }
@@ -548,7 +740,7 @@ class ApiService {
         'questions': questions,
       };
     } catch (e) {
-      print('❌ Failed to fetch quiz: $e');
+        debugPrint('❌ Failed to fetch quiz: $e');
       return null;
     }
   }
@@ -582,7 +774,7 @@ class ApiService {
     if (response.statusCode == 201) {
       return jsonDecode(response.body)[0];
     } else {
-      print('Error adding lesson: ${response.body}');
+      debugPrint('Error adding lesson: ${response.body}');
       return null;
     }
   }

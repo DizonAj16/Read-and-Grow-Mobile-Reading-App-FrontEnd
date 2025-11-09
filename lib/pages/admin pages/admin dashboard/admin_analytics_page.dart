@@ -14,28 +14,28 @@ class AdminAnalyticsPage extends StatefulWidget {
 class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
   final supabase = Supabase.instance.client;
   bool _isLoading = true;
-  
+
   // App Usage Statistics
   int _totalStudents = 0;
   int _totalTeachers = 0;
   int _totalClasses = 0;
   int _activeStudents = 0;
   int _activeTeachers = 0;
-  
+
   // Student Performance Statistics
   int _totalTasksCompleted = 0;
   int _totalQuizSubmissions = 0;
   double _averageScore = 0.0;
   double _averageQuizScore = 0.0;
   int _totalRecordings = 0;
-  
+
   // Performance Trends
   List<Map<String, dynamic>> _dailyActivity = [];
   List<Map<String, dynamic>> _scoreDistribution = [];
-  
+
   // Reading Level Distribution
   Map<String, int> _readingLevelDistribution = {};
-  
+
   @override
   void initState() {
     super.initState();
@@ -44,7 +44,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
 
   Future<void> _loadAnalytics() async {
     setState(() => _isLoading = true);
-    
+
     try {
       await Future.wait([
         _loadAppUsageStats(),
@@ -66,15 +66,15 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
       // Total students
       final students = await supabase.from('students').select('id');
       _totalStudents = students.length;
-      
+
       // Total teachers
       final teachers = await supabase.from('teachers').select('id');
       _totalTeachers = teachers.length;
-      
+
       // Total classes
       final classes = await supabase.from('class_rooms').select('id');
       _totalClasses = classes.length;
-      
+
       // Active students (students who have completed at least one task in the last 30 days)
       final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30));
       final activeStudentsData = await supabase
@@ -82,7 +82,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
           .select('student_id')
           .gte('updated_at', thirtyDaysAgo.toIso8601String());
       _activeStudents = activeStudentsData.map((s) => s['student_id']).toSet().length;
-      
+
       // Active teachers (teachers who have created classes or graded work in last 30 days)
       final activeTeachersData = await supabase
           .from('class_rooms')
@@ -101,7 +101,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
           .from('student_task_progress')
           .select('score, max_score, completed');
       _totalTasksCompleted = tasks.where((t) => t['completed'] == true).length;
-      
+
       // Average score
       double totalScore = 0;
       double totalMax = 0;
@@ -110,7 +110,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
         totalMax += (task['max_score'] ?? 0).toDouble();
       }
       _averageScore = totalMax > 0 ? (totalScore / totalMax) * 100 : 0.0;
-      
+
       // Quiz submissions and average
       final quizzes = await supabase.from('student_submissions').select('score');
       _totalQuizSubmissions = quizzes.length;
@@ -121,13 +121,13 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
         }
         _averageQuizScore = quizTotal / quizzes.length;
       }
-      
+
       // Total recordings
       final recordings = await supabase
           .from('student_recordings')
           .select('id');
       _totalRecordings = recordings.length;
-      
+
       // Score distribution (0-20, 21-40, 41-60, 61-80, 81-100)
       _scoreDistribution = [
         {'range': '0-20', 'count': 0},
@@ -136,7 +136,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
         {'range': '61-80', 'count': 0},
         {'range': '81-100', 'count': 0},
       ];
-      
+
       for (var task in tasks) {
         if (task['max_score'] != null && task['max_score'] > 0) {
           double percentage = ((task['score'] ?? 0) / task['max_score']) * 100;
@@ -166,7 +166,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
           .from('student_task_progress')
           .select('updated_at')
           .gte('updated_at', sevenDaysAgo.toIso8601String());
-      
+
       // Group by date
       Map<String, int> dailyCount = {};
       for (var activity in activities) {
@@ -174,7 +174,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
         final dateKey = DateFormat('yyyy-MM-dd').format(date);
         dailyCount[dateKey] = (dailyCount[dateKey] ?? 0) + 1;
       }
-      
+
       // Fill in missing days
       _dailyActivity = [];
       for (int i = 6; i >= 0; i--) {
@@ -195,11 +195,11 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
       final students = await supabase
           .from('students')
           .select('current_reading_level_id, reading_levels(title)');
-      
+
       _readingLevelDistribution = {};
       for (var student in students) {
         final levelTitle = student['reading_levels']?['title'] ?? 'Not Assigned';
-        _readingLevelDistribution[levelTitle] = 
+        _readingLevelDistribution[levelTitle] =
             (_readingLevelDistribution[levelTitle] ?? 0) + 1;
       }
     } catch (e) {
@@ -243,19 +243,19 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
                   children: [
                     _buildSectionTitle('App Usage Overview'),
                     _buildAppUsageCards(),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
                     _buildSectionTitle('Student Performance'),
                     _buildPerformanceCards(),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
                     _buildSectionTitle('Activity Trends (Last 7 Days)'),
                     _buildActivityChart(),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
                     _buildSectionTitle('Score Distribution'),
                     _buildScoreDistributionChart(),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
                     _buildSectionTitle('Reading Level Distribution'),
                     _buildReadingLevelChart(),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
                   ],
                 ),
               ),
@@ -265,11 +265,11 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
 
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Text(
         title,
         style: TextStyle(
-          fontSize: 20,
+          fontSize: 24,
           fontWeight: FontWeight.bold,
           color: Theme.of(context).colorScheme.primary,
         ),
@@ -282,9 +282,9 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 1.5,
+      mainAxisSpacing: 8,
+      crossAxisSpacing: 8,
+      childAspectRatio: 1.2,
       children: [
         _buildStatCard('Total Students', _totalStudents.toString(), Icons.people, Colors.blue),
         _buildStatCard('Total Teachers', _totalTeachers.toString(), Icons.person, Colors.green),
@@ -298,31 +298,36 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
 
   Widget _buildStatCard(String title, String value, IconData icon, Color color) {
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 32, color: color),
-            const SizedBox(height: 8),
+            Icon(icon, size: 20, color: color),
+            const SizedBox(height: 12),
             Text(
               value,
               style: TextStyle(
-                fontSize: 24,
+                fontSize: 25,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
             Text(
               title,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 14,
                 color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
               ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -335,9 +340,9 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 1.5,
+      mainAxisSpacing: 16,
+      crossAxisSpacing: 16,
+      childAspectRatio: 1.2,
       children: [
         _buildStatCard(
           'Tasks Completed',
@@ -370,18 +375,18 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
   Widget _buildActivityChart() {
     if (_dailyActivity.isEmpty) {
       return Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Padding(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(48),
           child: Center(
             child: Column(
               children: [
-                Icon(Icons.bar_chart, size: 48, color: Colors.grey[400]),
-                const SizedBox(height: 8),
+                Icon(Icons.bar_chart, size: 64, color: Colors.grey[400]),
+                const SizedBox(height: 16),
                 Text(
                   'No activity data available',
-                  style: TextStyle(color: Colors.grey[600]),
+                  style: TextStyle(color: Colors.grey[600], fontSize: 16),
                 ),
               ],
             ),
@@ -394,14 +399,14 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
     final chartMax = maxValue > 0 ? (maxValue.toDouble() + (maxValue * 0.1)).ceilToDouble() : 10.0;
 
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
         child: Column(
           children: [
             SizedBox(
-              height: 200,
+              height: 300,
               child: BarChart(
                 BarChartData(
                   alignment: BarChartAlignment.spaceAround,
@@ -419,7 +424,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
                               padding: const EdgeInsets.only(top: 8),
                               child: Text(
                                 _dailyActivity[index]['date'] as String,
-                                style: const TextStyle(fontSize: 10),
+                                style: const TextStyle(fontSize: 12),
                               ),
                             );
                           }
@@ -430,11 +435,11 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
                     leftTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 40,
+                        reservedSize: 50,
                         getTitlesWidget: (value, meta) {
                           return Text(
                             value.toInt().toString(),
-                            style: const TextStyle(fontSize: 10),
+                            style: const TextStyle(fontSize: 12),
                           );
                         },
                       ),
@@ -455,7 +460,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
                         BarChartRodData(
                           toY: (entry.value['count'] as int).toDouble(),
                           color: Theme.of(context).colorScheme.primary,
-                          width: 16,
+                          width: 20,
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
                         ),
                       ],
@@ -473,18 +478,18 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
   Widget _buildScoreDistributionChart() {
     if (_scoreDistribution.isEmpty || _scoreDistribution.every((d) => d['count'] == 0)) {
       return Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Padding(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(48),
           child: Center(
             child: Column(
               children: [
-                Icon(Icons.assessment, size: 48, color: Colors.grey[400]),
-                const SizedBox(height: 8),
+                Icon(Icons.assessment, size: 64, color: Colors.grey[400]),
+                const SizedBox(height: 16),
                 Text(
                   'No score data available',
-                  style: TextStyle(color: Colors.grey[600]),
+                  style: TextStyle(color: Colors.grey[600], fontSize: 16),
                 ),
               ],
             ),
@@ -497,14 +502,14 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
     final chartMax = maxValue > 0 ? (maxValue.toDouble() + (maxValue * 0.1)).ceilToDouble() : 10.0;
 
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
         child: Column(
           children: [
             SizedBox(
-              height: 200,
+              height: 300,
               child: BarChart(
                 BarChartData(
                   alignment: BarChartAlignment.spaceAround,
@@ -522,7 +527,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
                               padding: const EdgeInsets.only(top: 8),
                               child: Text(
                                 _scoreDistribution[index]['range'] as String,
-                                style: const TextStyle(fontSize: 10),
+                                style: const TextStyle(fontSize: 12),
                               ),
                             );
                           }
@@ -533,11 +538,11 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
                     leftTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 40,
+                        reservedSize: 50,
                         getTitlesWidget: (value, meta) {
                           return Text(
                             value.toInt().toString(),
-                            style: const TextStyle(fontSize: 10),
+                            style: const TextStyle(fontSize: 12),
                           );
                         },
                       ),
@@ -558,7 +563,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
                         BarChartRodData(
                           toY: (entry.value['count'] as int).toDouble(),
                           color: _getScoreColor(entry.key),
-                          width: 16,
+                          width: 20,
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
                         ),
                       ],
@@ -583,18 +588,18 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
   Widget _buildReadingLevelChart() {
     if (_readingLevelDistribution.isEmpty) {
       return Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Padding(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(48),
           child: Center(
             child: Column(
               children: [
-                Icon(Icons.menu_book, size: 48, color: Colors.grey[400]),
-                const SizedBox(height: 8),
+                Icon(Icons.menu_book, size: 64, color: Colors.grey[400]),
+                const SizedBox(height: 16),
                 Text(
                   'No reading level data available',
-                  style: TextStyle(color: Colors.grey[600]),
+                  style: TextStyle(color: Colors.grey[600], fontSize: 16),
                 ),
               ],
             ),
@@ -608,14 +613,14 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
     final chartMax = maxValue > 0 ? (maxValue.toDouble() + (maxValue * 0.1)).ceilToDouble() : 10.0;
 
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
         child: Column(
           children: [
             SizedBox(
-              height: 200,
+              height: 300,
               child: BarChart(
                 BarChartData(
                   alignment: BarChartAlignment.spaceAround,
@@ -626,7 +631,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 80,
+                        reservedSize: 100,
                         getTitlesWidget: (value, meta) {
                           final index = value.toInt();
                           if (index >= 0 && index < entries.length) {
@@ -634,7 +639,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
                               padding: const EdgeInsets.only(top: 8),
                               child: Text(
                                 entries[index].key,
-                                style: const TextStyle(fontSize: 10),
+                                style: const TextStyle(fontSize: 12),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -647,11 +652,11 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
                     leftTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 40,
+                        reservedSize: 50,
                         getTitlesWidget: (value, meta) {
                           return Text(
                             value.toInt().toString(),
-                            style: const TextStyle(fontSize: 10),
+                            style: const TextStyle(fontSize: 12),
                           );
                         },
                       ),
@@ -672,7 +677,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
                         BarChartRodData(
                           toY: entry.value.value.toDouble(),
                           color: Theme.of(context).colorScheme.secondary,
-                          width: 16,
+                          width: 20,
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
                         ),
                       ],
@@ -684,9 +689,14 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
             const SizedBox(height: 16),
             Wrap(
               spacing: 16,
+              runSpacing: 8,
               children: entries.map((entry) {
                 return Chip(
-                  label: Text('${entry.key}: ${entry.value}'),
+                  label: Text(
+                    '${entry.key}: ${entry.value}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   backgroundColor: Theme.of(context).colorScheme.secondary.withOpacity(0.2),
                 );
               }).toList(),

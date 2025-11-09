@@ -11,11 +11,12 @@ class AdminDashboardPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
             SizedBox(height: 20),
             // Button to view the list of teachers
             ElevatedButton.icon(
@@ -99,7 +100,8 @@ class AdminDashboardPage extends StatelessWidget {
                 );
               },
             ),
-          ],
+            ],
+          ),
         ),
       ),
       // Floating action button to open the create teacher or student dialog

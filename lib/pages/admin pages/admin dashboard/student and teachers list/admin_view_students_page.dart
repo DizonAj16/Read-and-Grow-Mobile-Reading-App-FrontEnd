@@ -324,22 +324,26 @@ class _AdminViewStudentsPageState extends State<AdminViewStudentsPage> {
                                                           },
                                                         ),
                                                         SizedBox(height: 24),
-                                                        Text(
-                                                          student.studentName,
-                                                          style: TextStyle(
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                            fontSize: 28,
-                                                            color:
-                                                                Theme.of(
-                                                                      context,
-                                                                    )
-                                                                    .colorScheme
-                                                                    .primary,
-                                                            letterSpacing: 1.1,
+                                                        Flexible(
+                                                          child: Text(
+                                                            student.studentName,
+                                                            style: TextStyle(
+                                                              fontWeight:
+                                                                  FontWeight.bold,
+                                                              fontSize: 28,
+                                                              color:
+                                                                  Theme.of(
+                                                                        context,
+                                                                      )
+                                                                      .colorScheme
+                                                                      .primary,
+                                                              letterSpacing: 1.1,
+                                                            ),
+                                                            textAlign:
+                                                                TextAlign.center,
+                                                            maxLines: 2,
+                                                            overflow: TextOverflow.ellipsis,
                                                           ),
-                                                          textAlign:
-                                                              TextAlign.center,
                                                         ),
                                                         Divider(
                                                           color: Theme.of(
@@ -813,15 +817,22 @@ class _AdminViewStudentsPageState extends State<AdminViewStudentsPage> {
                             ),
                             SizedBox(height: 12),
                             // Name
-                            Text(
-                              student.studentName,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                                color: Theme.of(context).colorScheme.primary,
-                                letterSpacing: 1.1,
+                            Expanded(
+                              flex: 2,
+                              child: Center(
+                                child: Text(
+                                  student.studentName,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                    color: Theme.of(context).colorScheme.primary,
+                                    letterSpacing: 1.1,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                              textAlign: TextAlign.center,
                             ),
                             // LRN only
                             SizedBox(height: 10),
@@ -833,12 +844,20 @@ class _AdminViewStudentsPageState extends State<AdminViewStudentsPage> {
                                 fontSize: 13,
                               ),
                             ),
-                            Text(
-                              student.studentLrn ?? "N/A",
-                              style: TextStyle(
-                                color: Colors.black87,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 15,
+                            Expanded(
+                              flex: 1,
+                              child: Center(
+                                child: Text(
+                                  student.studentLrn ?? "N/A",
+                                  style: TextStyle(
+                                    color: Colors.black87,
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 15,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                ),
                               ),
                             ),
                           ],
@@ -940,14 +959,18 @@ class _AdminViewStudentsPageState extends State<AdminViewStudentsPage> {
             ),
           ),
           SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              color: Colors.black87,
-              fontWeight: FontWeight.w600,
-              fontSize: valueFontSize,
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: Colors.black87,
+                fontWeight: FontWeight.w600,
+                fontSize: valueFontSize,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),

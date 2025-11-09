@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:deped_reading_app_laravel/api/task_service.dart';
 import 'package:deped_reading_app_laravel/api/supabase_api_service.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/add_quiz_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class TasksPage extends StatefulWidget {
   final String classId;
@@ -15,11 +17,115 @@ class TasksPage extends StatefulWidget {
 
 class _TasksPageState extends State<TasksPage> {
   late Future<List<Map<String, dynamic>>> _tasksFuture;
+  final supabase = Supabase.instance.client;
+  RealtimeChannel? _quizChannel;
+  RealtimeChannel? _assignmentChannel;
 
   @override
   void initState() {
     super.initState();
     _tasksFuture = TaskService.fetchTasksForClass(widget.classId);
+    _setupRealtimeSubscription();
+  }
+
+  @override
+  void dispose() {
+    _quizChannel?.unsubscribe();
+    _assignmentChannel?.unsubscribe();
+    super.dispose();
+  }
+
+  void _setupRealtimeSubscription() {
+    try {
+      // Subscribe to quiz deletions for real-time updates
+      _quizChannel = supabase
+          .channel('quizzes_changes_${widget.classId}_${DateTime.now().millisecondsSinceEpoch}')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.delete,
+            schema: 'public',
+            table: 'quizzes',
+            callback: (payload) {
+              debugPrint('📡 [REALTIME] Quiz deleted: ${payload.oldRecord}');
+              // Refresh tasks to reflect the deletion
+              if (mounted) {
+                _refreshTasks();
+              }
+            },
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: 'quizzes',
+            callback: (payload) {
+              debugPrint('📡 [REALTIME] Quiz added: ${payload.newRecord}');
+              // Refresh tasks to show the new quiz
+              if (mounted) {
+                _refreshTasks();
+              }
+            },
+          )
+          .subscribe((status, [error]) {
+            if (status == RealtimeSubscribeStatus.subscribed) {
+              debugPrint('✅ [REALTIME] Subscribed to quiz changes for class ${widget.classId}');
+            } else {
+              debugPrint('⚠️ [REALTIME] Quiz subscription status: $status');
+              if (error != null) {
+                debugPrint('❌ [REALTIME] Quiz subscription error: $error');
+              }
+            }
+          });
+
+      // Subscribe to assignment changes for real-time updates
+      _assignmentChannel = supabase
+          .channel('assignments_changes_${widget.classId}_${DateTime.now().millisecondsSinceEpoch}')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.delete,
+            schema: 'public',
+            table: 'assignments',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'class_room_id',
+              value: widget.classId,
+            ),
+            callback: (payload) {
+              debugPrint('📡 [REALTIME] Assignment deleted: ${payload.oldRecord}');
+              // Refresh tasks to reflect the deletion
+              if (mounted) {
+                _refreshTasks();
+              }
+            },
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: 'assignments',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'class_room_id',
+              value: widget.classId,
+            ),
+            callback: (payload) {
+              debugPrint('📡 [REALTIME] Assignment added: ${payload.newRecord}');
+              // Refresh tasks to show the new assignment
+              if (mounted) {
+                _refreshTasks();
+              }
+            },
+          )
+          .subscribe((status, [error]) {
+            if (status == RealtimeSubscribeStatus.subscribed) {
+              debugPrint('✅ [REALTIME] Subscribed to assignment changes for class ${widget.classId}');
+            } else {
+              debugPrint('⚠️ [REALTIME] Assignment subscription status: $status');
+              if (error != null) {
+                debugPrint('❌ [REALTIME] Assignment subscription error: $error');
+              }
+            }
+          });
+    } catch (e) {
+      debugPrint('⚠️ [REALTIME] Error setting up subscriptions: $e');
+      // Continue without real-time - manual refresh will still work
+    }
   }
 
   Future<void> _refreshTasks() async {
@@ -311,7 +417,15 @@ class _TasksPageState extends State<TasksPage> {
     );
 
     try {
-      final success = await ApiService.deleteQuiz(quizId);
+      // Add timeout to prevent hanging
+      final success = await ApiService.deleteQuiz(quizId)
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              debugPrint('⏱️ [DELETE_QUIZ] Deletion timeout after 30 seconds');
+              return false;
+            },
+          );
       
       if (mounted && Navigator.of(context).canPop()) {
         Navigator.of(context).pop(); // Close loading dialog
@@ -325,13 +439,16 @@ class _TasksPageState extends State<TasksPage> {
                 children: [
                   Icon(Icons.check_circle, color: Colors.white),
                   SizedBox(width: 8),
-                  Text('Quiz deleted successfully'),
+                  Expanded(
+                    child: Text('Quiz deleted successfully'),
+                  ),
                 ],
               ),
               backgroundColor: Colors.green,
               duration: Duration(seconds: 3),
             ),
           );
+          // Real-time subscription will update automatically, but refresh to ensure consistency
           _refreshTasks();
         }
       } else {
@@ -342,20 +459,51 @@ class _TasksPageState extends State<TasksPage> {
                 children: [
                   Icon(Icons.error, color: Colors.white),
                   SizedBox(width: 8),
-                  Text('Failed to delete quiz. Please try again.'),
+                  Expanded(
+                    child: Text('Failed to delete quiz. The quiz may not exist or you may not have permission.'),
+                  ),
                 ],
               ),
               backgroundColor: Colors.red,
-              duration: Duration(seconds: 3),
+              duration: Duration(seconds: 4),
             ),
           );
+          // Refresh to sync state
+          _refreshTasks();
         }
+      }
+    } on TimeoutException {
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(); // Close loading dialog
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.timer_off, color: Colors.white),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text('Deletion timed out. Please check your connection and try again.'),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 5),
+          ),
+        );
+        // Refresh to check actual state
+        _refreshTasks();
       }
     } catch (e) {
       if (mounted && Navigator.of(context).canPop()) {
         Navigator.of(context).pop(); // Close loading dialog
       }
       if (mounted) {
+        final errorMessage = e.toString().contains('network') || e.toString().contains('connection')
+            ? 'Network error. Please check your internet connection and try again.'
+            : 'Error deleting quiz: ${e.toString()}';
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -363,14 +511,23 @@ class _TasksPageState extends State<TasksPage> {
                 const Icon(Icons.error, color: Colors.white),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text('Error deleting quiz: ${e.toString()}'),
+                  child: Text(errorMessage),
                 ),
               ],
             ),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () {
+                _deleteQuiz(quizId, quizTitle);
+              },
+            ),
           ),
         );
+        // Refresh to sync state
+        _refreshTasks();
       }
     }
   }

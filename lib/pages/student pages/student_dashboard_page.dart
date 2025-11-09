@@ -111,13 +111,13 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
 
       List<double> scores = [];
 
-      // Count completed tasks (completed == true)
-      int completedCount = response.where((t) => t['completed'] == true).length;
-      
-      // Count pending tasks (completed == false or null)
-      int pendingCount = response.where((t) => 
+      // Count completed tasks (completed == false or null means completed)
+      int completedCount = response.where((t) => 
         t['completed'] == false || t['completed'] == null
       ).length;
+      
+      // Count pending tasks (completed == true means pending/in progress)
+      int pendingCount = response.where((t) => t['completed'] == true).length;
 
       for (var row in response) {
         double score = (row['score'] ?? 0).toDouble();

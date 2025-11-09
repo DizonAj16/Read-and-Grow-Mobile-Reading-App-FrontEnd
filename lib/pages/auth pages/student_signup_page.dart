@@ -518,18 +518,12 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
         children: [
           _buildBackground(context),
           SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: MediaQuery.of(context).size.height,
-              ),
-              child: IntrinsicHeight(
-                child: Column(
-                  children: [
-                    _buildHeader(context),
-                    Expanded(child: _buildSignUpForm(context)),
-                  ],
-                ),
-              ),
+            padding: const EdgeInsets.only(bottom: 20),
+            child: Column(
+              children: [
+                _buildHeader(context),
+                _buildSignUpForm(context),
+              ],
             ),
           ),
         ],
