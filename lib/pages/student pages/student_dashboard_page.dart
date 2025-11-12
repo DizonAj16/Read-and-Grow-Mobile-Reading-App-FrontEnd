@@ -95,13 +95,124 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
 
+      // Get student.id from students table
+      final studentRow = await supabase
+          .from('students')
+          .select('id')
+          .eq('id', userId)
+          .maybeSingle();
+
+      if (studentRow == null) return;
+      final String studentId = studentRow['id'] as String;
+
+      // Get all classes the student is enrolled in
+      final enrollments = await supabase
+          .from('student_enrollments')
+          .select('class_room_id')
+          .eq('student_id', studentId);
+
+      final classIds = (enrollments as List)
+          .map((e) => e['class_room_id'] as String)
+          .toList();
+
+      // Get all assignments for these classes
+      List<String> assignedTaskIds = [];
+      List<String> assignedQuizIds = [];
+      if (classIds.isNotEmpty) {
+        final assignments = await supabase
+            .from('assignments')
+            .select('task_id, quiz_id, tasks(id, quizzes(id))')
+            .inFilter('class_room_id', classIds);
+        
+        // Also get quizzes directly linked via quiz_id in assignments
+        final directQuizAssignments = await supabase
+            .from('assignments')
+            .select('quiz_id')
+            .inFilter('class_room_id', classIds)
+            .not('quiz_id', 'is', null);
+
+        for (var assignment in assignments) {
+          // Handle task_id assignments
+          final taskId = assignment['task_id'] as String?;
+          if (taskId != null) {
+            assignedTaskIds.add(taskId);
+            
+            // Get quizzes linked to this task
+            final task = assignment['tasks'] as Map<String, dynamic>?;
+            if (task != null) {
+              final quizzes = task['quizzes'] as List?;
+              if (quizzes != null) {
+                for (var quiz in quizzes) {
+                  final quizId = quiz['id'] as String?;
+                  if (quizId != null && !assignedQuizIds.contains(quizId)) {
+                    assignedQuizIds.add(quizId);
+                  }
+                }
+              }
+            }
+          }
+          
+          // Handle quiz_id assignments (quizzes directly linked to assignment)
+          final directQuizId = assignment['quiz_id'] as String?;
+          if (directQuizId != null && !assignedQuizIds.contains(directQuizId)) {
+            assignedQuizIds.add(directQuizId);
+          }
+        }
+        
+        // Add quizzes from direct quiz_id assignments
+        for (var assignment in directQuizAssignments) {
+          final quizId = assignment['quiz_id'] as String?;
+          if (quizId != null && !assignedQuizIds.contains(quizId)) {
+            assignedQuizIds.add(quizId);
+          }
+        }
+      }
+
+      // Get existing progress records
       final response = await supabase
           .from('student_task_progress')
-          .select('score, max_score, correct_answers, wrong_answers, completed, updated_at')
+          .select('task_id, score, max_score, correct_answers, wrong_answers, completed, updated_at')
           .eq('student_id', userId)
           .order('updated_at', ascending: false);
 
-      if (response.isEmpty) return;
+      // Handle case where there's no progress data yet
+      if (response.isEmpty && assignedTaskIds.isEmpty && assignedQuizIds.isEmpty) {
+        setState(() {
+          _averageScore = 0;
+          _completedTasks = 0;
+          _pendingTasks = 0;
+          _totalCorrect = 0;
+          _totalWrong = 0;
+          _lastUpdated = null;
+          _recentScores = [];
+        });
+        return;
+      }
+
+      // Get quiz submissions to check which quizzes are completed
+      final quizSubmissions = await supabase
+          .from('student_submissions')
+          .select('assignment_id, assignments(id, task_id, tasks(id, quizzes(id)))')
+          .eq('student_id', userId);
+
+      Set<String> completedQuizIds = {};
+      for (var submission in quizSubmissions) {
+        final assignment = submission['assignments'] as Map<String, dynamic>?;
+        if (assignment != null) {
+          final task = assignment['tasks'] as Map<String, dynamic>?;
+          if (task != null) {
+            final quizzes = task['quizzes'] as List?;
+            if (quizzes != null) {
+              for (var quiz in quizzes) {
+                final quizId = quiz['id'] as String?;
+                if (quizId != null) {
+                  completedQuizIds.add(quizId);
+                }
+              }
+            }
+          }
+        }
+      }
 
       double totalScore = 0;
       double totalMax = 0;
@@ -110,16 +221,14 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
       DateTime? latest;
 
       List<double> scores = [];
+      Set<String> completedTaskIds = {};
+      Set<String> pendingTaskIds = {};
 
-      // Count completed tasks (completed == false or null means completed)
-      int completedCount = response.where((t) => 
-        t['completed'] == false || t['completed'] == null
-      ).length;
-      
-      // Count pending tasks (completed == true means pending/in progress)
-      int pendingCount = response.where((t) => t['completed'] == true).length;
-
+      // Process existing progress records
       for (var row in response) {
+        final taskId = row['task_id'] as String?;
+        if (taskId == null) continue;
+
         double score = (row['score'] ?? 0).toDouble();
         double maxScore = (row['max_score'] ?? 0).toDouble();
 
@@ -135,14 +244,41 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
 
         // collect last 5 normalized scores
         if (maxScore > 0) scores.add(score / maxScore);
+
+        // Track completed vs pending tasks
+        if (row['completed'] == false || row['completed'] == null) {
+          completedTaskIds.add(taskId);
+        } else {
+          pendingTaskIds.add(taskId);
+        }
       }
+
+      // Count newly assigned tasks/quizzes that haven't been started yet
+      int newPendingTasks = 0;
+      for (var taskId in assignedTaskIds) {
+        if (!completedTaskIds.contains(taskId) && !pendingTaskIds.contains(taskId)) {
+          newPendingTasks++;
+        }
+      }
+
+      // Count newly assigned quizzes that haven't been taken yet
+      int newPendingQuizzes = 0;
+      for (var quizId in assignedQuizIds) {
+        if (!completedQuizIds.contains(quizId)) {
+          newPendingQuizzes++;
+        }
+      }
+
+      // Total pending = existing pending + newly assigned tasks + newly assigned quizzes
+      int totalPendingCount = pendingTaskIds.length + newPendingTasks + newPendingQuizzes;
+      int totalCompletedCount = completedTaskIds.length + completedQuizIds.length;
 
       scores = scores.take(5).toList().reversed.toList();
 
       setState(() {
         _averageScore = totalMax > 0 ? totalScore / totalMax : 0;
-        _completedTasks = completedCount; // Only count completed tasks
-        _pendingTasks = pendingCount; // Count pending tasks
+        _completedTasks = totalCompletedCount;
+        _pendingTasks = totalPendingCount;
         _totalCorrect = correct;
         _totalWrong = wrong;
         _lastUpdated = latest;

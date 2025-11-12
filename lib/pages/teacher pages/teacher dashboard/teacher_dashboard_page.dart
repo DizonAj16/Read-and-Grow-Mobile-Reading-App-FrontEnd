@@ -2,6 +2,7 @@ import 'package:deped_reading_app_laravel/api/supabase_auth_service.dart';
 import 'package:deped_reading_app_laravel/api/classroom_service.dart';
 import 'package:deped_reading_app_laravel/api/prefs_service.dart';
 import 'package:deped_reading_app_laravel/api/user_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/class_details_page.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/pupil_management_page.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20dashboard/create%20student%20and%20classes/create_class_or_student_dialog.dart';
@@ -590,30 +591,42 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
           return welcomeWidget;
         }
 
-        // Fetch base_url from SharedPreferences for the avatar
-        return FutureBuilder<SharedPreferences>(
-          future: SharedPreferences.getInstance(),
-          builder: (context, prefsSnapshot) {
-            if (!prefsSnapshot.hasData) {
-              return welcomeWidget;
-            }
+        // Build profile picture URL using Supabase storage
+        String? avatarUrl;
+        try {
+          final profilePicture = teacher.profilePicture!;
+          
+          // If already a full URL (starts with http/https), use it as is
+          if (profilePicture.startsWith('http://') || profilePicture.startsWith('https://')) {
+            debugPrint('🖼️ Teacher profile picture is already a full URL');
+            avatarUrl = profilePicture;
+          } else {
+            // Get public URL from Supabase storage 'materials' bucket (matches UserService.uploadProfilePicture)
+            final supabase = Supabase.instance.client;
+            avatarUrl = supabase.storage
+                .from('materials')
+                .getPublicUrl(profilePicture);
+            debugPrint('🖼️ Normalized teacher profile picture URL: $avatarUrl');
+          }
+          
+          // Add cache buster for network images to force refresh
+          final timestamp = DateTime.now().millisecondsSinceEpoch;
+          if (avatarUrl.contains('?')) {
+            avatarUrl = avatarUrl.split('?').first + '?t=$timestamp';
+          } else {
+            avatarUrl = '$avatarUrl?t=$timestamp';
+          }
+        } catch (e) {
+          debugPrint('⚠️ Error building teacher profile picture URL: $e');
+          avatarUrl = null;
+        }
 
-            String baseUrl = prefsSnapshot.data!.getString('base_url') ?? '';
-            baseUrl = baseUrl.replaceAll(RegExp(r'/api/?$'), '');
-
-            final avatarUrl =
-                "$baseUrl/${teacher.profilePicture!.replaceFirst(RegExp(r'^/'), '')}?t=${DateTime.now().millisecondsSinceEpoch}";
-
-            debugPrint("Avatar URL with base: $avatarUrl");
-
-            return _buildWelcomeContainer(
-              username,
-              initials,
-              avatarUrl,
-              userId: userId,
-              teacherId: teacherId,
-            );
-          },
+        return _buildWelcomeContainer(
+          username,
+          initials,
+          avatarUrl,
+          userId: userId,
+          teacherId: teacherId,
         );
       },
     );

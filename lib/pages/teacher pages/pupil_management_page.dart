@@ -80,6 +80,7 @@ class _PupilManagementPageState extends State<PupilManagementPage> {
     showDialog(
       context: context,
       builder: (context) => CreateClassOrStudentDialog(
+        initialTab: 1, // Start with Student form (1) instead of Class form (0)
         onStudentAdded: () {
           _loadPupils();
           Navigator.of(context).pop();

@@ -128,6 +128,165 @@ class ClassroomService {
     final supabase = Supabase.instance.client;
 
     try {
+      debugPrint('🗑️ [DELETE_CLASS] Starting deletion for class: $classId');
+      
+      // Step 1: Delete student submissions for assignments in this class
+      final assignments = await supabase
+          .from('assignments')
+          .select('id')
+          .eq('class_room_id', classId);
+      
+      if (assignments.isNotEmpty) {
+        final assignmentIds = assignments.map((a) => a['id'] as String).toList();
+        debugPrint('🗑️ [DELETE_CLASS] Found ${assignmentIds.length} assignments to clean up');
+        
+        for (var assignmentId in assignmentIds) {
+          try {
+            await supabase
+                .from('student_submissions')
+                .delete()
+                .eq('assignment_id', assignmentId);
+          } catch (e) {
+            debugPrint('⚠️ [DELETE_CLASS] Error deleting submissions for assignment $assignmentId: $e');
+            // Continue with deletion
+          }
+        }
+      }
+      
+      // Step 2: Delete assignments
+      try {
+        await supabase
+            .from('assignments')
+            .delete()
+            .eq('class_room_id', classId);
+        debugPrint('✅ [DELETE_CLASS] Deleted assignments');
+      } catch (e) {
+        debugPrint('⚠️ [DELETE_CLASS] Error deleting assignments: $e');
+        // Continue with deletion
+      }
+      
+      // Step 3: Delete announcements
+      try {
+        await supabase
+            .from('announcements')
+            .delete()
+            .eq('class_room_id', classId);
+        debugPrint('✅ [DELETE_CLASS] Deleted announcements');
+      } catch (e) {
+        debugPrint('⚠️ [DELETE_CLASS] Error deleting announcements: $e');
+        // Continue with deletion
+      }
+      
+      // Step 4: Delete materials
+      try {
+        await supabase
+            .from('materials')
+            .delete()
+            .eq('class_room_id', classId);
+        debugPrint('✅ [DELETE_CLASS] Deleted materials');
+      } catch (e) {
+        debugPrint('⚠️ [DELETE_CLASS] Error deleting materials: $e');
+        // Continue with deletion
+      }
+      
+      // Step 5: Delete quizzes (and their related data)
+      final quizzes = await supabase
+          .from('quizzes')
+          .select('id')
+          .eq('class_room_id', classId);
+      
+      if (quizzes.isNotEmpty) {
+        final quizIds = quizzes.map((q) => q['id'] as String).toList();
+        debugPrint('🗑️ [DELETE_CLASS] Found ${quizIds.length} quizzes to clean up');
+        
+        for (var quizId in quizIds) {
+          try {
+            // Delete quiz questions and their options
+            final questions = await supabase
+                .from('quiz_questions')
+                .select('id')
+                .eq('quiz_id', quizId);
+            
+            if (questions.isNotEmpty) {
+              final questionIds = questions.map((q) => q['id'] as String).toList();
+              
+              // Delete question options
+              for (var questionId in questionIds) {
+                try {
+                  await supabase
+                      .from('question_options')
+                      .delete()
+                      .eq('question_id', questionId);
+                } catch (e) {
+                  debugPrint('⚠️ [DELETE_CLASS] Error deleting options for question $questionId: $e');
+                }
+                
+                // Delete matching pairs
+                try {
+                  await supabase
+                      .from('matching_pairs')
+                      .delete()
+                      .eq('question_id', questionId);
+                } catch (e) {
+                  debugPrint('⚠️ [DELETE_CLASS] Error deleting matching pairs for question $questionId: $e');
+                }
+                
+                // Delete student recordings
+                try {
+                  await supabase
+                      .from('student_recordings')
+                      .delete()
+                      .eq('quiz_question_id', questionId);
+                } catch (e) {
+                  debugPrint('⚠️ [DELETE_CLASS] Error deleting recordings for question $questionId: $e');
+                }
+              }
+              
+              // Delete quiz questions
+              await supabase
+                  .from('quiz_questions')
+                  .delete()
+                  .eq('quiz_id', quizId);
+            }
+            
+            // Delete the quiz
+            await supabase
+                .from('quizzes')
+                .delete()
+                .eq('id', quizId);
+          } catch (e) {
+            debugPrint('⚠️ [DELETE_CLASS] Error deleting quiz $quizId: $e');
+            // Continue with deletion
+          }
+        }
+        debugPrint('✅ [DELETE_CLASS] Deleted quizzes');
+      }
+      
+      // Step 6: Delete tasks (if they're class-specific)
+      try {
+        await supabase
+            .from('tasks')
+            .delete()
+            .eq('class_room_id', classId);
+        debugPrint('✅ [DELETE_CLASS] Deleted tasks');
+      } catch (e) {
+        debugPrint('⚠️ [DELETE_CLASS] Error deleting tasks: $e');
+        // Continue with deletion - tasks might be shared across classes
+      }
+      
+      // Step 7: Delete student enrollments
+      try {
+        await supabase
+            .from('student_enrollments')
+            .delete()
+            .eq('class_room_id', classId);
+        debugPrint('✅ [DELETE_CLASS] Deleted student enrollments');
+      } catch (e) {
+        debugPrint('⚠️ [DELETE_CLASS] Error deleting enrollments: $e');
+        // Continue with deletion
+      }
+      
+      // Step 8: Finally, delete the class itself
       final response = await supabase
           .from('class_rooms')
           .delete()
@@ -135,10 +294,16 @@ class ClassroomService {
           .select()
           .maybeSingle();
 
+      if (response == null) {
+        throw Exception('Class deletion returned null - class may not exist');
+      }
+
+      debugPrint('✅ [DELETE_CLASS] Successfully deleted class: $classId');
       return response;
     } catch (e) {
-      print('Error deleting class: $e');
-      return null;
+      debugPrint('❌ [DELETE_CLASS] Error deleting class: $e');
+      // Re-throw the error so the UI can display it
+      throw Exception('Failed to delete class: ${e.toString()}');
     }
   }
 

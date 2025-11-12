@@ -8,11 +8,13 @@ import 'student_form.dart';
 class CreateClassOrStudentDialog extends StatefulWidget {
   final VoidCallback? onStudentAdded;
   final VoidCallback? onClassAdded;
+  final int initialTab; // 0 = Class, 1 = Student
 
   const CreateClassOrStudentDialog({
     super.key,
     this.onStudentAdded,
     this.onClassAdded,
+    this.initialTab = 0, // Default to Class form
   });
 
   @override
@@ -22,7 +24,7 @@ class CreateClassOrStudentDialog extends StatefulWidget {
 
 class _CreateClassOrStudentDialogState
     extends State<CreateClassOrStudentDialog> {
-  int selectedTab = 0; // 0 = Class, 1 = Student
+  late int selectedTab; // 0 = Class, 1 = Student
   final _formKey = GlobalKey<FormState>();
   bool _autoValidate = false;
   bool _isLoading = false;
@@ -46,6 +48,12 @@ class _CreateClassOrStudentDialogState
       TextEditingController();
   final TextEditingController confirmStudentPasswordController =
       TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    selectedTab = widget.initialTab;
+  }
 
   @override
   void dispose() {

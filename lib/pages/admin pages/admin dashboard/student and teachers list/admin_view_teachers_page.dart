@@ -198,41 +198,46 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
                                               borderRadius:
                                                   BorderRadius.circular(24),
                                             ),
-                                            child: Padding(
-                                              padding: const EdgeInsets.all(0),
-                                              child: Stack(
-                                                children: [
-                                                  Positioned(
-                                                    top: 0,
-                                                    right: 0,
-                                                    child: IconButton(
-                                                      icon: Icon(
-                                                        Icons.close,
-                                                        color: Colors.grey[700],
-                                                      ),
-                                                      onPressed:
-                                                          () =>
-                                                              Navigator.of(
-                                                                context,
-                                                              ).pop(),
-                                                      tooltip: "Close",
-                                                    ),
-                                                  ),
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.fromLTRB(
-                                                          24,
-                                                          32,
-                                                          24,
-                                                          32,
+                                            child: ConstrainedBox(
+                                              constraints: BoxConstraints(
+                                                maxHeight: MediaQuery.of(context).size.height * 0.8,
+                                              ),
+                                              child: Padding(
+                                                padding: const EdgeInsets.all(0),
+                                                child: Stack(
+                                                  children: [
+                                                    Positioned(
+                                                      top: 0,
+                                                      right: 0,
+                                                      child: IconButton(
+                                                        icon: Icon(
+                                                          Icons.close,
+                                                          color: Colors.grey[700],
                                                         ),
-                                                    child: Column(
-                                                      mainAxisSize:
-                                                          MainAxisSize.min,
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .center,
-                                                      children: [
+                                                        onPressed:
+                                                            () =>
+                                                                Navigator.of(
+                                                                  context,
+                                                                ).pop(),
+                                                        tooltip: "Close",
+                                                      ),
+                                                    ),
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets.fromLTRB(
+                                                            24,
+                                                            32,
+                                                            24,
+                                                            32,
+                                                          ),
+                                                      child: SingleChildScrollView(
+                                                        child: Column(
+                                                          mainAxisSize:
+                                                              MainAxisSize.min,
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .center,
+                                                          children: [
                                                         FutureBuilder<String?>(
                                                           future: _getBaseUrl(),
                                                           builder:
@@ -456,10 +461,12 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
                                                           ],
                                                         ),
                                                         SizedBox(height: 24),
-                                                      ],
+                                                          ],
+                                                        ),
+                                                      ),
                                                     ),
-                                                  ),
-                                                ],
+                                                  ],
+                                                ),
                                               ),
                                             ),
                                           );

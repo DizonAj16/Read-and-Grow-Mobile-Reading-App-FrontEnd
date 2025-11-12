@@ -72,20 +72,42 @@ class ParentService {
         
         final classIds = enrollments.map((e) => e['class_room_id'] as String).toList();
         
-        // Get all assignments for these classes
-        int totalAssignedTasks = 0;
+        // Get all assignments for these classes with tasks and quizzes
+        List<String> assignedTaskIds = [];
+        List<String> assignedQuizIds = [];
         if (classIds.isNotEmpty) {
           final assignments = await supabase
               .from('assignments')
-              .select('task_id')
+              .select('task_id, quiz_id, tasks(id, quizzes(id))')
               .inFilter('class_room_id', classIds);
           
-          // Count unique tasks (assignments can have the same task_id)
-          totalAssignedTasks = assignments
-              .map((a) => a['task_id'] as String?)
-              .whereType<String>()
-              .toSet()
-              .length;
+          for (var assignment in assignments) {
+            // Handle task_id assignments
+            final taskId = assignment['task_id'] as String?;
+            if (taskId != null) {
+              assignedTaskIds.add(taskId);
+              
+              // Get quizzes linked to this task
+              final task = assignment['tasks'] as Map<String, dynamic>?;
+              if (task != null) {
+                final quizzes = task['quizzes'] as List?;
+                if (quizzes != null) {
+                  for (var quiz in quizzes) {
+                    final quizId = quiz['id'] as String?;
+                    if (quizId != null && !assignedQuizIds.contains(quizId)) {
+                      assignedQuizIds.add(quizId);
+                    }
+                  }
+                }
+              }
+            }
+            
+            // Handle quiz_id assignments (quizzes directly linked to assignment)
+            final directQuizId = assignment['quiz_id'] as String?;
+            if (directQuizId != null && !assignedQuizIds.contains(directQuizId)) {
+              assignedQuizIds.add(directQuizId);
+            }
+          }
         }
         
         // Step 6: Get task progress - count based on completed and pending
@@ -94,21 +116,36 @@ class ParentService {
             .select('task_id, score, max_score, completed')
             .eq('student_id', studentId);
 
-        // Count completed tasks (completed == false or null means completed)
-        int completedTasks = taskProgress.where((t) => 
-          t['completed'] == false || t['completed'] == null
-        ).length;
+        Set<String> completedTaskIds = {};
+        Set<String> pendingTaskIds = {};
         
-        // Count pending tasks (completed == true means pending/in progress)
-        int pendingTasks = taskProgress.where((t) => t['completed'] == true).length;
-        
-        // Total tasks = completed + pending (based on student_task_progress)
-        int totalTasks = completedTasks + pendingTasks;
-        
-        // If no tasks attempted yet, use assigned tasks count as fallback
-        if (totalTasks == 0 && totalAssignedTasks > 0) {
-          totalTasks = totalAssignedTasks;
+        for (var t in taskProgress) {
+          final taskId = t['task_id'] as String?;
+          if (taskId == null) continue;
+          
+          if (t['completed'] == false || t['completed'] == null) {
+            completedTaskIds.add(taskId);
+          } else {
+            pendingTaskIds.add(taskId);
+          }
         }
+
+        // Count newly assigned tasks that haven't been started yet
+        int newPendingTasks = 0;
+        for (var taskId in assignedTaskIds) {
+          if (!completedTaskIds.contains(taskId) && !pendingTaskIds.contains(taskId)) {
+            newPendingTasks++;
+          }
+        }
+        
+        // Count completed tasks
+        int completedTasks = completedTaskIds.length;
+        
+        // Count pending tasks (existing pending + newly assigned)
+        int pendingTasks = pendingTaskIds.length + newPendingTasks;
+        
+        // Total tasks = all assigned tasks
+        int totalTasks = assignedTaskIds.length;
 
         double totalScore = 0;
         double totalMax = 0;
@@ -118,18 +155,48 @@ class ParentService {
         }
         double avgScore = totalMax > 0 ? (totalScore / totalMax) * 100 : 0;
 
-        // Step 6: Quiz submissions
+        // Step 7: Quiz submissions - get completed quiz IDs and scores
         final submissions = await supabase
             .from('student_submissions')
-            .select('score')
+            .select('score, assignment_id, assignments(task_id, tasks(quizzes(id)))')
             .eq('student_id', studentId);
 
-        int quizCount = submissions.length;
+        Set<String> completedQuizIds = {};
+        for (var submission in submissions) {
+          final assignment = submission['assignments'] as Map<String, dynamic>?;
+          if (assignment != null) {
+            final task = assignment['tasks'] as Map<String, dynamic>?;
+            if (task != null) {
+              final quizzes = task['quizzes'] as List?;
+              if (quizzes != null) {
+                for (var quiz in quizzes) {
+                  final quizId = quiz['id'] as String?;
+                  if (quizId != null) {
+                    completedQuizIds.add(quizId);
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // Quiz count = total assigned quizzes
+        int quizCount = assignedQuizIds.length;
         double quizAvg = 0;
-        if (quizCount > 0) {
-          final scores =
-          submissions.map((s) => (s['score'] ?? 0).toDouble()).toList();
-          quizAvg = scores.reduce((a, b) => a + b) / quizCount;
+        
+        // Calculate quiz average from submissions
+        if (submissions.isNotEmpty) {
+          final scores = submissions
+              .map((s) {
+                // Try to get score from submission if available
+                final score = s['score'] as int? ?? 0;
+                return score.toDouble();
+              })
+              .where((s) => s > 0)
+              .toList();
+          if (scores.isNotEmpty) {
+            quizAvg = scores.reduce((a, b) => a + b) / scores.length;
+          }
         }
 
         childrenList.add({
@@ -184,19 +251,19 @@ class ParentService {
         final classIds = enrollments.map((e) => e['class_room_id'] as String).toList();
         
         // Step 3: Get all tasks assigned to student's classes through assignments
-        int totalAssignedTasks = 0;
+        List<String> assignedTaskIds = [];
         if (classIds.isNotEmpty) {
           final assignments = await supabase
               .from('assignments')
               .select('task_id')
               .inFilter('class_room_id', classIds);
           
-          // Count unique tasks (assignments can have the same task_id)
-          totalAssignedTasks = assignments
+          // Get unique task IDs
+          assignedTaskIds = assignments
               .map((a) => a['task_id'] as String?)
               .whereType<String>()
               .toSet()
-              .length;
+              .toList();
         }
         
         // Step 4: Task progress - count based on completed and pending
@@ -205,21 +272,36 @@ class ParentService {
             .select('task_id, score, max_score, correct_answers, wrong_answers, completed')
             .eq('student_id', studentId);
 
-        // Count completed tasks (completed == false or null means completed)
-        int completedTasks = taskProgress.where((t) => 
-          t['completed'] == false || t['completed'] == null
-        ).length;
+        Set<String> completedTaskIds = {};
+        Set<String> pendingTaskIds = {};
         
-        // Count pending tasks (completed == true means pending/in progress)
-        int pendingTasks = taskProgress.where((t) => t['completed'] == true).length;
-        
-        // Total tasks = completed + pending (based on student_task_progress)
-        int totalTasks = completedTasks + pendingTasks;
-        
-        // If no tasks attempted yet, use assigned tasks count as fallback
-        if (totalTasks == 0 && totalAssignedTasks > 0) {
-          totalTasks = totalAssignedTasks;
+        for (var t in taskProgress) {
+          final taskId = t['task_id'] as String?;
+          if (taskId == null) continue;
+          
+          if (t['completed'] == false || t['completed'] == null) {
+            completedTaskIds.add(taskId);
+          } else {
+            pendingTaskIds.add(taskId);
+          }
         }
+
+        // Count newly assigned tasks that haven't been started yet
+        int newPendingTasks = 0;
+        for (var taskId in assignedTaskIds) {
+          if (!completedTaskIds.contains(taskId) && !pendingTaskIds.contains(taskId)) {
+            newPendingTasks++;
+          }
+        }
+        
+        // Count completed tasks
+        int completedTasks = completedTaskIds.length;
+        
+        // Count pending tasks (existing pending + newly assigned)
+        int pendingTasks = pendingTaskIds.length + newPendingTasks;
+        
+        // Total tasks = all assigned tasks
+        int totalTasks = assignedTaskIds.length;
 
         double totalScore = 0;
         double totalMax = 0;

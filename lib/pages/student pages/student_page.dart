@@ -475,16 +475,22 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
     }
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final savedBaseUrl =
-          prefs.getString('base_url') ?? 'http://10.0.2.2:8000/api';
-
-      final uri = Uri.parse(savedBaseUrl);
-      final baseUrl = '${uri.scheme}://${uri.authority}';
-      final url = '$baseUrl/$profilePicture';
-
-      return url;
+      // If already a full URL (starts with http/https), use it as is
+      if (profilePicture.startsWith('http://') || profilePicture.startsWith('https://')) {
+        debugPrint('🖼️ Profile picture is already a full URL');
+        return profilePicture;
+      }
+      
+      // Get public URL from Supabase storage 'materials' bucket (matches UserService.uploadProfilePicture)
+      final supabase = Supabase.instance.client;
+      final bucketBaseUrl = supabase.storage
+          .from('materials')
+          .getPublicUrl(profilePicture);
+      
+      debugPrint('🖼️ Normalized profile picture URL: $bucketBaseUrl');
+      return bucketBaseUrl;
     } catch (e) {
+      debugPrint('⚠️ Error building profile picture URL: $e');
       return null;
     }
   }
