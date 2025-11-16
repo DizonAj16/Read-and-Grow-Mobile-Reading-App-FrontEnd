@@ -362,6 +362,86 @@ CREATE TRIGGER update_users_updated_at
 -- USING (bucket_id = 'teacher-avatars' OR bucket_id = 'student-avatars');
 
 -- ============================================================================
+-- 12. ASSIGNMENTS AND PROGRESS INTEGRITY FOR COUNTS
+-- ============================================================================
+-- Allow quiz-only assignments and prevent duplicate assignments per class.
+-- Ensure unique progress rows and submission attempt uniqueness.
+
+-- 12.1 Ensure assignments cascade properly to maintain integrity
+ALTER TABLE public.assignments
+DROP CONSTRAINT IF EXISTS assignments_task_id_fkey,
+ADD CONSTRAINT assignments_task_id_fkey
+    FOREIGN KEY (task_id)
+    REFERENCES public.tasks(id)
+    ON DELETE CASCADE;
+
+ALTER TABLE public.assignments
+DROP CONSTRAINT IF EXISTS assignments_class_room_id_fkey,
+ADD CONSTRAINT assignments_class_room_id_fkey
+    FOREIGN KEY (class_room_id)
+    REFERENCES public.class_rooms(id)
+    ON DELETE CASCADE;
+
+ALTER TABLE public.assignments
+DROP CONSTRAINT IF EXISTS assignments_teacher_id_fkey,
+ADD CONSTRAINT assignments_teacher_id_fkey
+    FOREIGN KEY (teacher_id)
+    REFERENCES public.teachers(id)
+    ON DELETE CASCADE;
+
+ALTER TABLE public.assignments
+DROP CONSTRAINT IF EXISTS assignments_quiz_id_fkey,
+ADD CONSTRAINT assignments_quiz_id_fkey
+    FOREIGN KEY (quiz_id)
+    REFERENCES public.quizzes(id)
+    ON DELETE CASCADE;
+
+ALTER TABLE public.student_submissions
+DROP CONSTRAINT IF EXISTS student_submissions_assignment_id_fkey,
+ADD CONSTRAINT student_submissions_assignment_id_fkey
+    FOREIGN KEY (assignment_id)
+    REFERENCES public.assignments(id)
+    ON DELETE CASCADE;
+
+-- 12.2 Allow either task_id or quiz_id (at least one must be present)
+DO $$
+BEGIN
+    -- Make task_id nullable if currently NOT NULL
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'assignments' AND column_name = 'task_id' AND is_nullable = 'NO'
+    ) THEN
+        ALTER TABLE public.assignments ALTER COLUMN task_id DROP NOT NULL;
+    END IF;
+
+    -- Add check constraint to ensure at least one is provided
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'assignments_task_or_quiz_chk'
+    ) THEN
+        ALTER TABLE public.assignments
+        ADD CONSTRAINT assignments_task_or_quiz_chk
+        CHECK (task_id IS NOT NULL OR quiz_id IS NOT NULL);
+    END IF;
+END $$;
+
+-- 12.3 Prevent duplicate assignment of the same task/quiz within a class
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_assignment_task_per_class
+ON public.assignments (class_room_id, task_id)
+WHERE task_id IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_assignment_quiz_per_class
+ON public.assignments (class_room_id, quiz_id)
+WHERE quiz_id IS NOT NULL;
+
+-- 12.4 Ensure one progress row per (student, task)
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_student_task_progress
+ON public.student_task_progress (student_id, task_id);
+
+-- 12.5 Ensure submissions attempts are unique per (student, assignment, attempt_number)
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_submission_attempt
+ON public.student_submissions (student_id, assignment_id, attempt_number);
+
+-- ============================================================================
 -- 12. ADD BACKGROUND_IMAGE COLUMN TO CLASS_ROOMS TABLE
 -- ============================================================================
 -- Add background_image column to class_rooms table for storing class background images

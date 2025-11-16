@@ -329,26 +329,24 @@ class _AdminViewStudentsPageState extends State<AdminViewStudentsPage> {
                                                           },
                                                         ),
                                                         SizedBox(height: 24),
-                                                        Flexible(
-                                                          child: Text(
-                                                            student.studentName,
-                                                            style: TextStyle(
-                                                              fontWeight:
-                                                                  FontWeight.bold,
-                                                              fontSize: 28,
-                                                              color:
-                                                                  Theme.of(
-                                                                        context,
-                                                                      )
-                                                                      .colorScheme
-                                                                      .primary,
-                                                              letterSpacing: 1.1,
-                                                            ),
-                                                            textAlign:
-                                                                TextAlign.center,
-                                                            maxLines: 2,
-                                                            overflow: TextOverflow.ellipsis,
+                                                        Text(
+                                                          student.studentName,
+                                                          style: TextStyle(
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            fontSize: 28,
+                                                            color:
+                                                                Theme.of(
+                                                                      context,
+                                                                    )
+                                                                    .colorScheme
+                                                                    .primary,
+                                                            letterSpacing: 1.1,
                                                           ),
+                                                          textAlign:
+                                                              TextAlign.center,
+                                                          maxLines: 2,
+                                                          overflow: TextOverflow.ellipsis,
                                                         ),
                                                         Divider(
                                                           color: Theme.of(

@@ -123,7 +123,7 @@ class ParentService {
           final taskId = t['task_id'] as String?;
           if (taskId == null) continue;
           
-          if (t['completed'] == false || t['completed'] == null) {
+          if (t['completed'] == true) {
             completedTaskIds.add(taskId);
           } else {
             pendingTaskIds.add(taskId);
@@ -205,6 +205,7 @@ class ParentService {
           'readingLevel': readingLevel,
           'totalTasks': totalTasks,
           'completedTasks': completedTasks,
+          'pendingTasks': pendingTasks,
           'averageScore': avgScore,
           'quizCount': quizCount,
           'quizAverage': quizAvg,
@@ -279,7 +280,7 @@ class ParentService {
           final taskId = t['task_id'] as String?;
           if (taskId == null) continue;
           
-          if (t['completed'] == false || t['completed'] == null) {
+          if (t['completed'] == true) {
             completedTaskIds.add(taskId);
           } else {
             pendingTaskIds.add(taskId);
@@ -328,6 +329,7 @@ class ParentService {
         'readingLevel': readingLevel,
         'totalTasks': totalTasks,
         'completedTasks': completedTasks,
+        'pendingTasks': pendingTasks,
         'totalCorrect': totalCorrect,
         'totalWrong': totalWrong,
         'averageScore': averageScore,

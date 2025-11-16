@@ -34,7 +34,6 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
   int _totalWrong = 0;
   DateTime? _lastUpdated;
   List<double> _recentScores = [];
-  int _assignedTasks = 0;
   int _badgesCount = 0;
   String _levelDisplay = 'N/A';
 
@@ -246,7 +245,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
         if (maxScore > 0) scores.add(score / maxScore);
 
         // Track completed vs pending tasks
-        if (row['completed'] == false || row['completed'] == null) {
+        if (row['completed'] == true) {
           completedTaskIds.add(taskId);
         } else {
           pendingTaskIds.add(taskId);
@@ -303,26 +302,10 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
           .maybeSingle();
 
       if (studentRow == null) return;
-      final String studentId = studentRow['id'] as String;
 
-      // Fetch enrolled class ids
-      final enrollments = await supabase
-          .from('student_enrollments')
-          .select('class_room_id')
-          .eq('student_id', studentId);
+      // (Removed unused enrollments/classIds fetch)
 
-      final classIds = (enrollments as List)
-          .map((e) => e['class_room_id'] as String)
-          .toList();
-
-      int assignedCount = 0;
-      if (classIds.isNotEmpty) {
-        final assignments = await supabase
-            .from('assignments')
-            .select('id')
-            .inFilter('class_room_id', classIds);
-        assignedCount = (assignments as List).length;
-      }
+      // (Removed unused assigned tasks count)
 
       // Badges: count submissions with score ratio >= 0.8
       final submissions = await supabase
@@ -358,7 +341,6 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
 
       if (mounted) {
         setState(() {
-          _assignedTasks = assignedCount;
           _badgesCount = badges;
           _levelDisplay = levelText;
         });

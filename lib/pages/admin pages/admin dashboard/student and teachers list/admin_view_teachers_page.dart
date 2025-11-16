@@ -333,26 +333,24 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
                                                           },
                                                         ),
                                                         SizedBox(height: 24),
-                                                        Flexible(
-                                                          child: Text(
-                                                            teacher.name,
-                                                            style: TextStyle(
-                                                              fontWeight:
-                                                                  FontWeight.bold,
-                                                              fontSize: 28,
-                                                              color:
-                                                                  Theme.of(
-                                                                        context,
-                                                                      )
-                                                                      .colorScheme
-                                                                      .primary,
-                                                              letterSpacing: 1.1,
-                                                            ),
-                                                            textAlign:
-                                                                TextAlign.center,
-                                                            maxLines: 2,
-                                                            overflow: TextOverflow.ellipsis,
+                                                        Text(
+                                                          teacher.name,
+                                                          style: TextStyle(
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            fontSize: 28,
+                                                            color:
+                                                                Theme.of(
+                                                                      context,
+                                                                    )
+                                                                    .colorScheme
+                                                                    .primary,
+                                                            letterSpacing: 1.1,
                                                           ),
+                                                          textAlign:
+                                                              TextAlign.center,
+                                                          maxLines: 2,
+                                                          overflow: TextOverflow.ellipsis,
                                                         ),
                                                         // Approval status in dialog
                                                         if (teacher.isApproved != null)
