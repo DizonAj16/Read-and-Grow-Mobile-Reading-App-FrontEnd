@@ -4,7 +4,7 @@ const kPrimaryColor = Color(0xFFE53935);
 const kSecondaryColor = Color(0xFFFFD600);
 
 /// App-wide semantic version string displayed on the landing page.
-const String kAppVersion = 'v1.0.1';
+const String kAppVersion = 'v1.0.2';
 
 const kLightSurfaceColor = Color(0xFFFFFFFF);
 const kLightBackgroundColor = Color(0xFFFFFFFF);

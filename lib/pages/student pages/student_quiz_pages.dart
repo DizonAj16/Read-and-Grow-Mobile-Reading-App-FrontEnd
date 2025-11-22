@@ -7,6 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deped_reading_app_laravel/helper/QuizHelper.dart';
 import '../../../models/quiz_questions.dart';
 
+enum StudentQuizOutcome { continueNext, exitSuccess, exitFailure }
+
 class StudentQuizPage extends StatefulWidget {
   final String quizId;
   final String assignmentId;
@@ -59,8 +61,87 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
           .eq('student_id', widget.studentId)
           .order('submitted_at', ascending: false);
 
+      const passingThreshold = 0.7;
       final attemptCount = existingSubmissionRes.length;
       final maxAttempts = 3;
+
+      final passingSubmission = existingSubmissionRes.firstWhere(
+        (submission) {
+          final score = (submission['score'] as num?)?.toDouble() ?? 0;
+          final maxScore = (submission['max_score'] as num?)?.toDouble() ?? 0;
+          return maxScore > 0 && (score / maxScore) >= passingThreshold;
+        },
+        orElse: () => {},
+      );
+
+      if (passingSubmission.isNotEmpty) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.celebration, color: Colors.green),
+                  SizedBox(width: 8),
+                  Text('Quiz Already Passed'),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Great work! You already passed this quiz, so no further attempts are needed.',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Your Score',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${passingSubmission['score']} / ${passingSubmission['max_score']}',
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    if (!mounted) return;
+                    Navigator.of(context).pop(); // close dialog
+                    if (Navigator.of(context).canPop()) {
+                      Navigator.of(context)
+                          .pop(StudentQuizOutcome.exitSuccess);
+                    }
+                  },
+                  child: const Text('Back to Lessons'),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
 
       if (attemptCount >= maxAttempts) {
         final existingSubmission = existingSubmissionRes.first;
@@ -118,11 +199,12 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
                   TextButton(
                     onPressed: () {
                       if (!mounted) return;
+                      Navigator.pop(context); // Close dialog
                       if (Navigator.of(context).canPop()) {
-                        Navigator.pop(context); // Close dialog
-                      }
-                      if (mounted && Navigator.of(context).canPop()) {
-                        Navigator.pop(context); // Go back
+                        Navigator.pop(
+                          context,
+                          StudentQuizOutcome.exitFailure,
+                        );
                       }
                     },
                     child: const Text('OK'),
@@ -504,31 +586,60 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
     if (!mounted) return;
 
     final bool reachedFinalAttempt = nextAttemptNumber >= maxAttempts;
-    final bool passedFinalAttempt = reachedFinalAttempt &&
-        quizHelper!.questions.isNotEmpty &&
+    final bool passedCurrentAttempt = quizHelper!.questions.isNotEmpty &&
         (correct / quizHelper!.questions.length) >= passingThreshold;
 
     if (reachedFinalAttempt) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            passedFinalAttempt
-                ? 'Great job! Your final attempt passed. The next quiz is now unlocked.'
-                : 'Final attempt completed. This quiz remains locked. Please review with your teacher.',
+            passedCurrentAttempt
+                ? 'Great job! You passed and unlocked the next lesson.'
+                : 'No attempts left. Review the material and try again later.',
           ),
-          backgroundColor: passedFinalAttempt ? Colors.green : Colors.red,
+          backgroundColor: passedCurrentAttempt ? Colors.green : Colors.red,
           duration: const Duration(seconds: 4),
         ),
       );
     }
 
-    // Show review dialog with correct answers
-    _showQuizReviewDialog(correct, quizHelper!.questions.length);
+    final failedFirstOrSecond = !passedCurrentAttempt && nextAttemptNumber < maxAttempts;
+    final exitRequested = await _showQuizReviewDialog(
+      correct,
+      quizHelper!.questions.length,
+      failedFirstOrSecond: failedFirstOrSecond,
+    );
+
+    if (exitRequested) {
+      if (!mounted) return;
+      Navigator.pop(context, StudentQuizOutcome.exitFailure);
+      return;
+    }
+
+    if (!mounted) return;
+
+    if (passedCurrentAttempt) {
+      final continueNext = await _showPostQuizOptions();
+      if (!mounted) return;
+      Navigator.pop(
+        context,
+        continueNext
+            ? StudentQuizOutcome.continueNext
+            : StudentQuizOutcome.exitSuccess,
+      );
+      return;
+    }
+
+    Navigator.pop(context, StudentQuizOutcome.exitFailure);
   }
 
   /// Show dialog with quiz results and correct answers for review
-  Future<void> _showQuizReviewDialog(int score, int totalQuestions) async {
-    if (quizHelper == null) return;
+  Future<bool> _showQuizReviewDialog(
+    int score,
+    int totalQuestions, {
+    bool failedFirstOrSecond = false,
+  }) async {
+    if (quizHelper == null) return false;
     
     final supabase = quizHelper!.supabase;
     
@@ -728,9 +839,9 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
       }
     }
 
-    if (!mounted) return;
+    if (!mounted) return false;
 
-    showDialog(
+    final exitRequested = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => Dialog(
@@ -739,7 +850,6 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -778,8 +888,19 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
                   ],
                 ),
               ),
-              
-              // Scrollable content with questions and answers
+              if (failedFirstOrSecond)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  color: Colors.red.shade50,
+                  child: const Text(
+                    'Incorrect attempt recorded. Review the explanations below before trying again.',
+                    style: TextStyle(
+                      color: Colors.redAccent,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
               Expanded(
                 child: ListView.builder(
                   padding: const EdgeInsets.all(16),
@@ -789,15 +910,14 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
                     final review = questionReviews[index];
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
-                      color: review['isCorrect'] 
-                          ? Colors.green.shade50 
+                      color: review['isCorrect']
+                          ? Colors.green.shade50
                           : Colors.red.shade50,
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Question number and text
                             Row(
                               children: [
                                 Container(
@@ -840,8 +960,6 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
                               ),
                             ),
                             const SizedBox(height: 12),
-                            
-                            // Student's answer
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -858,8 +976,9 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
                                     style: TextStyle(
                                       fontSize: 14,
                                       color: Colors.grey.shade700,
-                                      fontStyle: review['studentAnswer'] == '(No answer)' 
-                                          ? FontStyle.italic 
+                                      fontStyle: review['studentAnswer'] ==
+                                              '(No answer)'
+                                          ? FontStyle.italic
                                           : FontStyle.normal,
                                     ),
                                   ),
@@ -867,8 +986,6 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
                               ],
                             ),
                             const SizedBox(height: 8),
-                            
-                            // Correct answer
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -899,8 +1016,6 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
                   },
                 ),
               ),
-              
-              // OK Button
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -908,38 +1023,64 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
                     top: BorderSide(color: Colors.grey.shade300),
                   ),
                 ),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      if (!mounted) return;
-                      if (Navigator.of(context).canPop()) {
-                        Navigator.pop(context); // Close dialog
-                      }
-                      if (mounted) {
-                        Navigator.popUntil(context, (route) => route.isFirst);
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: Theme.of(context).primaryColor,
-                    ),
-                    child: const Text(
-                      "OK",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                child: failedFirstOrSecond
+                    ? Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text('Back to Tasks'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              style: ElevatedButton.styleFrom(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                backgroundColor:
+                                    Theme.of(context).primaryColor,
+                              ),
+                              child: const Text(
+                                "Review Answers",
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          style: ElevatedButton.styleFrom(
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 14),
+                            backgroundColor: Theme.of(context).primaryColor,
+                          ),
+                          child: const Text(
+                            "OK",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ),
               ),
             ],
           ),
         ),
       ),
     );
+
+    return exitRequested ?? false;
   }
 
   String _formatTime(int seconds) {
@@ -1333,5 +1474,30 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
         icon: const Icon(Icons.check),
       ),
     );
+  }
+
+  Future<bool> _showPostQuizOptions() async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Text('Quiz Passed'),
+        content: const Text(
+          'Would you like to move on to the next lesson now or come back later?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Not now'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+
+    return result ?? false;
   }
 }

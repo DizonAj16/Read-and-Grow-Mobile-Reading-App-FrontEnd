@@ -1,3 +1,4 @@
+import 'package:deped_reading_app_laravel/pages/student%20pages/lesson_reader_page.dart';
 import 'package:deped_reading_app_laravel/pages/student%20pages/student_quiz_pages.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -35,6 +36,7 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
         .select('''
           id,
           task_id,
+          class_room_id,
           tasks (
             id,
             title,
@@ -103,6 +105,7 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
     final lessons = <Map<String, dynamic>>[];
     bool previousQuizCompletedAndPassed = true;
     const double passingThreshold = 0.7;
+    const int maxAttempts = 3;
 
     for (final assignment in assignments) {
       final task = Map<String, dynamic>.from(assignment['tasks'] ?? {});
@@ -114,18 +117,23 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
       final submission = latestSubmissionMap[assignmentId];
       final attemptCount = attemptCountMap[assignmentId] ?? 0;
       final latestAttemptNumber = submission?['attempt_number'] as int? ?? attemptCount;
-      final hasFinalAttempt = latestAttemptNumber >= 3;
       final int latestScore = (submission?['score'] as int?) ?? 0;
       final int latestMaxScore = (submission?['max_score'] as int?) ?? 0;
-      final bool finalPassed = hasFinalAttempt &&
+      final bool passedLatest = submission != null &&
           latestMaxScore > 0 &&
           (latestScore / latestMaxScore) >= passingThreshold;
+      final bool hasFinalAttempt = passedLatest || latestAttemptNumber >= maxAttempts;
+      final bool finalPassed = passedLatest;
 
       final bool isLocked = !previousQuizCompletedAndPassed;
       final bool canRetake = !isLocked && !hasFinalAttempt;
 
-      if (hasFinalAttempt) {
-        previousQuizCompletedAndPassed = finalPassed;
+      if (passedLatest) {
+        previousQuizCompletedAndPassed = true;
+      } else if (submission == null) {
+        previousQuizCompletedAndPassed = false;
+      } else if (hasFinalAttempt) {
+        previousQuizCompletedAndPassed = false;
       } else {
         previousQuizCompletedAndPassed = false;
       }
@@ -133,6 +141,7 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
       lessons.add({
         "assignment_id": assignmentId,
         "task_id": taskId,
+        "class_room_id": assignment['class_room_id']?.toString(),
         "title": task['title'],
         "description": task['description'],
         "quizzes": List<Map<String, dynamic>>.from(
@@ -218,6 +227,8 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
                         ...quizzes.map<Widget>((quiz) {
                           final quizId = quiz['id']?.toString();
                           final assignmentId = lesson['assignment_id']?.toString();
+                          final taskId = lesson['task_id']?.toString();
+                          final classRoomId = lesson['class_room_id']?.toString() ?? widget.classRoomId;
                           final submission = lesson['submission'] as Map<String, dynamic>?;
                           final bool hasFinalAttempt = lesson['hasFinalAttempt'] == true;
                           final bool finalPassed = lesson['finalPassed'] == true;
@@ -329,7 +340,14 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
                                 return;
                               }
 
-                              _openQuiz(quizId: quizId, assignmentId: assignmentId);
+                              _openLessonReader(
+                                quizId: quizId,
+                                assignmentId: assignmentId,
+                                taskId: taskId,
+                                classRoomId: classRoomId,
+                                lessonTitle: lesson['title'] ?? 'Lesson',
+                                lessonIndex: index,
+                              );
                             },
                           );
                         }).toList(),
@@ -408,26 +426,20 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
     );
   }
 
-  Future<void> _openQuiz({
+  Future<void> _openLessonReader({
     required String quizId,
     required String assignmentId,
+    required String? taskId,
+    required String classRoomId,
+    required String lessonTitle,
+    required int lessonIndex,
   }) async {
     final user = Supabase.instance.client.auth.currentUser;
 
-    if (quizId.isEmpty) {
+    if (quizId.isEmpty || assignmentId.isEmpty || taskId == null || taskId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Error: Quiz ID is missing'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    if (assignmentId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error: Assignment ID is missing'),
+          content: Text('Lesson or quiz information is incomplete'),
           backgroundColor: Colors.red,
         ),
       );
@@ -446,29 +458,113 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
 
     if (!mounted) return;
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => StudentQuizPage(
-          quizId: quizId,
-          assignmentId: assignmentId,
-          studentId: user.id,
+    try {
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => LessonReaderPage(
+            taskId: taskId,
+            assignmentId: assignmentId,
+            classRoomId: classRoomId,
+            quizId: quizId,
+            studentId: user.id,
+            lessonTitle: lessonTitle,
+          ),
         ),
-      ),
-    ).then((_) {
-      if (mounted) {
-        _refreshLessons();
+      );
+
+      if (!mounted) return;
+
+      final refreshFuture = _refreshLessons();
+      final latestLessonsFuture = _lessonsFuture ?? Future.value(<Map<String, dynamic>>[]);
+      final results = await Future.wait([
+        refreshFuture,
+        latestLessonsFuture,
+      ]);
+
+      final latestLessons = results[1] as List<Map<String, dynamic>>;
+
+      if (result == StudentQuizOutcome.continueNext) {
+        final nextIndex = lessonIndex + 1;
+        if (nextIndex < latestLessons.length) {
+          final nextLesson = latestLessons[nextIndex];
+          final nextQuizzes = (nextLesson['quizzes'] as List?)
+                  ?.cast<Map<String, dynamic>>() ??
+              [];
+
+          if (nextQuizzes.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Next lesson quiz is not ready yet.'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+            return;
+          }
+
+          final nextQuiz = nextQuizzes.first;
+          final nextQuizId = nextQuiz['id']?.toString();
+          final nextAssignmentId = nextLesson['assignment_id']?.toString();
+          final nextTaskId = nextLesson['task_id']?.toString();
+          final nextClassRoomId =
+              nextLesson['class_room_id']?.toString() ?? widget.classRoomId;
+
+          if (nextQuizId != null &&
+              nextAssignmentId != null &&
+              nextTaskId != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _openLessonReader(
+                quizId: nextQuizId,
+                assignmentId: nextAssignmentId,
+                taskId: nextTaskId,
+                classRoomId: nextClassRoomId,
+                lessonTitle: nextLesson['title'] ?? 'Lesson',
+                lessonIndex: nextIndex,
+              );
+            });
+            return;
+          }
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to open the next lesson.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('You completed all lessons in this class!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else if (result == StudentQuizOutcome.exitSuccess) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Quiz completed successfully.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else if (result == StudentQuizOutcome.exitFailure) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Quiz attempt recorded. You can try again later.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
       }
-    }).catchError((error) {
-      debugPrint('Error navigating to quiz: $error');
+    } catch (error) {
+      debugPrint('Error navigating to lesson reader: $error');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error opening quiz: ${error.toString()}'),
+            content: Text('Error opening lesson: ${error.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
       }
-    });
+    }
   }
 }
