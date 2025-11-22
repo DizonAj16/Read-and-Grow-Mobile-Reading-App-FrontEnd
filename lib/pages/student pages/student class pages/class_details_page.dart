@@ -297,7 +297,6 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
   List<BottomNavigationBarItem> _buildBottomNavigationItems(ThemeData theme) {
     return [
       _buildBottomNavItem(0, Icons.task_outlined, "Tasks", theme),
-      _buildBottomNavItem(1, Icons.assignment_outlined, "Materials", theme),
       _buildBottomNavItem(2, Icons.people_outline, "Classmates", theme),
       _buildBottomNavItem(3, Icons.person_outline, "Teacher", theme),
     ];

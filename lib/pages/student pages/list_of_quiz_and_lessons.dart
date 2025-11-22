@@ -485,21 +485,19 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
       final latestLessons = results[1] as List<Map<String, dynamic>>;
 
       if (result == StudentQuizOutcome.continueNext) {
-        final nextIndex = lessonIndex + 1;
-        if (nextIndex < latestLessons.length) {
+        int nextIndex = lessonIndex + 1;
+        bool skippedLessons = false;
+
+        while (nextIndex < latestLessons.length) {
           final nextLesson = latestLessons[nextIndex];
           final nextQuizzes = (nextLesson['quizzes'] as List?)
                   ?.cast<Map<String, dynamic>>() ??
               [];
 
           if (nextQuizzes.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Next lesson quiz is not ready yet.'),
-                backgroundColor: Colors.orange,
-              ),
-            );
-            return;
+            skippedLessons = true;
+            nextIndex++;
+            continue;
           }
 
           final nextQuiz = nextQuizzes.first;
@@ -512,6 +510,15 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
           if (nextQuizId != null &&
               nextAssignmentId != null &&
               nextTaskId != null) {
+            if (skippedLessons && mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Skipped lessons without quizzes and moved to the next available quiz.'),
+                  backgroundColor: Colors.blueAccent,
+                ),
+              );
+            }
+
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _openLessonReader(
                 quizId: nextQuizId,
@@ -525,13 +532,17 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
             return;
           }
 
+          skippedLessons = true;
+          nextIndex++;
+        }
+
+        if (skippedLessons && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Unable to open the next lesson.'),
-              backgroundColor: Colors.red,
+              content: Text('All remaining lessons have no quizzes. Great job finishing the class!'),
+              backgroundColor: Colors.green,
             ),
           );
-          return;
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -540,6 +551,7 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
             ),
           );
         }
+        return;
       } else if (result == StudentQuizOutcome.exitSuccess) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
