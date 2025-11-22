@@ -12,7 +12,8 @@ class ClassContentScreen extends StatefulWidget {
 }
 
 class _ClassContentScreenState extends State<ClassContentScreen> {
-  late Future<List<Map<String, dynamic>>> _lessonsFuture;
+  Future<List<Map<String, dynamic>>>? _lessonsFuture;
+  int _refreshKey = 0;
 
   @override
   void initState() {
@@ -100,10 +101,11 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
   }
 
   Future<void> _refreshLessons() async {
-    final newLessons = await _fetchLessons();
     setState(() {
-      _lessonsFuture = Future.value(newLessons);
+      _refreshKey++;
+      _lessonsFuture = _fetchLessons();
     });
+    await _lessonsFuture;
   }
 
   @override
@@ -112,6 +114,7 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
       appBar: AppBar(title: const Text("Lessons & Quizzes")),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _lessonsFuture,
+        key: ValueKey(_refreshKey), // Force rebuild when refresh key changes
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());

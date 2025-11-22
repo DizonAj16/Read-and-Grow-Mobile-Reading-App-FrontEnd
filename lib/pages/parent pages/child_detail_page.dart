@@ -31,6 +31,9 @@ class _ChildDetailPageState extends State<ChildDetailPage>
   List<Map<String, dynamic>> _recentSubmissions = [];
 
   // Quiz data
+  int _totalQuizzes = 0;
+  int _completedQuizzes = 0;
+  double _quizAverage = 0;
   List<Map<String, dynamic>> _quizSubmissions = [];
 
   @override
@@ -60,6 +63,10 @@ class _ChildDetailPageState extends State<ChildDetailPage>
         _totalCorrect = progressData['totalCorrect'] as int;
         _totalWrong = progressData['totalWrong'] as int;
         _averageScore = progressData['averageScore'] as double;
+        
+        _totalQuizzes = progressData['totalQuizzes'] as int? ?? 0;
+        _completedQuizzes = progressData['completedQuizzes'] as int? ?? 0;
+        _quizAverage = progressData['quizAverage'] as double? ?? 0.0;
         
         final submissions = progressData['quizSubmissions'] as List<Map<String, dynamic>>;
         _quizSubmissions = submissions;
@@ -217,7 +224,34 @@ class _ChildDetailPageState extends State<ChildDetailPage>
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
+          
+          // Quiz Statistics
+          if (_totalQuizzes > 0) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatCard(
+                    'Quizzes Completed',
+                    '$_completedQuizzes / $_totalQuizzes',
+                    Icons.quiz,
+                    Colors.purple,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildStatCard(
+                    'Quiz Average',
+                    '${_quizAverage.toStringAsFixed(1)}%',
+                    Icons.star,
+                    Colors.amber,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+          ] else
+            const SizedBox(height: 24),
 
           // Completion Progress
           Text(
@@ -312,7 +346,7 @@ class _ChildDetailPageState extends State<ChildDetailPage>
               ),
             ),
             title: Text(
-              'Quiz #${index + 1}',
+              submission['quiz_title'] as String? ?? 'Quiz #${index + 1}',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             subtitle: Column(
@@ -422,13 +456,20 @@ class _ChildDetailPageState extends State<ChildDetailPage>
 
           _buildReportItem('Total Tasks', '$_totalTasks'),
           _buildReportItem('Completed Tasks', '$_completedTasks'),
-          _buildReportItem('Completion Rate', '${(_totalTasks > 0 ? (_completedTasks / _totalTasks * 100) : 0).toStringAsFixed(1)}%'),
-          _buildReportItem('Average Score', '${_averageScore.toStringAsFixed(1)}%'),
+          _buildReportItem('Task Completion Rate', '${(_totalTasks > 0 ? (_completedTasks / _totalTasks * 100) : 0).toStringAsFixed(1)}%'),
+          _buildReportItem('Task Average Score', '${_averageScore.toStringAsFixed(1)}%'),
           _buildReportItem('Correct Answers', '$_totalCorrect'),
           _buildReportItem('Wrong Answers', '$_totalWrong'),
           _buildReportItem('Accuracy Rate', _totalCorrect + _totalWrong > 0
               ? '${((_totalCorrect / (_totalCorrect + _totalWrong)) * 100).toStringAsFixed(1)}%'
               : '0%'),
+          if (_totalQuizzes > 0) ...[
+            const Divider(),
+            _buildReportItem('Total Quizzes', '$_totalQuizzes'),
+            _buildReportItem('Completed Quizzes', '$_completedQuizzes'),
+            _buildReportItem('Quiz Completion Rate', '${(_totalQuizzes > 0 ? (_completedQuizzes / _totalQuizzes * 100) : 0).toStringAsFixed(1)}%'),
+            _buildReportItem('Quiz Average Score', '${_quizAverage.toStringAsFixed(1)}%'),
+          ],
 
           const SizedBox(height: 24),
 

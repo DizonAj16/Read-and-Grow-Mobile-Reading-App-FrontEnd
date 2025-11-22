@@ -115,32 +115,37 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
           .toList();
 
       // Get all assignments for these classes
-      List<String> assignedTaskIds = [];
-      List<String> assignedQuizIds = [];
+      // Important: If a task has a quiz, we count the quiz, not the task (to avoid double counting)
+      List<String> assignedTaskIds = []; // Only tasks WITHOUT quizzes
+      List<String> assignedQuizIds = []; // All quizzes (from tasks or directly linked)
+      Set<String> tasksWithQuizzes = {}; // Track which tasks have quizzes (so we don't count them separately)
+      
       if (classIds.isNotEmpty) {
         final assignments = await supabase
             .from('assignments')
             .select('task_id, quiz_id, tasks(id, quizzes(id))')
             .inFilter('class_room_id', classIds);
-        
-        // Also get quizzes directly linked via quiz_id in assignments
-        final directQuizAssignments = await supabase
-            .from('assignments')
-            .select('quiz_id')
-            .inFilter('class_room_id', classIds)
-            .not('quiz_id', 'is', null);
 
         for (var assignment in assignments) {
+          // Handle quiz_id assignments (quizzes directly linked to assignment)
+          final directQuizId = assignment['quiz_id'] as String?;
+          if (directQuizId != null && !assignedQuizIds.contains(directQuizId)) {
+            assignedQuizIds.add(directQuizId);
+          }
+          
           // Handle task_id assignments
           final taskId = assignment['task_id'] as String?;
           if (taskId != null) {
-            assignedTaskIds.add(taskId);
-            
-            // Get quizzes linked to this task
+            // Check if this task has quizzes
             final task = assignment['tasks'] as Map<String, dynamic>?;
+            bool taskHasQuiz = false;
+            
             if (task != null) {
               final quizzes = task['quizzes'] as List?;
-              if (quizzes != null) {
+              if (quizzes != null && quizzes.isNotEmpty) {
+                taskHasQuiz = true;
+                tasksWithQuizzes.add(taskId);
+                // Add quizzes from this task
                 for (var quiz in quizzes) {
                   final quizId = quiz['id'] as String?;
                   if (quizId != null && !assignedQuizIds.contains(quizId)) {
@@ -149,20 +154,12 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
                 }
               }
             }
-          }
-          
-          // Handle quiz_id assignments (quizzes directly linked to assignment)
-          final directQuizId = assignment['quiz_id'] as String?;
-          if (directQuizId != null && !assignedQuizIds.contains(directQuizId)) {
-            assignedQuizIds.add(directQuizId);
-          }
-        }
-        
-        // Add quizzes from direct quiz_id assignments
-        for (var assignment in directQuizAssignments) {
-          final quizId = assignment['quiz_id'] as String?;
-          if (quizId != null && !assignedQuizIds.contains(quizId)) {
-            assignedQuizIds.add(quizId);
+            
+            // Only add task to assignedTaskIds if it doesn't have a quiz
+            // Tasks with quizzes are counted via their quizzes to avoid double counting
+            if (!taskHasQuiz && !assignedTaskIds.contains(taskId)) {
+              assignedTaskIds.add(taskId);
+            }
           }
         }
       }
@@ -189,15 +186,23 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
       }
 
       // Get quiz submissions to check which quizzes are completed
+      // Include both quizzes linked through tasks and quizzes directly linked via quiz_id
       final quizSubmissions = await supabase
           .from('student_submissions')
-          .select('assignment_id, assignments(id, task_id, tasks(id, quizzes(id)))')
+          .select('assignment_id, assignments(id, task_id, quiz_id, tasks(id, quizzes(id)))')
           .eq('student_id', userId);
 
       Set<String> completedQuizIds = {};
       for (var submission in quizSubmissions) {
         final assignment = submission['assignments'] as Map<String, dynamic>?;
         if (assignment != null) {
+          // Check for quizzes directly linked via quiz_id in assignment
+          final directQuizId = assignment['quiz_id'] as String?;
+          if (directQuizId != null && directQuizId.isNotEmpty) {
+            completedQuizIds.add(directQuizId);
+          }
+          
+          // Check for quizzes linked through tasks
           final task = assignment['tasks'] as Map<String, dynamic>?;
           if (task != null) {
             final quizzes = task['quizzes'] as List?;
@@ -252,10 +257,16 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
         }
       }
 
-      // Count newly assigned tasks/quizzes that haven't been started yet
+      // Filter out tasks with quizzes from pending/completed task counts
+      // (they're counted via their quizzes)
+      Set<String> pendingTasksWithoutQuizzes = pendingTaskIds.where((id) => !tasksWithQuizzes.contains(id)).toSet();
+      Set<String> completedTasksWithoutQuizzes = completedTaskIds.where((id) => !tasksWithQuizzes.contains(id)).toSet();
+
+      // Count newly assigned tasks (without quizzes) that haven't been started yet
       int newPendingTasks = 0;
       for (var taskId in assignedTaskIds) {
-        if (!completedTaskIds.contains(taskId) && !pendingTaskIds.contains(taskId)) {
+        // assignedTaskIds already excludes tasks with quizzes, so we can count all
+        if (!completedTasksWithoutQuizzes.contains(taskId) && !pendingTasksWithoutQuizzes.contains(taskId)) {
           newPendingTasks++;
         }
       }
@@ -268,9 +279,12 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
         }
       }
 
-      // Total pending = existing pending + newly assigned tasks + newly assigned quizzes
-      int totalPendingCount = pendingTaskIds.length + newPendingTasks + newPendingQuizzes;
-      int totalCompletedCount = completedTaskIds.length + completedQuizIds.length;
+      // Total pending = existing pending tasks (without quizzes) + newly assigned tasks (without quizzes) + newly assigned quizzes
+      // We don't separately count "tasks with quizzes" because they're already counted via their quizzes
+      int totalPendingCount = pendingTasksWithoutQuizzes.length + newPendingTasks + newPendingQuizzes;
+      
+      // Total completed = completed tasks (without quizzes) + completed quizzes
+      int totalCompletedCount = completedTasksWithoutQuizzes.length + completedQuizIds.length;
 
       scores = scores.take(5).toList().reversed.toList();
 

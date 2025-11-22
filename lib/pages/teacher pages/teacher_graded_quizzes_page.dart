@@ -92,6 +92,7 @@ class _TeacherGradedQuizzesPageState extends State<TeacherGradedQuizzesPage> {
             quiz_answers,
             assignments!inner(
               id,
+              quiz_id,
               class_room:class_rooms(id, class_name),
               task:tasks(
                 id,
@@ -100,6 +101,10 @@ class _TeacherGradedQuizzesPageState extends State<TeacherGradedQuizzesPage> {
                   id,
                   title
                 )
+              ),
+              quiz:quizzes(
+                id,
+                title
               )
             ),
             students!inner(
@@ -129,15 +134,30 @@ class _TeacherGradedQuizzesPageState extends State<TeacherGradedQuizzesPage> {
         final assignment = submission['assignments'] as Map<String, dynamic>?;
         if (assignment == null) continue;
 
-        final task = assignment['task'] as Map<String, dynamic>?;
-        if (task == null) continue;
-
-        final quizzes = task['quizzes'] as List<dynamic>?;
-        if (quizzes == null || quizzes.isEmpty) continue;
-
-        final quiz = quizzes.first as Map<String, dynamic>;
         final classRoom = assignment['class_room'] as Map<String, dynamic>?;
         final student = submission['students'] as Map<String, dynamic>?;
+        
+        // Check for quiz directly linked via quiz_id in assignment
+        Map<String, dynamic>? quiz;
+        String? taskTitle;
+        
+        final directQuiz = assignment['quiz'] as Map<String, dynamic>?;
+        if (directQuiz != null) {
+          quiz = directQuiz;
+          taskTitle = null; // No task for directly linked quizzes
+        } else {
+          // Check for quiz linked through task
+          final task = assignment['task'] as Map<String, dynamic>?;
+          if (task != null) {
+            taskTitle = task['title'] as String?;
+            final quizzes = task['quizzes'] as List<dynamic>?;
+            if (quizzes != null && quizzes.isNotEmpty) {
+              quiz = quizzes.first as Map<String, dynamic>;
+            }
+          }
+        }
+        
+        if (quiz == null) continue;
 
         gradedList.add({
           'submission_id': submission['id'],
@@ -146,7 +166,7 @@ class _TeacherGradedQuizzesPageState extends State<TeacherGradedQuizzesPage> {
           'student_name': student?['student_name'] ?? 'Unknown Student',
           'quiz_id': quiz['id'],
           'quiz_title': quiz['title'],
-          'task_title': task['title'],
+          'task_title': taskTitle,
           'class_name': classRoom?['class_name'] ?? 'Unknown Class',
           'score': submission['score'],
           'max_score': submission['max_score'],
