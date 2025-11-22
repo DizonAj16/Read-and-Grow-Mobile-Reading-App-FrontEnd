@@ -26,7 +26,9 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
   bool _isLoading = false;
 
   String? _uploadedFileUrl;
+  String? _uploadedFilePath;
   String? _uploadedFileType;
+  String? _uploadedFileExtension;
 
   Future<void> _pickFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -42,6 +44,8 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
 
       setState(() {
         _uploadedFileUrl = uploadedUrl;
+        _uploadedFilePath = _extractStoragePath(uploadedUrl);
+        _uploadedFileExtension = fileExtension;
         if (['jpg', 'jpeg', 'png'].contains(fileExtension)) {
           _uploadedFileType = 'image';
         } else if (fileExtension == 'pdf') {
@@ -97,6 +101,11 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
       'task_id': lesson['id'],
       'teacher_id': teacherId,
     });
+
+    await _saveTaskMaterial(taskId: lesson['id'].toString());
+    await _createClassMaterialRecord(
+      classRoomId: widget.classRoomId,
+    );
 
     setState(() => _isLoading = false);
 
@@ -166,6 +175,82 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
         );
       default:
         return const SizedBox();
+    }
+  }
+
+  String? _extractStoragePath(String? publicUrl) {
+    if (publicUrl == null || publicUrl.isEmpty) return null;
+    const bucketMarker = '/materials/';
+    final index = publicUrl.indexOf(bucketMarker);
+    if (index == -1) return null;
+    return publicUrl.substring(index + bucketMarker.length);
+  }
+
+  Future<void> _saveTaskMaterial({required String taskId}) async {
+    final storagePath = _uploadedFilePath;
+    if (storagePath == null || storagePath.isEmpty) {
+      return;
+    }
+
+    final title = _lessonTitleController.text.trim().isEmpty
+        ? 'Lesson Material'
+        : _lessonTitleController.text.trim();
+    final description = _lessonDescController.text.trim();
+
+    final payload = {
+      'task_id': taskId,
+      'material_title': title,
+      if (description.isNotEmpty) 'description': description,
+      'material_file_path': storagePath,
+      'material_type': _uploadedFileType ?? 'pdf',
+    };
+
+    try {
+      await Supabase.instance.client.from('task_materials').insert(payload);
+      debugPrint('✅ Saved lesson material to task_materials');
+    } catch (e) {
+      debugPrint('❌ Failed to save lesson material: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Lesson saved, but attaching the material failed.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _createClassMaterialRecord({required String classRoomId}) async {
+    if (_uploadedFileUrl == null || _uploadedFileExtension == null) {
+      return;
+    }
+
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null || userId.isEmpty) {
+      return;
+    }
+
+    final title = _lessonTitleController.text.trim().isEmpty
+        ? 'Lesson Material'
+        : _lessonTitleController.text.trim();
+    final description = _lessonDescController.text.trim();
+
+    final payload = {
+      'class_room_id': classRoomId,
+      'uploaded_by': userId,
+      'material_title': title,
+      'material_type': _uploadedFileType ?? 'pdf',
+      if (description.isNotEmpty) 'description': description,
+      'material_file_url': _uploadedFileUrl,
+      'file_extension': _uploadedFileExtension,
+    };
+
+    try {
+      await Supabase.instance.client.from('materials').insert(payload);
+      debugPrint('✅ Material synced to class materials list');
+    } catch (e) {
+      debugPrint('❌ Failed to sync material to class materials: $e');
     }
   }
 

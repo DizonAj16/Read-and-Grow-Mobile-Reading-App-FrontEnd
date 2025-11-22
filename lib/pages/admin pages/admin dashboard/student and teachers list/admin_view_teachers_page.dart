@@ -2,6 +2,7 @@ import 'package:deped_reading_app_laravel/api/user_service.dart';
 import 'package:deped_reading_app_laravel/models/teacher_model.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AdminViewTeachersPage extends StatefulWidget {
   const AdminViewTeachersPage({super.key});
@@ -353,7 +354,7 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
                                                           overflow: TextOverflow.ellipsis,
                                                         ),
                                                         // Approval status in dialog
-                                                        if (teacher.isApproved != null)
+                                                        if (teacher.accountStatus != null)
                                                           Padding(
                                                             padding: const EdgeInsets.only(top: 12),
                                                             child: Container(
@@ -362,12 +363,12 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
                                                                 vertical: 8,
                                                               ),
                                                               decoration: BoxDecoration(
-                                                                color: teacher.isApproved == true
+                                                                color: teacher.accountStatus == 'active'
                                                                     ? Colors.green.withOpacity(0.2)
                                                                     : Colors.orange.withOpacity(0.2),
                                                                 borderRadius: BorderRadius.circular(12),
                                                                 border: Border.all(
-                                                                  color: teacher.isApproved == true
+                                                                  color: teacher.accountStatus == 'active'
                                                                       ? Colors.green
                                                                       : Colors.orange,
                                                                   width: 1.5,
@@ -377,24 +378,24 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
                                                                 mainAxisSize: MainAxisSize.min,
                                                                 children: [
                                                                   Icon(
-                                                                    teacher.isApproved == true
+                                                                    teacher.accountStatus == 'active'
                                                                         ? Icons.check_circle
                                                                         : Icons.pending,
                                                                     size: 20,
-                                                                    color: teacher.isApproved == true
+                                                                    color: teacher.accountStatus == 'active'
                                                                         ? Colors.green
                                                                         : Colors.orange,
                                                                   ),
                                                                   const SizedBox(width: 8),
                                                                   Flexible(
                                                                     child: Text(
-                                                                      teacher.isApproved == true
+                                                                      teacher.accountStatus == 'active'
                                                                           ? 'Approved Teacher'
                                                                           : 'Pending Approval',
                                                                       style: TextStyle(
                                                                         fontSize: 14,
                                                                         fontWeight: FontWeight.bold,
-                                                                        color: teacher.isApproved == true
+                                                                        color: teacher.accountStatus == 'active'
                                                                             ? Colors.green[700]
                                                                             : Colors.orange[700],
                                                                       ),
@@ -790,7 +791,7 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
                                             ],
                                           ),
                                         ),
-                                        if (teacher.isApproved != true)
+                                        if (teacher.accountStatus != 'active')
                                           PopupMenuItem(
                                             value: 'approve',
                                             child: Row(
@@ -804,7 +805,7 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
                                               ],
                                             ),
                                           ),
-                                        if (teacher.isApproved == true)
+                                        if (teacher.accountStatus == 'active')
                                           PopupMenuItem(
                                             value: 'reject',
                                             child: Row(
@@ -917,7 +918,7 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
                               ),
                             ),
                             // Approval status badge
-                            if (teacher.isApproved != null)
+                            if (teacher.accountStatus != null)
                               Padding(
                                 padding: const EdgeInsets.only(top: 8),
                                 child: Container(
@@ -926,12 +927,12 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
                                     vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: teacher.isApproved == true
+                                    color: teacher.accountStatus == 'active'
                                         ? Colors.green.withOpacity(0.2)
                                         : Colors.orange.withOpacity(0.2),
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                      color: teacher.isApproved == true
+                                      color: teacher.accountStatus == 'active'
                                           ? Colors.green
                                           : Colors.orange,
                                       width: 1,
@@ -941,24 +942,24 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Icon(
-                                        teacher.isApproved == true
+                                        teacher.accountStatus == 'active'
                                             ? Icons.check_circle
                                             : Icons.pending,
                                         size: 14,
-                                        color: teacher.isApproved == true
+                                        color: teacher.accountStatus == 'active'
                                             ? Colors.green
                                             : Colors.orange,
                                       ),
                                       const SizedBox(width: 4),
                                       Flexible(
                                         child: Text(
-                                          teacher.isApproved == true
+                                          teacher.accountStatus == 'active'
                                               ? 'Approved'
                                               : 'Pending',
                                           style: TextStyle(
                                             fontSize: 11,
                                             fontWeight: FontWeight.bold,
-                                            color: teacher.isApproved == true
+                                            color: teacher.accountStatus == 'active'
                                                 ? Colors.green[700]
                                                 : Colors.orange[700],
                                           ),
@@ -1135,10 +1136,33 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
   }
 
   Future<void> _handleTeacherApproval(Teacher teacher, bool isApproved) async {
-    if (teacher.id == null) {
+    // Get teacher ID - handle both UUID (string) and integer IDs
+    String? teacherId;
+    if (teacher.id != null) {
+      teacherId = teacher.id.toString();
+    } else if (teacher.userId != null) {
+      teacherId = teacher.userId.toString();
+    } else if (teacher.email != null) {
+      // Fallback: get ID from database using email
+      try {
+        final supabase = Supabase.instance.client;
+        final teacherData = await supabase
+            .from('teachers')
+            .select('id')
+            .eq('teacher_email', teacher.email!)
+            .maybeSingle();
+        if (teacherData != null && teacherData['id'] != null) {
+          teacherId = teacherData['id'].toString();
+        }
+      } catch (e) {
+        debugPrint('Error fetching teacher ID: $e');
+      }
+    }
+
+    if (teacherId == null || teacherId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Teacher ID is missing'),
+          content: Text('Teacher ID is missing. Cannot update approval status.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -1221,7 +1245,7 @@ class _AdminViewTeachersPageState extends State<AdminViewTeachersPage> {
 
     try {
       final success = await UserService.updateTeacherApprovalStatus(
-        teacherId: teacher.id.toString(),
+        teacherId: teacherId,
         isApproved: isApproved,
       );
 

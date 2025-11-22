@@ -63,7 +63,30 @@ class _LoginPageState extends State<LoginPage> {
 
     } catch (e) {
       Navigator.of(context).pop();
-      _showErrorDialog(title: 'Login Failed', message: e.toString());
+      final errorMessage = e.toString();
+      
+      // Check if it's an approval-related error
+      if (errorMessage.contains('pending approval')) {
+        _showErrorDialog(
+          title: 'Account Pending Approval',
+          message: 'Your teacher account is pending approval from an administrator. Please contact your administrator to approve your account before you can log in.',
+        );
+      } else if (errorMessage.contains('deactivated') || errorMessage.contains('inactive')) {
+        _showErrorDialog(
+          title: 'Account Deactivated',
+          message: 'Your teacher account has been deactivated. Please contact an administrator for assistance.',
+        );
+      } else if (errorMessage.contains('not active')) {
+        _showErrorDialog(
+          title: 'Account Not Active',
+          message: 'Your teacher account is not active. Please contact an administrator for assistance.',
+        );
+      } else {
+        _showErrorDialog(
+          title: 'Login Failed',
+          message: errorMessage.replaceAll('Exception: ', '').replaceAll('Exception', ''),
+        );
+      }
       debugPrint('Login error: $e');
     }
   }

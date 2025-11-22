@@ -98,6 +98,36 @@ class SupabaseAuthService {
         .maybeSingle();
 
     final role = roleRow?['role'] ?? 'student';
+    
+    // Check if teacher account status is active before allowing login
+    if (role == 'teacher') {
+      final teacherCheck = await _supabase
+          .from('teachers')
+          .select('account_status')
+          .eq('id', user.id)
+          .maybeSingle();
+      
+      final accountStatus = teacherCheck?['account_status'] as String? ?? 'pending';
+      
+      if (accountStatus == 'pending') {
+        // Sign out the user since they shouldn't be logged in
+        await _supabase.auth.signOut();
+        throw Exception('Your account is pending approval. Please contact an administrator to approve your account before logging in.');
+      }
+      
+      if (accountStatus == 'inactive') {
+        // Sign out the user if account is inactive
+        await _supabase.auth.signOut();
+        throw Exception('Your account has been deactivated. Please contact an administrator for assistance.');
+      }
+      
+      if (accountStatus != 'active') {
+        // Sign out the user if account is not active (any other status)
+        await _supabase.auth.signOut();
+        throw Exception('Your account is not active. Please contact an administrator for assistance.');
+      }
+    }
+    
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('id', user.id);
     await prefs.setString('role', role);

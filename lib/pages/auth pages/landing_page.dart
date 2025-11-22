@@ -3,6 +3,7 @@ import 'package:deped_reading_app_laravel/pages/auth%20pages/student_signup_page
 import 'package:deped_reading_app_laravel/pages/auth%20pages/teacher_signup_page.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import '../../constants.dart';
 import '../../widgets/appbar/theme_toggle_button.dart';
 import '../../widgets/navigation/page_transition.dart';
 import 'choose_role_page.dart'; 
@@ -48,6 +49,14 @@ class LandingPage extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Colors.white,
+                      ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  kAppVersion,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.white70,
+                        letterSpacing: 1.2,
                       ),
                 ),
                 const SizedBox(height: 40),

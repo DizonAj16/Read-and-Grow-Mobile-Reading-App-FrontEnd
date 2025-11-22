@@ -274,6 +274,7 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
     if (quizHelper == null) return;
 
     final supabase = quizHelper!.supabase;
+    const double passingThreshold = 0.7;
 
     // Check attempt count (allow up to 3 attempts)
     final existingSubmissionRes = await supabase
@@ -474,7 +475,13 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
       'updated_at': DateTime.now().toIso8601String(),
     };
 
-    final progressResult = await supabase.from('student_task_progress').upsert(progressUpdate).select();
+    final progressResult = await supabase
+        .from('student_task_progress')
+        .upsert(
+          progressUpdate,
+          onConflict: 'student_id,task_id',
+        )
+        .select();
     debugPrint('📊 [SUBMIT_QUIZ] Progress updated: ${progressResult.length} row(s)');
 
     // Insert submission with attempt number
@@ -495,6 +502,25 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
     quizHelper!.currentAttempt++;
 
     if (!mounted) return;
+
+    final bool reachedFinalAttempt = nextAttemptNumber >= maxAttempts;
+    final bool passedFinalAttempt = reachedFinalAttempt &&
+        quizHelper!.questions.isNotEmpty &&
+        (correct / quizHelper!.questions.length) >= passingThreshold;
+
+    if (reachedFinalAttempt) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            passedFinalAttempt
+                ? 'Great job! Your final attempt passed. The next quiz is now unlocked.'
+                : 'Final attempt completed. This quiz remains locked. Please review with your teacher.',
+          ),
+          backgroundColor: passedFinalAttempt ? Colors.green : Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
 
     // Show review dialog with correct answers
     _showQuizReviewDialog(correct, quizHelper!.questions.length);

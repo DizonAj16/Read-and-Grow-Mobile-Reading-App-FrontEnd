@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -33,6 +34,10 @@ class _AddLessonWithQuizScreenState extends State<AddLessonWithQuizScreen> {
   List<QuizQuestion> _questions = [];
 
   bool _isLoading = false;
+  String? _uploadedFileUrl;
+  String? _uploadedFilePath;
+  String? _uploadedFileType;
+  String? _uploadedFileExtension;
 
   void _addQuestion() {
     final defaultOptions = List.generate(4, (i) => 'Option ${i + 1}');
@@ -66,6 +71,71 @@ class _AddLessonWithQuizScreenState extends State<AddLessonWithQuizScreen> {
     question.matchingPairs ??= [];
     question.matchingPairs!.add(MatchingPair(leftItem: '', rightItemUrl: ''));
     setState(() {});
+  }
+
+  Future<void> _pickFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'mp4', 'mp3', 'wav', 'jpg', 'jpeg', 'png'],
+    );
+
+    if (result != null && result.files.single.path != null) {
+      final file = File(result.files.single.path!);
+      final fileExtension = file.path.split('.').last.toLowerCase();
+
+      final uploadedUrl = await ApiService.uploadFile(file);
+      if (uploadedUrl == null) return;
+
+      setState(() {
+        _uploadedFileUrl = uploadedUrl;
+        _uploadedFilePath = _extractStoragePath(uploadedUrl);
+        _uploadedFileExtension = fileExtension;
+        if (['jpg', 'jpeg', 'png'].contains(fileExtension)) {
+          _uploadedFileType = 'image';
+        } else if (fileExtension == 'pdf') {
+          _uploadedFileType = 'pdf';
+        } else if (['mp4'].contains(fileExtension)) {
+          _uploadedFileType = 'video';
+        } else {
+          _uploadedFileType = 'audio';
+        }
+      });
+    }
+  }
+
+  Widget _buildFilePreview() {
+    if (_uploadedFileUrl == null) return const SizedBox.shrink();
+
+    switch (_uploadedFileType) {
+      case 'image':
+        return Image.network(_uploadedFileUrl!, height: 150);
+      case 'pdf':
+        return Row(
+          children: [
+            const Icon(Icons.picture_as_pdf),
+            const SizedBox(width: 8),
+            Expanded(child: Text(_uploadedFileUrl!)),
+          ],
+        );
+      case 'video':
+        return Row(
+          children: [
+            const Icon(Icons.videocam),
+            const SizedBox(width: 8),
+            Expanded(child: Text(_uploadedFileUrl!)),
+          ],
+        );
+      case 'audio':
+        return Row(
+          children: [
+            const Icon(Icons.audiotrack),
+            const SizedBox(width: 8),
+            Expanded(child: Text(_uploadedFileUrl!)),
+          ],
+        );
+      default:
+        return const SizedBox.shrink();
+    }
   }
 
   Future<void> _submitLessonAndQuiz() async {
@@ -130,6 +200,11 @@ class _AddLessonWithQuizScreenState extends State<AddLessonWithQuizScreen> {
         'teacher_id': teacherId, // ✅ now required
       });
 
+      await _saveTaskMaterial(taskId: lesson['id'].toString());
+      await _createClassMaterialRecord(
+        classRoomId: widget.classDetails['id'] as String,
+      );
+
       // 6️⃣ Add quiz
       final quiz = await ApiService.addQuiz(
         taskId: lesson['id'],
@@ -165,6 +240,83 @@ class _AddLessonWithQuizScreenState extends State<AddLessonWithQuizScreen> {
     }
   }
 
+  String? _extractStoragePath(String? publicUrl) {
+    if (publicUrl == null || publicUrl.isEmpty) return null;
+    const bucketMarker = '/materials/';
+    final index = publicUrl.indexOf(bucketMarker);
+    if (index == -1) return null;
+    return publicUrl.substring(index + bucketMarker.length);
+  }
+
+  Future<void> _saveTaskMaterial({required String taskId}) async {
+    final storagePath = _uploadedFilePath;
+    if (storagePath == null || storagePath.isEmpty) {
+      return;
+    }
+
+    final title = _lessonTitleController.text.trim().isEmpty
+        ? 'Lesson Material'
+        : _lessonTitleController.text.trim();
+    final description = _lessonDescController.text.trim();
+
+    final payload = {
+      'task_id': taskId,
+      'material_title': title,
+      if (description.isNotEmpty) 'description': description,
+      'material_file_path': storagePath,
+      'material_type': _uploadedFileType ?? 'pdf',
+    };
+
+    try {
+      await Supabase.instance.client.from('task_materials').insert(payload);
+      debugPrint('✅ Saved lesson material to task_materials');
+    } catch (e) {
+      debugPrint('❌ Failed to save lesson material: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content:
+                Text('Lesson saved, but attaching the material failed.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _createClassMaterialRecord({required String classRoomId}) async {
+    if (_uploadedFileUrl == null || _uploadedFileExtension == null) {
+      return;
+    }
+
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null || userId.isEmpty) {
+      return;
+    }
+
+    final title = _lessonTitleController.text.trim().isEmpty
+        ? 'Lesson Material'
+        : _lessonTitleController.text.trim();
+    final description = _lessonDescController.text.trim();
+
+    final payload = {
+      'class_room_id': classRoomId,
+      'uploaded_by': userId,
+      'material_title': title,
+      'material_type': _uploadedFileType ?? 'pdf',
+      if (description.isNotEmpty) 'description': description,
+      'material_file_url': _uploadedFileUrl,
+      'file_extension': _uploadedFileExtension,
+    };
+
+    try {
+      await Supabase.instance.client.from('materials').insert(payload);
+      debugPrint('✅ Material synced to class materials list');
+    } catch (e) {
+      debugPrint('❌ Failed to sync material to class materials: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -193,6 +345,13 @@ class _AddLessonWithQuizScreenState extends State<AddLessonWithQuizScreen> {
               value: _unlocksNextLevel,
               onChanged: (val) => setState(() => _unlocksNextLevel = val),
             ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _pickFile,
+              child: const Text('Upload File (Image, PDF, Video, Audio)'),
+            ),
+            const SizedBox(height: 10),
+            _buildFilePreview(),
             const SizedBox(height: 20),
             const Text('Quiz Details',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),

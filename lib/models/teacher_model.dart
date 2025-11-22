@@ -8,7 +8,8 @@ class Teacher {
   final String? email;
   final String? username;
   String? profilePicture;
-  final bool? isApproved;
+  final bool? isApproved; // Keep for backward compatibility
+  final String? accountStatus; // 'pending', 'active', 'suspended', etc.
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -20,6 +21,7 @@ class Teacher {
   static const String _kUsernameKey = 'username';
   static const String _kProfilePictureKey = 'profile_picture';
   static const String _kIsApprovedKey = 'is_approved';
+  static const String _kAccountStatusKey = 'account_status';
   static const String _kCreatedAtKey = 'created_at';
   static const String _kUpdatedAtKey = 'updated_at';
 
@@ -32,6 +34,7 @@ class Teacher {
     this.username,
     this.profilePicture,
     this.isApproved,
+    this.accountStatus,
     this.createdAt,
     this.updatedAt,
   });
@@ -46,6 +49,7 @@ class Teacher {
         username: '',
         profilePicture: null,
         isApproved: false,
+        accountStatus: 'pending',
         createdAt: null,
         updatedAt: null,
       );
@@ -62,6 +66,7 @@ class Teacher {
         username: prefs.getString(_kUsernameKey),
         profilePicture: prefs.getString(_kProfilePictureKey),
         isApproved: prefs.getBool(_kIsApprovedKey),
+        accountStatus: prefs.getString(_kAccountStatusKey),
         createdAt: DateTime.tryParse(prefs.getString(_kCreatedAtKey) ?? ''),
         updatedAt: DateTime.tryParse(prefs.getString(_kUpdatedAtKey) ?? ''),
       );
@@ -84,6 +89,7 @@ class Teacher {
         username: userData['username'] ?? profileData['username'],
         profilePicture: profileData['profile_picture'],
         isApproved: profileData['is_approved'] as bool?,
+        accountStatus: profileData['account_status'] as String?,
         createdAt: profileData['created_at'] != null
             ? DateTime.tryParse(profileData['created_at'])
             : null,
@@ -105,6 +111,7 @@ class Teacher {
         username: json['username'],
         profilePicture: json['profile_picture'],
         isApproved: json['is_approved'] == null ? false : (json['is_approved'] as bool? ?? false),
+        accountStatus: json['account_status'] as String?,
         createdAt: json['created_at'] != null
             ? DateTime.tryParse(json['created_at'].toString())
             : null,
@@ -125,6 +132,7 @@ class Teacher {
         'username': username,
         'profile_picture': profilePicture,
         'is_approved': isApproved,
+        'account_status': accountStatus,
         'created_at': createdAt?.toIso8601String(),
         'updated_at': updatedAt?.toIso8601String(),
       };
@@ -138,6 +146,7 @@ class Teacher {
     await prefs.setString(_kUsernameKey, username ?? '');
     await prefs.setString(_kProfilePictureKey, profilePicture ?? '');
     await prefs.setBool(_kIsApprovedKey, isApproved ?? false);
+    await prefs.setString(_kAccountStatusKey, accountStatus ?? 'pending');
     await prefs.setString(_kCreatedAtKey, createdAt?.toIso8601String() ?? '');
     await prefs.setString(_kUpdatedAtKey, updatedAt?.toIso8601String() ?? '');
 
@@ -160,6 +169,7 @@ class Teacher {
     await prefs.remove(_kUsernameKey);
     await prefs.remove(_kProfilePictureKey);
     await prefs.remove(_kIsApprovedKey);
+    await prefs.remove(_kAccountStatusKey);
     await prefs.remove(_kCreatedAtKey);
     await prefs.remove(_kUpdatedAtKey);
   }

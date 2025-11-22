@@ -21,53 +21,14 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
     _lessonsFuture = _fetchLessons();
   }
 
-  /// Check if quiz has already been submitted by student
-  Future<bool> _isQuizAlreadyTaken(String assignmentId, String quizId) async {
-    final supabase = Supabase.instance.client;
-    final user = supabase.auth.currentUser;
-    if (user == null) return false;
-
-    try {
-      final submissionRes = await supabase
-          .from('student_submissions')
-          .select('id')
-          .eq('assignment_id', assignmentId)
-          .eq('student_id', user.id)
-          .limit(1);
-
-      // Check if any submission exists (even if multiple)
-      return submissionRes.isNotEmpty;
-    } catch (e) {
-      debugPrint('Error checking quiz submission: $e');
-      return false;
-    }
-  }
-
-  /// Get quiz score if already submitted (get the most recent submission)
-  Future<Map<String, dynamic>?> _getQuizScore(String assignmentId) async {
-    final supabase = Supabase.instance.client;
-    final user = supabase.auth.currentUser;
-    if (user == null) return null;
-
-    try {
-      final submissionRes = await supabase
-          .from('student_submissions')
-          .select('score, max_score, submitted_at')
-          .eq('assignment_id', assignmentId)
-          .eq('student_id', user.id)
-          .order('submitted_at', ascending: false)
-          .limit(1)
-          .maybeSingle();
-
-      return submissionRes;
-    } catch (e) {
-      debugPrint('Error getting quiz score: $e');
-      return null;
-    }
-  }
-
   Future<List<Map<String, dynamic>>> _fetchLessons() async {
     final supabase = Supabase.instance.client;
+    final user = supabase.auth.currentUser;
+
+    if (user == null) {
+      debugPrint('⚠️ No authenticated user found.');
+      return [];
+    }
 
     final response = await supabase
         .from('assignments')
@@ -78,6 +39,8 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
             id,
             title,
             description,
+            "order",
+            created_at,
             quizzes (
               id,
               title
@@ -88,16 +51,106 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
 
     if (response.isEmpty) return [];
 
-    return response.map<Map<String, dynamic>>((assignment) {
-      final task = assignment['tasks'];
-      return {
-        "assignment_id": assignment['id'], // Store assignment ID
-        "task_id": task['id'], // Store task ID
+    final assignments = List<Map<String, dynamic>>.from(response);
+
+    assignments.sort((a, b) {
+      final taskA = a['tasks'] ?? {};
+      final taskB = b['tasks'] ?? {};
+      final orderA = taskA['order'] as int? ?? 0;
+      final orderB = taskB['order'] as int? ?? 0;
+      if (orderA != orderB) {
+        return orderA.compareTo(orderB);
+      }
+
+      final createdAString = taskA['created_at'];
+      final createdBString = taskB['created_at'];
+      final createdA = createdAString != null ? DateTime.tryParse(createdAString.toString()) : null;
+      final createdB = createdBString != null ? DateTime.tryParse(createdBString.toString()) : null;
+      if (createdA != null && createdB != null) {
+        return createdA.compareTo(createdB);
+      }
+      final idA = a['id']?.toString() ?? '';
+      final idB = b['id']?.toString() ?? '';
+      return idA.compareTo(idB);
+    });
+
+    final assignmentIds = assignments
+        .map((assignment) => assignment['id']?.toString())
+        .whereType<String>()
+        .toList();
+
+    Map<String, Map<String, dynamic>> latestSubmissionMap = {};
+    Map<String, int> attemptCountMap = {};
+
+    if (assignmentIds.isNotEmpty) {
+      final submissionsRes = await supabase
+          .from('student_submissions')
+          .select('assignment_id, score, max_score, attempt_number, submitted_at')
+          .eq('student_id', user.id)
+          .inFilter('assignment_id', assignmentIds)
+          .order('submitted_at', ascending: false);
+
+      for (final submission in submissionsRes) {
+        final submissionData = Map<String, dynamic>.from(submission as Map);
+        final assignmentId = submissionData['assignment_id']?.toString();
+        if (assignmentId == null) continue;
+        attemptCountMap[assignmentId] = (attemptCountMap[assignmentId] ?? 0) + 1;
+
+        latestSubmissionMap.putIfAbsent(assignmentId, () => submissionData);
+      }
+    }
+
+    final lessons = <Map<String, dynamic>>[];
+    bool previousQuizCompletedAndPassed = true;
+    const double passingThreshold = 0.7;
+
+    for (final assignment in assignments) {
+      final task = Map<String, dynamic>.from(assignment['tasks'] ?? {});
+      final assignmentId = assignment['id']?.toString();
+      final taskId = task['id']?.toString();
+
+      if (assignmentId == null || taskId == null) continue;
+
+      final submission = latestSubmissionMap[assignmentId];
+      final attemptCount = attemptCountMap[assignmentId] ?? 0;
+      final latestAttemptNumber = submission?['attempt_number'] as int? ?? attemptCount;
+      final hasFinalAttempt = latestAttemptNumber >= 3;
+      final int latestScore = (submission?['score'] as int?) ?? 0;
+      final int latestMaxScore = (submission?['max_score'] as int?) ?? 0;
+      final bool finalPassed = hasFinalAttempt &&
+          latestMaxScore > 0 &&
+          (latestScore / latestMaxScore) >= passingThreshold;
+
+      final bool isLocked = !previousQuizCompletedAndPassed;
+      final bool canRetake = !isLocked && !hasFinalAttempt;
+
+      if (hasFinalAttempt) {
+        previousQuizCompletedAndPassed = finalPassed;
+      } else {
+        previousQuizCompletedAndPassed = false;
+      }
+
+      lessons.add({
+        "assignment_id": assignmentId,
+        "task_id": taskId,
         "title": task['title'],
         "description": task['description'],
-        "quizzes": task['quizzes'] ?? [],
-      };
-    }).toList();
+        "quizzes": List<Map<String, dynamic>>.from(
+          (task['quizzes'] ?? []) as List,
+        ),
+        "submission": submission,
+        "isTaken": hasFinalAttempt,
+        "isLocked": isLocked,
+        "attemptCount": attemptCount,
+        "hasFinalAttempt": hasFinalAttempt,
+        "finalPassed": finalPassed,
+        "canRetake": canRetake,
+        "latestScore": latestScore,
+        "latestMaxScore": latestMaxScore,
+      });
+    }
+
+    return lessons;
   }
 
   Future<void> _refreshLessons() async {
@@ -165,8 +218,15 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
                         ...quizzes.map<Widget>((quiz) {
                           final quizId = quiz['id']?.toString();
                           final assignmentId = lesson['assignment_id']?.toString();
-                          
-                          // Skip if quiz ID or assignment ID is missing
+                          final submission = lesson['submission'] as Map<String, dynamic>?;
+                          final bool hasFinalAttempt = lesson['hasFinalAttempt'] == true;
+                          final bool finalPassed = lesson['finalPassed'] == true;
+                          final bool canRetake = lesson['canRetake'] == true;
+                          final bool isLocked = lesson['isLocked'] == true;
+                          final int attemptCount = lesson['attemptCount'] as int? ?? 0;
+                          final int latestScore = lesson['latestScore'] as int? ?? 0;
+                          final int latestMaxScore = lesson['latestMaxScore'] as int? ?? 0;
+
                           if (quizId == null || quizId.isEmpty || assignmentId == null || assignmentId.isEmpty) {
                             return ListTile(
                               leading: const Icon(Icons.error, color: Colors.red),
@@ -175,189 +235,101 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
                               enabled: false,
                             );
                           }
-                          
-                          return FutureBuilder<bool>(
-                            future: _isQuizAlreadyTaken(assignmentId, quizId),
-                            builder: (context, takenSnapshot) {
-                              final isTaken = takenSnapshot.data ?? false;
-                              
-                              return FutureBuilder<Map<String, dynamic>?>(
-                                future: isTaken ? _getQuizScore(assignmentId) : Future.value(null),
-                                builder: (context, scoreSnapshot) {
-                                  final score = scoreSnapshot.data;
-                                  
-                                  return ListTile(
-                                  leading: Icon(
-                                    isTaken ? Icons.check_circle : Icons.quiz,
-                                    color: isTaken ? Colors.green : Colors.orange,
-                                  ),
-                                  title: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(quiz['title']),
+
+                          final String statusText;
+                          if (finalPassed) {
+                            statusText = 'Final attempt passed – next quiz unlocked';
+                          } else if (hasFinalAttempt && !finalPassed) {
+                            statusText = 'Final attempt failed – quiz locked';
+                          } else if (isLocked) {
+                            statusText = 'Locked until previous quiz final attempt passes';
+                          } else {
+                            statusText = 'Attempt ${attemptCount + 1} of 3';
+                          }
+
+                          return ListTile(
+                            leading: Icon(
+                              finalPassed
+                                  ? Icons.check_circle
+                                  : hasFinalAttempt
+                                      ? Icons.block
+                                      : isLocked
+                                          ? Icons.lock
+                                          : Icons.quiz,
+                              color: finalPassed
+                                  ? Colors.green
+                                  : hasFinalAttempt
+                                      ? Colors.red
+                                      : isLocked
+                                          ? Colors.grey
+                                          : Colors.orange,
+                            ),
+                            title: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(quiz['title'] ?? 'Quiz'),
+                                ),
+                                if (hasFinalAttempt && latestMaxScore > 0)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.shade100,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      '$latestScore/$latestMaxScore',
+                                      style: TextStyle(
+                                        color: Colors.green.shade700,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
                                       ),
-                                      if (isTaken && score != null)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.green.shade100,
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                          child: Text(
-                                            '${score['score']}/${score['max_score']}',
-                                            style: TextStyle(
-                                              color: Colors.green.shade700,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ),
-                                    ],
+                                    ),
                                   ),
-                                  subtitle: isTaken
-                                      ? const Text(
-                                          'Quiz already completed',
-                                          style: TextStyle(
-                                            color: Colors.green,
-                                            fontStyle: FontStyle.italic,
-                                          ),
-                                        )
-                                      : const Text('Tap to take quiz'),
-                                  trailing: isTaken
-                                      ? const Icon(Icons.lock, color: Colors.grey)
-                                      : const Icon(Icons.arrow_forward_ios, size: 16),
-                                  onTap: isTaken
-                                      ? () {
-                                          // Show quiz results dialog
-                                          if (score != null && mounted) {
-                                            showDialog(
-                                              context: context,
-                                              builder: (context) => AlertDialog(
-                                                title: const Text('Quiz Results'),
-                                                content: Column(
-                                                  mainAxisSize: MainAxisSize.min,
-                                                  children: [
-                                                    Text(
-                                                      'You have already completed this quiz.',
-                                                      style: TextStyle(
-                                                        fontSize: 16,
-                                                        color: Colors.grey[700],
-                                                      ),
-                                                    ),
-                                                    const SizedBox(height: 16),
-                                                    Container(
-                                                      padding: const EdgeInsets.all(16),
-                                                      decoration: BoxDecoration(
-                                                        color: Colors.green.shade50,
-                                                        borderRadius: BorderRadius.circular(8),
-                                                      ),
-                                                      child: Column(
-                                                        children: [
-                                                          Text(
-                                                            'Your Score',
-                                                            style: TextStyle(
-                                                              fontSize: 14,
-                                                              color: Colors.grey[600],
-                                                            ),
-                                                          ),
-                                                          const SizedBox(height: 8),
-                                                          Text(
-                                                            '${score['score'] ?? 0} / ${score['max_score'] ?? 0}',
-                                                            style: TextStyle(
-                                                              fontSize: 32,
-                                                              fontWeight: FontWeight.bold,
-                                                              color: Colors.green.shade700,
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                actions: [
-                                                  TextButton(
-                                                    onPressed: () {
-                                                      if (Navigator.of(context).canPop()) {
-                                                        Navigator.pop(context);
-                                                      }
-                                                    },
-                                                    child: const Text('OK'),
-                                                  ),
-                                                ],
-                                              ),
-                                            );
-                                          }
-                                        }
-                                      : () {
-                                          final quizId = quiz['id']?.toString();
-                                          final assignmentId = lesson['assignment_id']?.toString();
-                                          final user = Supabase.instance.client.auth.currentUser;
-                                          
-                                          // Validate required data
-                                          if (quizId == null || quizId.isEmpty) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(
-                                                content: Text('Error: Quiz ID is missing'),
-                                                backgroundColor: Colors.red,
-                                              ),
-                                            );
-                                            return;
-                                          }
-                                          
-                                          if (assignmentId == null || assignmentId.isEmpty) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(
-                                                content: Text('Error: Assignment ID is missing'),
-                                                backgroundColor: Colors.red,
-                                              ),
-                                            );
-                                            return;
-                                          }
-                                          
-                                          if (user == null || user.id.isEmpty) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(
-                                                content: Text('Error: User not authenticated'),
-                                                backgroundColor: Colors.red,
-                                              ),
-                                            );
-                                            return;
-                                          }
-                                          
-                                          if (mounted) {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) => StudentQuizPage(
-                                                  quizId: quizId,
-                                                  assignmentId: assignmentId,
-                                                  studentId: user.id,
-                                                ),
-                                              ),
-                                            ).then((_) {
-                                              // Refresh after returning from quiz
-                                              if (mounted) {
-                                                _refreshLessons();
-                                              }
-                                            }).catchError((error) {
-                                              debugPrint('Error navigating to quiz: $error');
-                                              if (mounted) {
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text('Error opening quiz: ${error.toString()}'),
-                                                    backgroundColor: Colors.red,
-                                                  ),
-                                                );
-                                              }
-                                            });
-                                          }
-                                        },
-                                  );
-                                },
-                              );
+                              ],
+                            ),
+                            subtitle: Text(
+                              statusText,
+                              style: TextStyle(
+                                color: finalPassed
+                                    ? Colors.green
+                                    : hasFinalAttempt
+                                        ? Colors.red
+                                        : isLocked
+                                            ? Colors.grey
+                                            : Colors.orange,
+                                fontStyle: (hasFinalAttempt || isLocked) ? FontStyle.italic : FontStyle.normal,
+                              ),
+                            ),
+                            trailing: finalPassed
+                                ? const Icon(Icons.check, color: Colors.green)
+                                : hasFinalAttempt
+                                    ? const Icon(Icons.lock, color: Colors.redAccent)
+                                    : isLocked
+                                        ? const Icon(Icons.lock_outline, color: Colors.grey)
+                                        : const Icon(Icons.arrow_forward_ios, size: 16),
+                            onTap: () {
+                              if (isLocked) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Complete the previous quiz first to unlock this quiz.'),
+                                    backgroundColor: Colors.orange,
+                                  ),
+                                );
+                                return;
+                              }
+
+                              if (hasFinalAttempt) {
+                                if (submission != null && mounted) {
+                                  _showCompletedQuizDialog(submission);
+                                }
+                                return;
+                              }
+
+                              if (!canRetake) {
+                                return;
+                              }
+
+                              _openQuiz(quizId: quizId, assignmentId: assignmentId);
                             },
                           );
                         }).toList(),
@@ -370,5 +342,133 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
         },
       ),
     );
+  }
+
+  void _showCompletedQuizDialog(Map<String, dynamic> submission) {
+    if (!mounted) return;
+
+    final score = submission['score'] ?? 0;
+    final maxScore = submission['max_score'] ?? 0;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Quiz Results'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'You have already completed this quiz.',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[700],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'Your Score',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '$score / $maxScore',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green.shade700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              if (Navigator.of(context).canPop()) {
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openQuiz({
+    required String quizId,
+    required String assignmentId,
+  }) async {
+    final user = Supabase.instance.client.auth.currentUser;
+
+    if (quizId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error: Quiz ID is missing'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (assignmentId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error: Assignment ID is missing'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (user == null || user.id.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error: User not authenticated'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => StudentQuizPage(
+          quizId: quizId,
+          assignmentId: assignmentId,
+          studentId: user.id,
+        ),
+      ),
+    ).then((_) {
+      if (mounted) {
+        _refreshLessons();
+      }
+    }).catchError((error) {
+      debugPrint('Error navigating to quiz: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening quiz: ${error.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    });
   }
 }

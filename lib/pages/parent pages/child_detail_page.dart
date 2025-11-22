@@ -290,6 +290,47 @@ class _ChildDetailPageState extends State<ChildDetailPage>
             backgroundColor: Colors.grey[200]!,
             circularStrokeCap: CircularStrokeCap.round,
           ),
+          
+          // Quiz Completion Progress (only show if there are quizzes)
+          if (_totalQuizzes > 0) ...[
+            const SizedBox(height: 32),
+            Text(
+              'Quiz Completion',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+            const SizedBox(height: 12),
+            CircularPercentIndicator(
+              radius: 100.0,
+              lineWidth: 12.0,
+              percent: (_completedQuizzes / _totalQuizzes).clamp(0.0, 1.0),
+              center: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    '${((_completedQuizzes / _totalQuizzes) * 100).toInt()}%',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'Complete',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+              progressColor: Colors.purple,
+              backgroundColor: Colors.grey[200]!,
+              circularStrokeCap: CircularStrokeCap.round,
+            ),
+          ],
         ],
       ),
     );

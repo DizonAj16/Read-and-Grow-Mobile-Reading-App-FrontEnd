@@ -303,9 +303,15 @@ class UserService {
             data['username'] = usernameMap[userId];
           }
           
-          // Ensure is_approved defaults to false if null
-          if (data['is_approved'] == null) {
-            data['is_approved'] = false;
+          // Ensure account_status defaults to 'pending' if null
+          if (data['account_status'] == null) {
+            data['account_status'] = 'pending';
+          }
+          
+          // Derive is_approved from account_status for backward compatibility (if model needs it)
+          // Only set if is_approved field doesn't exist in data
+          if (!data.containsKey('is_approved')) {
+            data['is_approved'] = data['account_status'] == 'active';
           }
           
           // Handle teacher_id field if id is not present
@@ -647,10 +653,13 @@ class UserService {
   }) async {
     final supabase = Supabase.instance.client;
     try {
+      // Set account_status based on approval: 'active' if approved, 'pending' if rejected
+      final accountStatus = isApproved ? 'active' : 'pending';
+      
       final result = await supabase
           .from('teachers')
           .update({
-            'is_approved': isApproved,
+            'account_status': accountStatus,
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', teacherId)
@@ -661,7 +670,7 @@ class UserService {
         return false;
       }
       
-      debugPrint('✅ Teacher approval status updated successfully: $isApproved');
+      debugPrint('✅ Teacher approval status updated successfully: account_status=$accountStatus');
       return true;
     } catch (e) {
       debugPrint('❌ Error updating teacher approval status: $e');

@@ -127,6 +127,7 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
           'teacher_name': trimmedName,
           'teacher_email': trimmedEmail,
           'teacher_position': trimmedPosition,
+          'account_status': 'pending', // Set to pending by default
         });
 
         Navigator.of(context).pop();

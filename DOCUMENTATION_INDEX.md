@@ -1,5 +1,5 @@
 # 📚 Documentation Index - Reading with Recording Feature
-
+VERSION: 0.1.0
 This feature is **fully implemented and production-ready**. All documentation is provided below.
 
 ---
