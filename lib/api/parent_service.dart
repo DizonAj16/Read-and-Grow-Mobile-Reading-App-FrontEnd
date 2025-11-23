@@ -43,7 +43,7 @@ class ParentService {
       final studentsResp = await supabase
           .from('students')
           .select('id, student_name, current_reading_level_id')
-          .inFilter('id', studentIds); // ✅ Using user_id since that’s what relationship links to
+          .inFilter('id', studentIds);
 
       List<Map<String, dynamic>> childrenList = [];
 
@@ -63,8 +63,69 @@ class ParentService {
           readingLevel = levelResp?['title'] ?? 'Unknown';
         }
 
-        // Step 5: Get all tasks assigned to student's classes
-        // First, get all classes the student is enrolled in
+        // Step 5: Get reading materials count (for Reading Task Overview)
+        int totalMaterials = 0;
+        int submittedMaterials = 0;
+        
+        if (levelId != null) {
+          final materialsRes = await supabase
+              .from('reading_materials')
+              .select('id')
+              .eq('level_id', levelId);
+          
+          totalMaterials = (materialsRes as List).length;
+          
+          if (totalMaterials > 0) {
+            final materialIds = materialsRes
+                .map((m) => m['id']?.toString())
+                .where((id) => id != null)
+                .toList();
+            
+            final submissionsRes = await supabase
+                .from('student_recordings')
+                .select('teacher_comments, file_url')
+                .eq('student_id', studentId)
+                .isFilter('task_id', null);
+            
+            Set<String> submittedMaterialIds = {};
+            for (final s in submissionsRes) {
+              String? materialId;
+              
+              final comments = s['teacher_comments'] as String?;
+              if (comments != null && comments.contains('"material_id"')) {
+                try {
+                  final regex = RegExp(r'"material_id":\s*"([^"]+)"');
+                  final match = regex.firstMatch(comments);
+                  if (match != null) {
+                    materialId = match.group(1);
+                  }
+                } catch (e) {
+                  debugPrint('Error parsing material_id: $e');
+                }
+              }
+              
+              if (materialId == null) {
+                final fileUrl = s['file_url'] as String?;
+                if (fileUrl != null && fileUrl.isNotEmpty) {
+                  for (final mid in materialIds) {
+                    if (mid != null && fileUrl.contains(mid)) {
+                      materialId = mid;
+                      break;
+                    }
+                  }
+                }
+              }
+              
+              if (materialId != null && materialIds.contains(materialId)) {
+                submittedMaterialIds.add(materialId);
+              }
+            }
+            
+            submittedMaterials = submittedMaterialIds.length;
+          }
+        }
+
+        // Step 6: Get assignment-based task progress (for backward compatibility)
         final enrollments = await supabase
             .from('student_enrollments')
             .select('class_room_id')
@@ -72,11 +133,9 @@ class ParentService {
         
         final classIds = enrollments.map((e) => e['class_room_id'] as String).toList();
         
-        // Get all assignments for these classes with tasks and quizzes
-        // Important: If a task has a quiz, we count the quiz, not the task (to avoid double counting)
-        List<String> assignedTaskIds = []; // Only tasks WITHOUT quizzes
-        List<String> assignedQuizIds = []; // All quizzes (from tasks or directly linked)
-        Set<String> tasksWithQuizzes = {}; // Track which tasks have quizzes
+        List<String> assignedTaskIds = [];
+        List<String> assignedQuizIds = [];
+        Set<String> tasksWithQuizzes = {};
         
         if (classIds.isNotEmpty) {
           final assignments = await supabase
@@ -85,16 +144,13 @@ class ParentService {
               .inFilter('class_room_id', classIds);
           
           for (var assignment in assignments) {
-            // Handle quiz_id assignments (quizzes directly linked to assignment)
             final directQuizId = assignment['quiz_id'] as String?;
             if (directQuizId != null && !assignedQuizIds.contains(directQuizId)) {
               assignedQuizIds.add(directQuizId);
             }
             
-            // Handle task_id assignments
             final taskId = assignment['task_id'] as String?;
             if (taskId != null) {
-              // Check if this task has quizzes
               final task = assignment['tasks'] as Map<String, dynamic>?;
               bool taskHasQuiz = false;
               
@@ -103,7 +159,6 @@ class ParentService {
                 if (quizzes != null && quizzes.isNotEmpty) {
                   taskHasQuiz = true;
                   tasksWithQuizzes.add(taskId);
-                  // Add quizzes from this task
                   for (var quiz in quizzes) {
                     final quizId = quiz['id'] as String?;
                     if (quizId != null && !assignedQuizIds.contains(quizId)) {
@@ -113,8 +168,6 @@ class ParentService {
                 }
               }
               
-              // Only add task to assignedTaskIds if it doesn't have a quiz
-              // Tasks with quizzes are counted via their quizzes to avoid double counting
               if (!taskHasQuiz && !assignedTaskIds.contains(taskId)) {
                 assignedTaskIds.add(taskId);
               }
@@ -122,7 +175,6 @@ class ParentService {
           }
         }
         
-        // Step 6: Get task progress - count based on completed and pending
         final taskProgress = await supabase
             .from('student_task_progress')
             .select('task_id, score, max_score, completed')
@@ -142,27 +194,15 @@ class ParentService {
           }
         }
 
-        // Filter out tasks with quizzes from task counts (they're counted via their quizzes)
         Set<String> completedTasksWithoutQuizzes = completedTaskIds.where((id) => !tasksWithQuizzes.contains(id)).toSet();
         Set<String> pendingTasksWithoutQuizzes = pendingTaskIds.where((id) => !tasksWithQuizzes.contains(id)).toSet();
 
-        // Count newly assigned tasks (without quizzes) that haven't been started yet
         int newPendingTasks = 0;
         for (var taskId in assignedTaskIds) {
-          // assignedTaskIds already excludes tasks with quizzes
           if (!completedTasksWithoutQuizzes.contains(taskId) && !pendingTasksWithoutQuizzes.contains(taskId)) {
             newPendingTasks++;
           }
         }
-        
-        // Count completed tasks (only tasks without quizzes)
-        int completedTasks = completedTasksWithoutQuizzes.length;
-        
-        // Count pending tasks (existing pending without quizzes + newly assigned)
-        int pendingTasks = pendingTasksWithoutQuizzes.length + newPendingTasks;
-        
-        // Total tasks = only tasks without quizzes (tasks with quizzes are counted via quizzes)
-        int totalTasks = assignedTaskIds.length;
 
         double totalScore = 0;
         double totalMax = 0;
@@ -172,8 +212,6 @@ class ParentService {
         }
         double avgScore = totalMax > 0 ? (totalScore / totalMax) * 100 : 0;
 
-        // Step 7: Quiz submissions - get completed quiz IDs and scores
-        // Include both quizzes linked through tasks and quizzes directly linked via quiz_id
         final submissions = await supabase
             .from('student_submissions')
             .select('score, max_score, assignment_id, assignments(id, task_id, quiz_id, tasks(id, quizzes(id)), quiz:quizzes(id))')
@@ -183,7 +221,6 @@ class ParentService {
         for (var submission in submissions) {
           final assignment = submission['assignments'] as Map<String, dynamic>?;
           if (assignment != null) {
-            // Check for quizzes directly linked via quiz_id in assignment
             final directQuiz = assignment['quiz'] as Map<String, dynamic>?;
             if (directQuiz != null) {
               final quizId = directQuiz['id'] as String?;
@@ -192,7 +229,6 @@ class ParentService {
               }
             }
             
-            // Check for quizzes linked through tasks
             final task = assignment['tasks'] as Map<String, dynamic>?;
             if (task != null) {
               final quizzes = task['quizzes'] as List?;
@@ -208,11 +244,9 @@ class ParentService {
           }
         }
 
-        // Quiz count = total assigned quizzes
         int quizCount = assignedQuizIds.length;
         double quizAvg = 0;
         
-        // Calculate quiz average from submissions (as percentage)
         if (submissions.isNotEmpty) {
           double totalScore = 0;
           double totalMax = 0;
@@ -229,13 +263,14 @@ class ParentService {
           }
         }
 
+        // Use materials count for Reading Task Overview
         childrenList.add({
           'studentId': studentId,
           'studentName': studentName,
           'readingLevel': readingLevel,
-          'totalTasks': totalTasks,
-          'completedTasks': completedTasks,
-          'pendingTasks': pendingTasks,
+          'totalTasks': assignedTaskIds.length,
+          'completedTasks': submittedMaterials, // Reading materials submitted
+          'pendingTasks': totalMaterials - submittedMaterials, // Pending materials
           'averageScore': avgScore,
           'quizCount': quizCount,
           'quizAverage': quizAvg,
@@ -263,140 +298,184 @@ class ParentService {
           .maybeSingle();
 
       String readingLevel = 'Not Set';
+      String? levelId;
+      
       if (studentResp != null &&
           studentResp['current_reading_level_id'] != null) {
-        final levelResp = await supabase
-            .from('reading_levels')
-            .select('title')
-            .eq('id', studentResp['current_reading_level_id'])
-            .maybeSingle();
-        readingLevel = levelResp?['title'] ?? 'Not Set';
+        levelId = studentResp['current_reading_level_id'] as String?;
+        
+        if (levelId != null) {
+          final levelResp = await supabase
+              .from('reading_levels')
+              .select('title')
+              .eq('id', levelId)
+              .maybeSingle();
+          readingLevel = levelResp?['title'] ?? 'Not Set';
+        }
       }
 
-        // Step 2: Get all classes the student is enrolled in
-        final enrollments = await supabase
-            .from('student_enrollments')
-            .select('class_room_id')
-            .eq('student_id', studentId);
+      // Step 2: Get reading materials count (for Reading Task Overview)
+      int totalMaterials = 0;
+      int submittedMaterials = 0;
+      
+      if (levelId != null) {
+        final materialsRes = await supabase
+            .from('reading_materials')
+            .select('id')
+            .eq('level_id', levelId);
         
-        final classIds = enrollments.map((e) => e['class_room_id'] as String).toList();
+        totalMaterials = (materialsRes as List).length;
         
-        // Step 3: Get all tasks assigned to student's classes through assignments
-        // Important: If a task has a quiz, we count the quiz, not the task (to avoid double counting)
-        List<String> assignedTaskIds = []; // Only tasks WITHOUT quizzes
-        List<String> assignedQuizIds = []; // All quizzes (from tasks or directly linked)
-        Set<String> tasksWithQuizzes = {}; // Track which tasks have quizzes
-        
-        if (classIds.isNotEmpty) {
-          final assignments = await supabase
-              .from('assignments')
-              .select('task_id, quiz_id, tasks(id, quizzes(id))')
-              .inFilter('class_room_id', classIds);
+        if (totalMaterials > 0) {
+          final materialIds = materialsRes
+              .map((m) => m['id']?.toString())
+              .where((id) => id != null)
+              .toList();
           
-          for (var assignment in assignments) {
-            // Handle quiz_id assignments (quizzes directly linked to assignment)
-            final directQuizId = assignment['quiz_id'] as String?;
-            if (directQuizId != null && !assignedQuizIds.contains(directQuizId)) {
-              assignedQuizIds.add(directQuizId);
+          final submissionsRes = await supabase
+              .from('student_recordings')
+              .select('teacher_comments, file_url')
+              .eq('student_id', studentId)
+              .isFilter('task_id', null);
+          
+          Set<String> submittedMaterialIds = {};
+          for (final s in submissionsRes) {
+            String? materialId;
+            
+            final comments = s['teacher_comments'] as String?;
+            if (comments != null && comments.contains('"material_id"')) {
+              try {
+                final regex = RegExp(r'"material_id":\s*"([^"]+)"');
+                final match = regex.firstMatch(comments);
+                if (match != null) {
+                  materialId = match.group(1);
+                }
+              } catch (e) {
+                debugPrint('Error parsing material_id: $e');
+              }
             }
             
-            // Handle task_id assignments
-            final taskId = assignment['task_id'] as String?;
-            if (taskId != null) {
-              // Check if this task has quizzes
-              final task = assignment['tasks'] as Map<String, dynamic>?;
-              bool taskHasQuiz = false;
-              
-              if (task != null) {
-                final quizzes = task['quizzes'] as List?;
-                if (quizzes != null && quizzes.isNotEmpty) {
-                  taskHasQuiz = true;
-                  tasksWithQuizzes.add(taskId);
-                  // Add quizzes from this task
-                  for (var quiz in quizzes) {
-                    final quizId = quiz['id'] as String?;
-                    if (quizId != null && !assignedQuizIds.contains(quizId)) {
-                      assignedQuizIds.add(quizId);
-                    }
+            if (materialId == null) {
+              final fileUrl = s['file_url'] as String?;
+              if (fileUrl != null && fileUrl.isNotEmpty) {
+                for (final mid in materialIds) {
+                  if (mid != null && fileUrl.contains(mid)) {
+                    materialId = mid;
+                    break;
                   }
                 }
               }
-              
-              // Only add task to assignedTaskIds if it doesn't have a quiz
-              // Tasks with quizzes are counted via their quizzes to avoid double counting
-              if (!taskHasQuiz && !assignedTaskIds.contains(taskId)) {
-                assignedTaskIds.add(taskId);
+            }
+            
+            if (materialId != null && materialIds.contains(materialId)) {
+              submittedMaterialIds.add(materialId);
+            }
+          }
+          
+          submittedMaterials = submittedMaterialIds.length;
+        }
+      }
+
+      // Step 3: Get assignment-based progress (for Progress Overview section)
+      final enrollments = await supabase
+          .from('student_enrollments')
+          .select('class_room_id')
+          .eq('student_id', studentId);
+      
+      final classIds = enrollments.map((e) => e['class_room_id'] as String).toList();
+      
+      List<String> assignedTaskIds = [];
+      List<String> assignedQuizIds = [];
+      Set<String> tasksWithQuizzes = {};
+      
+      if (classIds.isNotEmpty) {
+        final assignments = await supabase
+            .from('assignments')
+            .select('task_id, quiz_id, tasks(id, quizzes(id))')
+            .inFilter('class_room_id', classIds);
+        
+        for (var assignment in assignments) {
+          final directQuizId = assignment['quiz_id'] as String?;
+          if (directQuizId != null && !assignedQuizIds.contains(directQuizId)) {
+            assignedQuizIds.add(directQuizId);
+          }
+          
+          final taskId = assignment['task_id'] as String?;
+          if (taskId != null) {
+            final task = assignment['tasks'] as Map<String, dynamic>?;
+            bool taskHasQuiz = false;
+            
+            if (task != null) {
+              final quizzes = task['quizzes'] as List?;
+              if (quizzes != null && quizzes.isNotEmpty) {
+                taskHasQuiz = true;
+                tasksWithQuizzes.add(taskId);
+                for (var quiz in quizzes) {
+                  final quizId = quiz['id'] as String?;
+                  if (quizId != null && !assignedQuizIds.contains(quizId)) {
+                    assignedQuizIds.add(quizId);
+                  }
+                }
               }
+            }
+            
+            if (!taskHasQuiz && !assignedTaskIds.contains(taskId)) {
+              assignedTaskIds.add(taskId);
             }
           }
         }
-        
-        // Step 4: Task progress - count based on completed and pending
-        final taskProgress = await supabase
-            .from('student_task_progress')
-            .select('task_id, score, max_score, correct_answers, wrong_answers, completed')
-            .eq('student_id', studentId);
+      }
+      
+      final taskProgress = await supabase
+          .from('student_task_progress')
+          .select('task_id, score, max_score, correct_answers, wrong_answers, completed')
+          .eq('student_id', studentId);
 
-        Set<String> completedTaskIds = {};
-        Set<String> pendingTaskIds = {};
+      Set<String> completedTaskIds = {};
+      Set<String> pendingTaskIds = {};
+      
+      for (var t in taskProgress) {
+        final taskId = t['task_id'] as String?;
+        if (taskId == null) continue;
         
-        for (var t in taskProgress) {
-          final taskId = t['task_id'] as String?;
-          if (taskId == null) continue;
-          
-          if (t['completed'] == true) {
-            completedTaskIds.add(taskId);
-          } else {
-            pendingTaskIds.add(taskId);
-          }
+        if (t['completed'] == true) {
+          completedTaskIds.add(taskId);
+        } else {
+          pendingTaskIds.add(taskId);
         }
+      }
 
-        // Filter out tasks with quizzes from task counts (they're counted via their quizzes)
-        Set<String> completedTasksWithoutQuizzes = completedTaskIds.where((id) => !tasksWithQuizzes.contains(id)).toSet();
-        Set<String> pendingTasksWithoutQuizzes = pendingTaskIds.where((id) => !tasksWithQuizzes.contains(id)).toSet();
+      Set<String> completedTasksWithoutQuizzes = completedTaskIds.where((id) => !tasksWithQuizzes.contains(id)).toSet();
+      Set<String> pendingTasksWithoutQuizzes = pendingTaskIds.where((id) => !tasksWithQuizzes.contains(id)).toSet();
 
-        // Count newly assigned tasks (without quizzes) that haven't been started yet
-        int newPendingTasks = 0;
-        for (var taskId in assignedTaskIds) {
-          // assignedTaskIds already excludes tasks with quizzes
-          if (!completedTasksWithoutQuizzes.contains(taskId) && !pendingTasksWithoutQuizzes.contains(taskId)) {
-            newPendingTasks++;
-          }
+      int newPendingTasks = 0;
+      for (var taskId in assignedTaskIds) {
+        if (!completedTasksWithoutQuizzes.contains(taskId) && !pendingTasksWithoutQuizzes.contains(taskId)) {
+          newPendingTasks++;
         }
-        
-        // Count completed tasks (only tasks without quizzes)
-        int completedTasks = completedTasksWithoutQuizzes.length;
-        
-        // Count pending tasks (existing pending without quizzes + newly assigned)
-        int pendingTasks = pendingTasksWithoutQuizzes.length + newPendingTasks;
-        
-        // Total tasks = only tasks without quizzes (tasks with quizzes are counted via quizzes)
-        int totalTasks = assignedTaskIds.length;
+      }
 
-        double totalScore = 0;
-        double totalMax = 0;
-        int totalCorrect = 0;
-        int totalWrong = 0;
+      double totalScore = 0;
+      double totalMax = 0;
+      int totalCorrect = 0;
+      int totalWrong = 0;
 
-        for (final t in taskProgress) {
-          totalScore += (t['score'] ?? 0).toDouble();
-          totalMax += (t['max_score'] ?? 0).toDouble();
-          totalCorrect += (t['correct_answers'] ?? 0) as int;
-          totalWrong += (t['wrong_answers'] ?? 0) as int;
-        }
+      for (final t in taskProgress) {
+        totalScore += (t['score'] ?? 0).toDouble();
+        totalMax += (t['max_score'] ?? 0).toDouble();
+        totalCorrect += (t['correct_answers'] ?? 0) as int;
+        totalWrong += (t['wrong_answers'] ?? 0) as int;
+      }
 
-        double averageScore = totalMax > 0 ? (totalScore / totalMax) * 100 : 0;
+      double averageScore = totalMax > 0 ? (totalScore / totalMax) * 100 : 0;
 
-      // Step 5: Quiz submissions - get completed quiz IDs and detailed submission data
-      // Note: assignedQuizIds was already collected in Step 3 above
-      // Include both quizzes linked through tasks and quizzes directly linked via quiz_id
+      // Step 4: Get quiz submissions
       final quizSubmissions = await supabase
           .from('student_submissions')
           .select('score, max_score, submitted_at, assignment_id, assignments(id, task_id, quiz_id, tasks(id, quizzes(id)), quiz:quizzes(id, title))')
           .eq('student_id', studentId)
           .order('submitted_at', ascending: false);
       
-      // Build list of quiz submission details with quiz titles
       List<Map<String, dynamic>> quizSubmissionList = [];
       Set<String> completedQuizIds = {};
       
@@ -405,7 +484,6 @@ class ParentService {
         String? quizTitle;
         
         if (assignment != null) {
-          // Check for quiz directly linked via quiz_id
           final directQuiz = assignment['quiz'] as Map<String, dynamic>?;
           if (directQuiz != null) {
             final quizId = directQuiz['id'] as String?;
@@ -414,7 +492,6 @@ class ParentService {
               completedQuizIds.add(quizId);
             }
           } else {
-            // Check for quiz linked through task
             final task = assignment['tasks'] as Map<String, dynamic>?;
             if (task != null) {
               final quizzes = task['quizzes'] as List?;
@@ -438,12 +515,10 @@ class ParentService {
         });
       }
 
-      // Calculate quiz statistics
       int totalQuizzes = assignedQuizIds.length;
       int completedQuizzes = completedQuizIds.length;
       int pendingQuizzes = totalQuizzes - completedQuizzes;
       
-      // Calculate quiz average score
       double quizAverage = 0;
       if (quizSubmissionList.isNotEmpty) {
         double totalScore = 0;
@@ -461,11 +536,12 @@ class ParentService {
         }
       }
 
+      // Use materials count for Reading Task Overview
       return {
         'readingLevel': readingLevel,
-        'totalTasks': totalTasks,
-        'completedTasks': completedTasks,
-        'pendingTasks': pendingTasks,
+        'totalTasks': assignedTaskIds.length,
+        'completedTasks': submittedMaterials, // Reading materials submitted
+        'pendingTasks': totalMaterials - submittedMaterials, // Pending materials
         'totalCorrect': totalCorrect,
         'totalWrong': totalWrong,
         'averageScore': averageScore,

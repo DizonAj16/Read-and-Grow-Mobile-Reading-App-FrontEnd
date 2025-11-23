@@ -229,10 +229,16 @@ class ReadingMaterialsService {
     }
   }
 
-  /// Get all reading materials (Teacher view - all materials)
+  /// Get all reading materials (Teacher view - only materials uploaded by current teacher)
   static Future<List<ReadingMaterial>> getAllReadingMaterials() async {
     try {
       debugPrint('📚 [READING_MATERIAL] Fetching all materials');
+
+      final user = supabase.auth.currentUser;
+      if (user == null) {
+        debugPrint('❌ [READING_MATERIAL] No authenticated user');
+        return [];
+      }
 
       final response = await supabase
           .from('reading_materials')
@@ -240,6 +246,7 @@ class ReadingMaterialsService {
             *,
             reading_levels(level_number)
           ''')
+          .eq('uploaded_by', user.id) // Only show materials uploaded by current teacher
           .order('created_at', ascending: false);
 
       return (response as List).map((json) {

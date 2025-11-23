@@ -25,6 +25,7 @@ class _ChildDetailPageState extends State<ChildDetailPage>
   String _readingLevel = 'Not Set';
   int _totalTasks = 0;
   int _completedTasks = 0;
+  int _pendingTasks = 0;
   int _totalCorrect = 0;
   int _totalWrong = 0;
   double _averageScore = 0;
@@ -60,14 +61,15 @@ class _ChildDetailPageState extends State<ChildDetailPage>
         _readingLevel = progressData['readingLevel'] as String;
         _totalTasks = progressData['totalTasks'] as int;
         _completedTasks = progressData['completedTasks'] as int;
+        _pendingTasks = progressData['pendingTasks'] as int? ?? 0;
         _totalCorrect = progressData['totalCorrect'] as int;
         _totalWrong = progressData['totalWrong'] as int;
         _averageScore = progressData['averageScore'] as double;
-        
+
         _totalQuizzes = progressData['totalQuizzes'] as int? ?? 0;
         _completedQuizzes = progressData['completedQuizzes'] as int? ?? 0;
         _quizAverage = progressData['quizAverage'] as double? ?? 0.0;
-        
+
         final submissions = progressData['quizSubmissions'] as List<Map<String, dynamic>>;
         _quizSubmissions = submissions;
         _recentSubmissions = _quizSubmissions.take(5).toList();
@@ -168,10 +170,9 @@ class _ChildDetailPageState extends State<ChildDetailPage>
             ),
           ),
           const SizedBox(height: 16),
-
-          // Progress Overview
+// Reading Task Overview
           Text(
-            'Progress Overview',
+            'Reading Task Overview',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -184,22 +185,34 @@ class _ChildDetailPageState extends State<ChildDetailPage>
             children: [
               Expanded(
                 child: _buildStatCard(
-                  'Tasks Completed',
-                  '$_completedTasks / $_totalTasks',
-                  Icons.task_alt,
-                  Colors.blue,
+                  'Completed',
+                  '$_completedTasks',
+                  Icons.check_circle,
+                  Colors.green,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _buildStatCard(
-                  'Average Score',
-                  '${_averageScore.toStringAsFixed(1)}%',
-                  Icons.star,
+                  'Pending',
+                  '$_pendingTasks',
+                  Icons.pending_actions,
                   Colors.orange,
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 24),
+
+
+          // Progress Overview
+          Text(
+            'Progress Overview',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
           ),
           const SizedBox(height: 12),
 
@@ -495,10 +508,7 @@ class _ChildDetailPageState extends State<ChildDetailPage>
           ),
           const SizedBox(height: 12),
 
-          _buildReportItem('Total Tasks', '$_totalTasks'),
-          _buildReportItem('Completed Tasks', '$_completedTasks'),
-          _buildReportItem('Task Completion Rate', '${(_totalTasks > 0 ? (_completedTasks / _totalTasks * 100) : 0).toStringAsFixed(1)}%'),
-          _buildReportItem('Task Average Score', '${_averageScore.toStringAsFixed(1)}%'),
+
           _buildReportItem('Correct Answers', '$_totalCorrect'),
           _buildReportItem('Wrong Answers', '$_totalWrong'),
           _buildReportItem('Accuracy Rate', _totalCorrect + _totalWrong > 0

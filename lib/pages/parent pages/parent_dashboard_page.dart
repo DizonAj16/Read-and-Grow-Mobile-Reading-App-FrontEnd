@@ -299,12 +299,6 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _buildStatChip(
-                    icon: Icons.task,
-                    label: 'Tasks',
-                    value: '${child.completedTasks}/${child.totalTasks}',
-                    color: Colors.blue,
-                  ),
-                  _buildStatChip(
                     icon: Icons.quiz,
                     label: 'Quizzes',
                     value: '${child.quizCount}',
