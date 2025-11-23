@@ -65,13 +65,40 @@ class DeleteClassBottomModal extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          Text(
-            "Are you sure you want to delete this class? This action cannot be undone.",
-            style: TextStyle(
-              fontSize: 16,
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
-            ),
-            textAlign: TextAlign.center,
+          Column(
+            children: [
+              Text(
+                "Deleting this class will permanently remove:",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                "• All tasks, materials, and quizzes\n"
+                "• Every student submission and quiz attempt\n"
+                "• Reading progress and audio recordings linked to this class",
+                style: TextStyle(
+                  fontSize: 15,
+                  height: 1.5,
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.75),
+                ),
+                textAlign: TextAlign.left,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                "This action cannot be undone.",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontStyle: FontStyle.italic,
+                  color: errorColor,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
           const SizedBox(height: 30),
           Row(

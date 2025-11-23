@@ -6,14 +6,14 @@ import '../../../../models/quiz_questions.dart';
 
 class AddQuizScreen extends StatefulWidget {
   final String? lessonId;
-  final Map<String, dynamic>? classDetails;
+  final String? classRoomId;
   final String? quizId; // For editing mode
   final Map<String, dynamic>? initialQuizData; // For editing mode
 
   const AddQuizScreen({
     super.key,
     this.lessonId,
-    this.classDetails,
+    this.classRoomId,
     this.quizId,
     this.initialQuizData,
   });
@@ -186,6 +186,14 @@ class _AddQuizScreenState extends State<AddQuizScreen> {
       return;
     }
 
+    final classRoomId = widget.classRoomId;
+    if (!_isEditMode && (classRoomId == null || classRoomId.isEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Missing class information. Please reopen this screen.')),
+      );
+      return;
+    }
+
     if (mounted) {
       setState(() => _isLoading = true);
     }
@@ -205,6 +213,7 @@ class _AddQuizScreenState extends State<AddQuizScreen> {
           taskId: _selectedLessonId!,
           title: _quizTitleController.text,
           questions: _questions,
+          classRoomId: classRoomId!,
         );
         success = quiz != null;
       }

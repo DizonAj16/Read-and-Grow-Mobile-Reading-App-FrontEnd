@@ -160,6 +160,7 @@ class _AddLessonWithQuizScreenState extends State<AddLessonWithQuizScreen> {
       // 3️⃣ Add lesson
       final lesson = await ApiService.addLesson(
         readingLevelId: hasAudioQuiz ? readingLevelId : null,
+        classRoomId: widget.classDetails['id'] as String,
         title: _lessonTitleController.text,
         description: _lessonDescController.text,
         timeLimitMinutes: int.tryParse(_lessonTimeController.text),
@@ -210,6 +211,7 @@ class _AddLessonWithQuizScreenState extends State<AddLessonWithQuizScreen> {
         taskId: lesson['id'],
         title: _quizTitleController.text,
         questions: _questions,
+        classRoomId: widget.classDetails['id'] as String,
       );
 
       setState(() => _isLoading = false);

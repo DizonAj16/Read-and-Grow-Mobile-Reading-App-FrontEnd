@@ -160,6 +160,7 @@ class ApiService {
     required String taskId,
     required String title,
     required List<QuizQuestion> questions,
+    required String classRoomId,
   }) async {
     try {
       final quizResponse = await http.post(
@@ -170,7 +171,11 @@ class ApiService {
           'Content-Type': 'application/json',
           'Prefer': 'return=representation',
         },
-        body: jsonEncode({'task_id': taskId, 'title': title}),
+        body: jsonEncode({
+          'task_id': taskId,
+          'title': title,
+          'class_room_id': classRoomId,
+        }),
       );
 
       if (quizResponse.statusCode != 201) {
@@ -747,6 +752,7 @@ class ApiService {
 
   static Future<Map<String, dynamic>?> addLesson({
     String? readingLevelId,
+    required String classRoomId,
     required String title,
     String? description,
     int? timeLimitMinutes,
@@ -754,6 +760,7 @@ class ApiService {
   }) async {
     final body = {
       if (readingLevelId != null) 'reading_level_id': readingLevelId,
+      'class_room_id': classRoomId,
       'title': title,
       'description': description,
       'time_limit_minutes': timeLimitMinutes,

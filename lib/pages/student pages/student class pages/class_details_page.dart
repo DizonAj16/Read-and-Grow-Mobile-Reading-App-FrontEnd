@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../list_of_quiz_and_lessons.dart';
 import 'tabs/student_list_page.dart';
-import 'tabs/materials_page.dart';
 import 'tabs/teacher_info_page.dart';
 
 class ClassDetailsPage extends StatefulWidget {
@@ -257,7 +256,6 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
       },
       children: [
         ClassContentScreen(classRoomId: widget.classId,),
-        MaterialsPage(classId: widget.classId),
         StudentListPage(classId: widget.classId),
         TeacherInfoPage(
           classId: widget.classId,
@@ -297,8 +295,8 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
   List<BottomNavigationBarItem> _buildBottomNavigationItems(ThemeData theme) {
     return [
       _buildBottomNavItem(0, Icons.task_outlined, "Tasks", theme),
-      _buildBottomNavItem(2, Icons.people_outline, "Classmates", theme),
-      _buildBottomNavItem(3, Icons.person_outline, "Teacher", theme),
+      _buildBottomNavItem(1, Icons.people_outline, "Classmates", theme),
+      _buildBottomNavItem(2, Icons.person_outline, "Teacher", theme),
     ];
   }
 

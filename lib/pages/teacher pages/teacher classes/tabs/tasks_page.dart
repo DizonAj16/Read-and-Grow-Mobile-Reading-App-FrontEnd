@@ -320,7 +320,7 @@ class _TasksPageState extends State<TasksPage> {
             builder: (context) => AddQuizScreen(
               quizId: quizId,
               initialQuizData: quizData,
-              classDetails: null,
+              classRoomId: widget.classId,
             ),
           ),
         );

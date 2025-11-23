@@ -258,7 +258,15 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
                             statusText = 'Attempt ${attemptCount + 1} of 3';
                           }
 
-                          return ListTile(
+                          final bool canViewMaterialOnly =
+                              (taskId != null && taskId.isNotEmpty) &&
+                                  assignmentId.isNotEmpty &&
+                                  classRoomId.isNotEmpty &&
+                                  (finalPassed || hasFinalAttempt || !canRetake);
+
+                          return Column(
+                            children: [
+                              ListTile(
                             leading: Icon(
                               finalPassed
                                   ? Icons.check_circle
@@ -311,44 +319,64 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
                                 fontStyle: (hasFinalAttempt || isLocked) ? FontStyle.italic : FontStyle.normal,
                               ),
                             ),
-                            trailing: finalPassed
-                                ? const Icon(Icons.check, color: Colors.green)
-                                : hasFinalAttempt
-                                    ? const Icon(Icons.lock, color: Colors.redAccent)
-                                    : isLocked
-                                        ? const Icon(Icons.lock_outline, color: Colors.grey)
-                                        : const Icon(Icons.arrow_forward_ios, size: 16),
-                            onTap: () {
-                              if (isLocked) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Complete the previous quiz first to unlock this quiz.'),
-                                    backgroundColor: Colors.orange,
+                                trailing: finalPassed
+                                    ? const Icon(Icons.check, color: Colors.green)
+                                    : hasFinalAttempt
+                                        ? const Icon(Icons.lock, color: Colors.redAccent)
+                                        : isLocked
+                                            ? const Icon(Icons.lock_outline, color: Colors.grey)
+                                            : const Icon(Icons.arrow_forward_ios, size: 16),
+                                onTap: () {
+                                  if (isLocked) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Complete the previous quiz first to unlock this quiz.'),
+                                        backgroundColor: Colors.orange,
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  if (hasFinalAttempt || !canRetake) {
+                                    if (submission != null && mounted) {
+                                      _showCompletedQuizDialog(submission);
+                                    }
+                                    return;
+                                  }
+
+                                  _openLessonReader(
+                                    quizId: quizId,
+                                    assignmentId: assignmentId,
+                                    taskId: taskId,
+                                    classRoomId: classRoomId,
+                                    lessonTitle: lesson['title'] ?? 'Lesson',
+                                    lessonIndex: index,
+                                  );
+                                },
+                              ),
+                              if (canViewMaterialOnly)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 72, right: 16, bottom: 12),
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: TextButton.icon(
+                                      onPressed: () {
+                                        _openLessonReader(
+                                          quizId: quizId,
+                                          assignmentId: assignmentId,
+                                          taskId: taskId,
+                                          classRoomId: classRoomId,
+                                          lessonTitle: lesson['title'] ?? 'Lesson',
+                                          lessonIndex: index,
+                                          viewOnly: true,
+                                        );
+                                      },
+                                      icon: const Icon(Icons.menu_book_outlined),
+                                      label: const Text('View material'),
+                                    ),
                                   ),
-                                );
-                                return;
-                              }
-
-                              if (hasFinalAttempt) {
-                                if (submission != null && mounted) {
-                                  _showCompletedQuizDialog(submission);
-                                }
-                                return;
-                              }
-
-                              if (!canRetake) {
-                                return;
-                              }
-
-                              _openLessonReader(
-                                quizId: quizId,
-                                assignmentId: assignmentId,
-                                taskId: taskId,
-                                classRoomId: classRoomId,
-                                lessonTitle: lesson['title'] ?? 'Lesson',
-                                lessonIndex: index,
-                              );
-                            },
+                                ),
+                            ],
                           );
                         }).toList(),
                     ],
@@ -433,6 +461,7 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
     required String classRoomId,
     required String lessonTitle,
     required int lessonIndex,
+    bool viewOnly = false,
   }) async {
     final user = Supabase.instance.client.auth.currentUser;
 
@@ -469,11 +498,16 @@ class _ClassContentScreenState extends State<ClassContentScreen> {
             quizId: quizId,
             studentId: user.id,
             lessonTitle: lessonTitle,
+            viewOnly: viewOnly,
           ),
         ),
       );
 
       if (!mounted) return;
+
+      if (viewOnly || result == null) {
+        return;
+      }
 
       final refreshFuture = _refreshLessons();
       final latestLessonsFuture = _lessonsFuture ?? Future.value(<Map<String, dynamic>>[]);

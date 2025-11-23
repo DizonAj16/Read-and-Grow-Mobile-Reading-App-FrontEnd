@@ -251,3 +251,4 @@ VALUES (gen_random_uuid(), 'task-uuid', 'class-uuid', 'Lesson 1 Quiz');
 
 That's it! The system handles everything else automatically. 🚀
 
+

@@ -66,6 +66,7 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
 
     final lesson = await ApiService.addLesson(
       readingLevelId: widget.readingLevelId,
+      classRoomId: widget.classRoomId,
       title: _lessonTitleController.text,
       description: _lessonDescController.text,
       timeLimitMinutes: int.tryParse(_lessonTimeController.text),
@@ -135,7 +136,10 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => AddQuizScreen(lessonId: lesson['id']),
+          builder: (context) => AddQuizScreen(
+            lessonId: lesson['id'],
+            classRoomId: widget.classRoomId,
+          ),
         ),
       );
     } else {

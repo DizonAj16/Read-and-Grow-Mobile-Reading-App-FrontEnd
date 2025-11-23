@@ -12,6 +12,7 @@ class LessonReaderPage extends StatefulWidget {
   final String quizId;
   final String studentId;
   final String lessonTitle;
+  final bool viewOnly;
 
   const LessonReaderPage({
     super.key,
@@ -21,6 +22,7 @@ class LessonReaderPage extends StatefulWidget {
     required this.quizId,
     required this.studentId,
     required this.lessonTitle,
+    this.viewOnly = false,
   });
 
   @override
@@ -182,29 +184,39 @@ class _LessonReaderPageState extends State<LessonReaderPage> {
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: ElevatedButton.icon(
-            onPressed: _isCompleting
-                ? null
-                : () {
-                    _handleDoneReading();
-                  },
-            icon: _isCompleting
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.quiz),
-            label: Text(
-              _pdfUrl == null
-                  ? 'Proceed to Quiz'
-                  : 'Done Reading • Take Quiz',
-            ),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              textStyle: const TextStyle(fontSize: 16),
-            ),
-          ),
+          child: widget.viewOnly
+              ? OutlinedButton.icon(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.menu_book_outlined),
+                  label: const Text('Close Material'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    textStyle: const TextStyle(fontSize: 16),
+                  ),
+                )
+              : ElevatedButton.icon(
+                  onPressed: _isCompleting
+                      ? null
+                      : () {
+                          _handleDoneReading();
+                        },
+                  icon: _isCompleting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.quiz),
+                  label: Text(
+                    _pdfUrl == null
+                        ? 'Proceed to Quiz'
+                        : 'Done Reading • Take Quiz',
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    textStyle: const TextStyle(fontSize: 16),
+                  ),
+                ),
         ),
       ),
     );
