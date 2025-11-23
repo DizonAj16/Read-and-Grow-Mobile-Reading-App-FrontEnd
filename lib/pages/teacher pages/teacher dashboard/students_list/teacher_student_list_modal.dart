@@ -2,6 +2,7 @@ import 'package:deped_reading_app_laravel/api/user_service.dart';
 import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dialog_utils.dart';
 import 'student_info_dialog.dart';
 import 'student_edit_dialog.dart';
@@ -229,14 +230,14 @@ class _TeacherStudentListModalState extends State<TeacherStudentListModal> {
     );
 
     try {
-      final response = await UserService.updateUser(
+      final ok = await UserService.updateStudentByAdmin(
         userId: student.userId!,
-        body: data,
+        data: data,
       );
 
       await DialogUtils.hideLoadingDialog(context);
 
-      if (response.statusCode == 200) {
+      if (ok) {
         _showSuccessSnackbar(
           "Student Updated successfully!",
           Colors.lightBlue[700],
@@ -271,10 +272,10 @@ class _TeacherStudentListModalState extends State<TeacherStudentListModal> {
 
     try {
       if (student.userId != null) {
-        final response = await UserService.deleteUser(student.userId);
+        final ok = await UserService.deleteStudentByAdmin(userId: student.userId!);
         await DialogUtils.hideLoadingDialog(context);
 
-        if (response.statusCode == 200) {
+        if (ok) {
           _showSuccessSnackbar(
             "Student deleted successfully!",
             Colors.red[700],
@@ -350,9 +351,8 @@ class _TeacherStudentListModalState extends State<TeacherStudentListModal> {
   Widget build(BuildContext context) {
     final paginated = _getPaginatedStudents();
     final totalPages = (_filteredStudents.length / _pageSize).ceil();
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
-
+    Theme.of(context);
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -722,6 +722,7 @@ class _TeacherStudentListModalState extends State<TeacherStudentListModal> {
                     onViewPressed: () => _showStudentInfoDialog(student),
                     onEditPressed: () => _handleEditStudent(student),
                     onDeletePressed: () => _handleDeleteStudent(student),
+                    onAssignLevelPressed: () => _handleAssignLevel(student),
                   );
                 },
               );
@@ -730,6 +731,58 @@ class _TeacherStudentListModalState extends State<TeacherStudentListModal> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleAssignLevel(Student student) async {
+    final supabase = Supabase.instance.client;
+    // Fetch available reading levels
+    final levels = await supabase
+        .from('reading_levels')
+        .select('id, level_number, title')
+        .order('level_number');
+
+    final selected = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Assign Reading Level'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: levels.length,
+              itemBuilder: (context, index) {
+                final lvl = Map<String, dynamic>.from(levels[index]);
+                return ListTile(
+                  title: Text('Level ${lvl['level_number']} - ${lvl['title']}'),
+                  onTap: () => Navigator.pop(context, lvl),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (selected == null) return;
+
+    final ok = await UserService.assignReadingLevelToStudent(
+      userId: student.userId!,
+      readingLevelId: selected['id'],
+    );
+
+    if (ok) {
+      _showSuccessSnackbar('Reading level assigned', Colors.green[700]);
+      widget.onDataChanged?.call();
+    } else {
+      _showErrorSnackbar('Failed to assign reading level');
+    }
   }
 
   Widget _buildPaginationControls(int totalPages) {

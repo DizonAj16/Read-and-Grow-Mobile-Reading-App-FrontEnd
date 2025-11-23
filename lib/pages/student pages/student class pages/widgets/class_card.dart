@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../class_details_page.dart';
 
 class ClassCard extends StatelessWidget {
-  final int classId;
+  final String classId;
   final String className;
   final String sectionName;
   final String teacherName;
@@ -43,12 +43,7 @@ class ClassCard extends StatelessWidget {
                 tag: 'class-bg-$className',
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
-                  child: Image.asset(
-                    backgroundImage,
-                    fit: BoxFit.cover,
-                    height: 150,
-                    width: double.infinity,
-                  ),
+                  child: _buildBackgroundImage(),
                 ),
               ),
               Positioned.fill(
@@ -185,5 +180,51 @@ class ClassCard extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  Widget _buildBackgroundImage() {
+    // Use realBackgroundImage if it's a network URL, otherwise fall back to asset
+    if (realBackgroundImage.startsWith('http://') || 
+        realBackgroundImage.startsWith('https://')) {
+      return Image.network(
+        realBackgroundImage,
+        fit: BoxFit.cover,
+        height: 150,
+        width: double.infinity,
+        errorBuilder: (context, error, stackTrace) {
+          // Fallback to asset if network image fails
+          return Image.asset(
+            backgroundImage,
+            fit: BoxFit.cover,
+            height: 150,
+            width: double.infinity,
+          );
+        },
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            height: 150,
+            width: double.infinity,
+            color: Colors.grey[300],
+            child: Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded /
+                        loadingProgress.expectedTotalBytes!
+                    : null,
+              ),
+            ),
+          );
+        },
+      );
+    } else {
+      // Use asset image
+      return Image.asset(
+        realBackgroundImage.isNotEmpty ? realBackgroundImage : backgroundImage,
+        fit: BoxFit.cover,
+        height: 150,
+        width: double.infinity,
+      );
+    }
   }
 }

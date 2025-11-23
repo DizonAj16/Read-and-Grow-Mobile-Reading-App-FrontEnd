@@ -1,8 +1,10 @@
-import 'package:deped_reading_app_laravel/api/auth_service.dart';
+import 'package:deped_reading_app_laravel/api/supabase_auth_service.dart';
 import 'package:deped_reading_app_laravel/api/classroom_service.dart';
 import 'package:deped_reading_app_laravel/api/prefs_service.dart';
 import 'package:deped_reading_app_laravel/api/user_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/class_details_page.dart';
+import 'package:deped_reading_app_laravel/pages/teacher%20pages/pupil_management_page.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20dashboard/create%20student%20and%20classes/create_class_or_student_dialog.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20dashboard/manage%20classes/delete_class_modal.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20dashboard/manage%20classes/edit_class_modal.dart';
@@ -10,6 +12,7 @@ import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20dashbo
 import 'package:deped_reading_app_laravel/widgets/navigation/page_transition.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import '../../../../widgets/ui_states.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 import 'cards/horizontal_card.dart';
@@ -92,46 +95,50 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
   /// Loads teacher data with fallback mechanism (API → Local Storage)
   Future<void> _loadTeacherData() async {
     try {
-      // ✅ Try fetching from API first
-      final profileResponse = await AuthService.getAuthProfile();
+      // ✅ Try fetching from Supabase first
+      final profileResponse = await SupabaseAuthService.getAuthProfile();
 
-      // Extract both user and profile data
-      final userData = profileResponse['user'] ?? {};
-      final profileData = profileResponse['profile'] ?? {};
+      // Extract both user and profile data safely
+      final userData = profileResponse?['user'] ?? {};
+      final profileData = profileResponse?['profile'] ?? {};
 
-      // ✅ Convert to Teacher model - you'll need to update your Teacher model
-      // to accept both user and profile data, or merge them
+      // ✅ Merge into Teacher model
       final teacher = Teacher.fromJson({
         ...userData,
         ...profileData,
-        'user_id': userData['id'], // Preserve user ID
+        'id': userData['id'],      // Preserve user ID
         'teacher_id': profileData['id'], // Preserve teacher ID
       });
 
-      // ✅ Save to prefs for offline/fallback use
+      // ✅ Save to prefs for offline use
       await teacher.saveToPrefs();
 
-      setState(() {
-        _teacherFuture = Future.value(teacher);
-      });
+      if (mounted) {
+        setState(() {
+          _teacherFuture = Future.value(teacher);
+        });
+      }
     } catch (e) {
-      debugPrint("⚠️ API failed, loading from prefs instead: $e");
+      debugPrint("⚠️ API failed, loading teacher from prefs instead: $e");
 
       try {
         // ✅ Fallback to prefs
         final teacher = await Teacher.fromPrefs();
-        setState(() {
-          _teacherFuture = Future.value(teacher);
-        });
+        if (mounted) {
+          setState(() {
+            _teacherFuture = Future.value(teacher);
+          });
+        }
       } catch (prefsError) {
         debugPrint("❌ Failed to load teacher from prefs: $prefsError");
 
-        // ✅ Handle case where both API & prefs fail
-        setState(() {
-          _teacherFuture = Future.error(
-            "Unable to load teacher data. Please check connection and try again.",
-          );
-        });
+        if (mounted) {
+          setState(() {
+            _teacherFuture = Future.error(
+              "Unable to load teacher data. Please check connection and try again.",
+            );
+          });
+        }
       }
     }
   }
@@ -334,7 +341,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
   // ===========================================================================
 
   /// Navigates to the class details page for a given class ID
-  void _viewClassDetails(BuildContext context, int classId) async {
+  void _viewClassDetails(BuildContext context, String classId) async {
     try {
       final details = await ClassroomService.getClassDetails(classId);
       if (!context.mounted) return;
@@ -370,7 +377,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
   }
 
   /// Deletes a class after confirmation
-  void _deleteClass(BuildContext context, int classId) {
+  void _deleteClass(BuildContext context, String classId) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -584,30 +591,42 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
           return welcomeWidget;
         }
 
-        // Fetch base_url from SharedPreferences for the avatar
-        return FutureBuilder<SharedPreferences>(
-          future: SharedPreferences.getInstance(),
-          builder: (context, prefsSnapshot) {
-            if (!prefsSnapshot.hasData) {
-              return welcomeWidget;
-            }
+        // Build profile picture URL using Supabase storage
+        String? avatarUrl;
+        try {
+          final profilePicture = teacher.profilePicture!;
+          
+          // If already a full URL (starts with http/https), use it as is
+          if (profilePicture.startsWith('http://') || profilePicture.startsWith('https://')) {
+            debugPrint('🖼️ Teacher profile picture is already a full URL');
+            avatarUrl = profilePicture;
+          } else {
+            // Get public URL from Supabase storage 'materials' bucket (matches UserService.uploadProfilePicture)
+            final supabase = Supabase.instance.client;
+            avatarUrl = supabase.storage
+                .from('materials')
+                .getPublicUrl(profilePicture);
+            debugPrint('🖼️ Normalized teacher profile picture URL: $avatarUrl');
+          }
+          
+          // Add cache buster for network images to force refresh
+          final timestamp = DateTime.now().millisecondsSinceEpoch;
+          if (avatarUrl.contains('?')) {
+            avatarUrl = avatarUrl.split('?').first + '?t=$timestamp';
+          } else {
+            avatarUrl = '$avatarUrl?t=$timestamp';
+          }
+        } catch (e) {
+          debugPrint('⚠️ Error building teacher profile picture URL: $e');
+          avatarUrl = null;
+        }
 
-            String baseUrl = prefsSnapshot.data!.getString('base_url') ?? '';
-            baseUrl = baseUrl.replaceAll(RegExp(r'/api/?$'), '');
-
-            final avatarUrl =
-                "$baseUrl/${teacher.profilePicture!.replaceFirst(RegExp(r'^/'), '')}?t=${DateTime.now().millisecondsSinceEpoch}";
-
-            debugPrint("Avatar URL with base: $avatarUrl");
-
-            return _buildWelcomeContainer(
-              username,
-              initials,
-              avatarUrl,
-              userId: userId,
-              teacherId: teacherId,
-            );
-          },
+        return _buildWelcomeContainer(
+          username,
+          initials,
+          avatarUrl,
+          userId: userId,
+          teacherId: teacherId,
         );
       },
     );
@@ -858,7 +877,14 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
                   colorScheme.primaryContainer,
                 ],
                 icon: Icons.people_outline,
-                onPressed: () => _showStudentListModal(context),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PupilManagementPage(),
+                    ),
+                  );
+                },
               ),
               const SizedBox(width: 16),
               FutureBuilder<int>(
@@ -911,42 +937,15 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
           future: _classesFuture,
           builder: (context, snapshot) {
             if (snapshot.hasError) {
-              return _buildErrorWidget("Failed to load class data");
+              return const ErrorState(message: "Failed to load class data");
             }
 
             final classrooms = snapshot.data ?? [];
 
             if (classrooms.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Lottie.asset(
-                      'assets/animation/empty_box.json',
-                      width: 200,
-                      height: 200,
-                      repeat: true,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      "No Classrooms Yet! 🏫",
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Tap the "+" button to get started! 👇',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withOpacity(0.7),
-                      ),
-                    ),
-                  ],
-                ),
+              return const EmptyState(
+                title: "No Classrooms Yet! 🏫",
+                subtitle: 'Tap the "+" button to get started! 👇',
               );
             }
 

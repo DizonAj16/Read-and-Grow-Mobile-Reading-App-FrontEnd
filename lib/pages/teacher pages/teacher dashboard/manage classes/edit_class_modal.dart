@@ -126,14 +126,14 @@ class _EditClassBottomModalState extends State<EditClassBottomModal> {
               value: _selectedGrade,
               decoration: _buildInputDecoration(context, "Grade Level"),
               items:
-                  gradeLevels
-                      .map(
-                        (grade) => DropdownMenuItem(
-                          value: grade,
-                          child: Text("Grade $grade"),
-                        ),
-                      )
-                      .toList(),
+              gradeLevels
+                  .map(
+                    (grade) => DropdownMenuItem(
+                  value: grade,
+                  child: Text("Grade $grade"),
+                ),
+              )
+                  .toList(),
               onChanged: (value) => setState(() => _selectedGrade = value),
               icon: Icon(Icons.arrow_drop_down, color: primaryColor),
               dropdownColor: surfaceColor,
@@ -326,49 +326,49 @@ class _EditClassBottomModalState extends State<EditClassBottomModal> {
       barrierColor: Colors.black.withOpacity(0.5),
       builder:
           (context) => WillPopScope(
-            onWillPop: () async => false,
-            child: Container(
-              padding: const EdgeInsets.all(30),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(20),
-                ),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Lottie.asset(
-                    'assets/animation/edit.json',
-                    width: 100,
-                    height: 100,
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    "Updating Class...",
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: SizedBox(
-                      height: 4,
-                      child: LinearProgressIndicator(
-                        backgroundColor:
-                            Theme.of(context).colorScheme.surfaceVariant,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Theme.of(context).colorScheme.primary,
-                        ),
-                        minHeight: 4,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+        onWillPop: () async => false,
+        child: Container(
+          padding: const EdgeInsets.all(30),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(20),
             ),
           ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Lottie.asset(
+                'assets/animation/edit.json',
+                width: 100,
+                height: 100,
+              ),
+              const SizedBox(height: 20),
+              Text(
+                "Updating Class...",
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: SizedBox(
+                  height: 4,
+                  child: LinearProgressIndicator(
+                    backgroundColor:
+                    Theme.of(context).colorScheme.surfaceVariant,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Theme.of(context).colorScheme.primary,
+                    ),
+                    minHeight: 4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

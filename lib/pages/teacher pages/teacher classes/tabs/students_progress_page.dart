@@ -5,7 +5,7 @@ import 'package:shimmer/shimmer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class StudentsProgressPage extends StatefulWidget {
-  final int classId;
+  final String classId;
 
   const StudentsProgressPage({super.key, required this.classId});
 
@@ -62,21 +62,39 @@ class _StudentsProgressPageState extends State<StudentsProgressPage> {
     setState(() => isLoading = true);
 
     try {
-      final students = await ClassroomService.getAssignedStudents(
-        widget.classId,
-      );
+      // 1️⃣ Get assigned student IDs scoped to this class
+      final assignedIds = await ClassroomService.getAssignedStudentIdsForClass(widget.classId); // returns Set<String>
+      debugPrint("📊 Found ${assignedIds.length} assigned student IDs for class ${widget.classId}");
+
+      // 2️⃣ Get all students
+      final allStudents = await ClassroomService.getAllStudents();
+      debugPrint("📊 Total students in system: ${allStudents.length}");
+
+      // 3️⃣ Filter only assigned students
+      final students = allStudents
+          .where((student) => assignedIds.contains(student.id))
+          .map((s) => s.copyWith(classRoomId: widget.classId))
+          .toList();
+
+      debugPrint("📊 Filtered to ${students.length} assigned students");
 
       if (mounted) {
-        setState(() => assignedStudents = students);
+        setState(() {
+          assignedStudents = students;
+          isLoading = false;
+        });
       }
     } catch (e) {
-      debugPrint("Error loading progress: $e");
-    } finally {
+      debugPrint("❌ Error loading assigned students: $e");
       if (mounted) {
-        setState(() => isLoading = false);
+        setState(() {
+          assignedStudents = [];
+          isLoading = false;
+        });
       }
     }
   }
+
 
   int _extractGradeLevel(dynamic grade) {
     if (grade == null) return 1;

@@ -1,7 +1,7 @@
-import 'package:deped_reading_app_laravel/api/user_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:lottie/lottie.dart';
-import 'dart:convert';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../widgets/appbar/theme_toggle_button.dart';
 import 'auth buttons widgets/signup_button.dart';
 import 'form fields widgets/password_text_field.dart';
@@ -18,21 +18,20 @@ class TeacherSignUpPage extends StatefulWidget {
 class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
   final TextEditingController teacherNameController = TextEditingController();
   final TextEditingController teacherPositionController =
-      TextEditingController();
+  TextEditingController();
   final TextEditingController teacherEmailController = TextEditingController();
   final TextEditingController teacherUsernameController =
-      TextEditingController();
+  TextEditingController();
   final TextEditingController teacherPasswordController =
-      TextEditingController();
+  TextEditingController();
   final TextEditingController confirmPasswordController =
-      TextEditingController();
+  TextEditingController();
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   bool _autoValidate = false;
 
   @override
   void dispose() {
-    // Disposes all controllers to free resources when the widget is removed from the widget tree.
     teacherNameController.dispose();
     teacherPositionController.dispose();
     teacherEmailController.dispose();
@@ -42,165 +41,206 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
     super.dispose();
   }
 
-  /// Handles the teacher registration process:
-  /// - Validates the form.
-  /// - Shows a loading dialog.
-  /// - Calls the API for registration.
-  /// - Handles the response and shows appropriate dialogs for success or failure.
   Future<void> registerTeacher() async {
     if (!_formKey.currentState!.validate()) {
-      setState(() {
-        _autoValidate = true;
-      });
+      setState(() => _autoValidate = true);
       return;
     }
-
-    setState(() {});
 
     _showLoadingDialog("Creating your account...");
 
     try {
-      final response = await UserService.registerTeacher({
-        'teacher_username': teacherUsernameController.text,
-        'teacher_password': teacherPasswordController.text,
-        'teacher_password_confirmation': confirmPasswordController.text,
-        'teacher_name': teacherNameController.text,
-        'teacher_email': teacherEmailController.text,
-        'teacher_position': teacherPositionController.text,
-      });
+      final supabase = Supabase.instance.client;
 
-      dynamic data;
-      try {
-        data = jsonDecode(response.body);
-      } catch (e) {
+      final trimmedUsername = teacherUsernameController.text.trim();
+      final trimmedPassword = teacherPasswordController.text.trim();
+      final trimmedEmail = teacherEmailController.text.trim();
+      final trimmedName = teacherNameController.text.trim();
+      final trimmedPosition = teacherPositionController.text.trim();
+
+      // 1️⃣ Check if username already exists
+      final existingUser = await supabase
+          .from('users')
+          .select('id')
+          .eq('username', trimmedUsername)
+          .maybeSingle();
+
+      if (existingUser != null) {
+        Navigator.of(context).pop();
         _handleErrorDialog(
-          title: 'Server Error',
-          message: 'Server error: Invalid response format.',
+          title: "Registration Failed",
+          message: "Username already exists. Please choose a different username.",
         );
         return;
       }
 
-      if (response.statusCode == 201) {
-        await Future.delayed(const Duration(seconds: 2));
-        Navigator.of(context).pop(); // Close loading dialog
-        await _showSuccessAndProceedDialogs(
-          data['message'] ?? 'Registration successful!',
-        );
-        if (mounted) {
-          setState(() {});
-        }
-      } else {
+      // 2️⃣ Check if email already exists in teachers table
+      final existingEmail = await supabase
+          .from('teachers')
+          .select('id')
+          .eq('teacher_email', trimmedEmail)
+          .maybeSingle();
+
+      if (existingEmail != null) {
+        Navigator.of(context).pop();
         _handleErrorDialog(
-          title: 'Registration Failed',
-          message: data['message'] ?? 'Registration failed',
+          title: "Registration Failed",
+          message: "Email already registered. Please use a different email.",
+        );
+        return;
+      }
+
+      // 3️⃣ Create Supabase Auth account
+      final authResponse = await supabase.auth.signUp(
+        email: trimmedEmail,
+        password: trimmedPassword,
+        data: {
+          "username": trimmedUsername,
+          "name": trimmedName,
+          "position": trimmedPosition,
+        },
+      );
+
+      if (authResponse.user == null) {
+        Navigator.of(context).pop();
+        _handleErrorDialog(
+          title: "Registration Failed",
+          message: "Unable to create authentication account. Please try again.",
+        );
+        return;
+      }
+
+      final userId = authResponse.user!.id;
+
+      try {
+        // 4️⃣ Insert into users table with role='teacher'
+        await supabase.from('users').insert({
+          'id': userId,
+          'username': trimmedUsername,
+          'password': trimmedPassword,
+          'role': 'teacher',
+        });
+
+        // 5️⃣ Insert into teachers table (linked via id foreign key)
+        await supabase.from('teachers').insert({
+          'id': userId,
+          'teacher_name': trimmedName,
+          'teacher_email': trimmedEmail,
+          'teacher_position': trimmedPosition,
+          'account_status': 'pending', // Set to pending by default
+        });
+
+        Navigator.of(context).pop();
+        await _showSuccessAndProceedDialogs("Registration successful!");
+      } catch (insertError) {
+        // Rollback: Delete auth user and users record if teacher insert failed
+        try {
+          await supabase.from('users').delete().eq('id', userId);
+          await supabase.auth.admin.deleteUser(userId);
+        } catch (rollbackError) {
+          debugPrint('⚠️ Rollback error: $rollbackError');
+        }
+        Navigator.of(context).pop();
+        _handleErrorDialog(
+          title: "Registration Failed",
+          message: "Failed to complete registration. Please try again.",
         );
       }
     } catch (e) {
-      _handleErrorDialog(
-        title: 'Error',
-        message: 'An error occurred. Please try again.',
-      );
+      Navigator.of(context).pop();
+      String errorMessage = "An error occurred during registration. Please try again.";
+      final errorString = e.toString().toLowerCase();
+      if (errorString.contains('duplicate') || errorString.contains('unique')) {
+        errorMessage = "Username or email already exists. Please use different credentials.";
+      } else if (errorString.contains('foreign key') || errorString.contains('constraint')) {
+        errorMessage = "Invalid data provided. Please check your information.";
+      }
+      _handleErrorDialog(title: "Error", message: errorMessage);
     }
   }
 
-  /// Displays a loading dialog with a custom message.
-  /// Used during async operations like registration.
   void _showLoadingDialog(String message) {
     showDialog(
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.transparent,
-      builder:
-          (context) => Center(
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.8),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Lottie.asset(
-                    'assets/animation/loading_rainbow.json',
-                    height: 90,
-                    width: 90,
-                  ),
-                  Text(
-                    'Signing in...',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.surface,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+      builder: (context) => Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.8),
+            borderRadius: BorderRadius.circular(16),
           ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Lottie.asset(
+                'assets/animation/loading_rainbow.json',
+                height: 90,
+                width: 90,
+              ),
+              Text(
+                message,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.surface,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
-  /// Shows a success dialog, then a proceeding dialog, then navigates to the login page.
-  /// Used after a successful registration.
   Future<void> _showSuccessAndProceedDialogs(String message) async {
     await _showSuccessDialog(message);
     Navigator.of(context).pushReplacement(PageTransition(page: LoginPage()));
   }
 
-  /// Shows a success dialog for registration.
-  /// Waits for a few seconds before closing.
   Future<void> _showSuccessDialog(String message) async {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder:
-          (context) => AlertDialog(
-            title: Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.green, size: 35),
-                SizedBox(width: 8),
-                const Text('Success'),
-              ],
-            ),
-            content: Text(message),
-          ),
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green, size: 35),
+            const SizedBox(width: 8),
+            const Text('Success'),
+          ],
+        ),
+        content: Text(message),
+      ),
     );
     await Future.delayed(const Duration(seconds: 2));
-    Navigator.of(context).pop(); // Close success dialog
+    Navigator.of(context).pop();
   }
 
-  /// Handles error dialogs:
-  /// - Closes the loading dialog.
-  /// - Shows an error dialog with a title and message.
-  /// - Sets loading state to false.
   void _handleErrorDialog({required String title, required String message}) {
     if (mounted) {
-      setState(() {});
-      Navigator.of(context).pop(); // Close loading dialog
       showDialog(
         context: context,
-        builder:
-            (context) => AlertDialog(
-              title: Row(
-                children: [
-                  Icon(Icons.error, color: Colors.red, size: 35),
-                  SizedBox(width: 8),
-                  Text(title),
-                ],
-              ),
-              content: Text(message),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('OK'),
-                ),
-              ],
+        builder: (context) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.error, color: Colors.red, size: 35),
+              const SizedBox(width: 8),
+              Text(title),
+            ],
+          ),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
             ),
+          ],
+        ),
       );
     }
   }
 
-  /// Builds the header section with avatar and title for the teacher sign up page.
   Widget _buildHeader(BuildContext context) => Column(
     children: [
       const SizedBox(height: 50),
@@ -221,127 +261,117 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
     ],
   );
 
-  /// Builds the sign up form with all required fields and validation.
-  /// Includes navigation to the login page.
   Widget _buildSignUpForm(BuildContext context) => Form(
     key: _formKey,
     autovalidateMode:
-        _autoValidate ? AutovalidateMode.always : AutovalidateMode.disabled,
+    _autoValidate ? AutovalidateMode.always : AutovalidateMode.disabled,
     child: Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius:
+        const BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          const SizedBox(height: 20),
+          _buildTextField(
+            controller: teacherNameController,
+            label: "Full Name",
+            icon: Icons.person,
+            hintText: "e.g. Juan Dela Cruz",
+            validator: (value) =>
+            value == null || value.trim().isEmpty
+                ? 'Full Name is required'
+                : null,
+          ),
+          const SizedBox(height: 20),
+          _buildTextField(
+            controller: teacherPositionController,
+            label: "Position",
+            icon: Icons.work,
+            hintText: "e.g. English Teacher",
+            validator: (value) =>
+            value == null || value.trim().isEmpty
+                ? 'Position is required'
+                : null,
+          ),
+          const SizedBox(height: 20),
+          _buildTextField(
+            controller: teacherUsernameController,
+            label: "Username",
+            icon: Icons.account_circle,
+            hintText: "e.g. juandelacruz",
+            validator: (value) =>
+            value == null || value.trim().isEmpty
+                ? 'Username is required'
+                : null,
+          ),
+          const SizedBox(height: 20),
+          _buildTextField(
+            controller: teacherEmailController,
+            label: "Email",
+            icon: Icons.email,
+            hintText: "e.g. juan@email.com",
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Email is required';
+              }
+              if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value.trim())) {
+                return 'Enter a valid email';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 20),
+          PasswordTextField(
+            labelText: "Password",
+            controller: teacherPasswordController,
+            hintText: "At least 6 characters",
+            validator: (value) =>
+            value == null || value.trim().isEmpty
+                ? 'Password is required'
+                : null,
+          ),
+          const SizedBox(height: 20),
+          PasswordTextField(
+            labelText: "Confirm Password",
+            controller: confirmPasswordController,
+            hintText: "Re-enter your password",
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Confirm Password is required';
+              }
+              if (value != teacherPasswordController.text) {
+                return 'Passwords do not match';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 20),
+          SignUpButton(text: "Sign Up", onPressed: registerTeacher),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const SizedBox(height: 20),
-              _buildTextField(
-                controller: teacherNameController,
-                label: "Full Name",
-                icon: Icons.person,
-                hintText: "e.g. Juan Dela Cruz",
-                validator:
-                    (value) =>
-                        value == null || value.trim().isEmpty
-                            ? 'Full Name is required'
-                            : null,
+              Text(
+                "Already have an account?",
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
               ),
-              const SizedBox(height: 20),
-              _buildTextField(
-                controller: teacherPositionController,
-                label: "Position",
-                icon: Icons.work,
-                hintText: "e.g. English Teacher",
-                validator:
-                    (value) =>
-                        value == null || value.trim().isEmpty
-                            ? 'Position is required'
-                            : null,
-              ),
-              const SizedBox(height: 20),
-              _buildTextField(
-                controller: teacherUsernameController,
-                label: "Username",
-                icon: Icons.account_circle,
-                hintText: "e.g. juandelacruz",
-                validator:
-                    (value) =>
-                        value == null || value.trim().isEmpty
-                            ? 'Username is required'
-                            : null,
-              ),
-              const SizedBox(height: 20),
-              _buildTextField(
-                controller: teacherEmailController,
-                label: "Email",
-                icon: Icons.email,
-                hintText: "e.g. juan@email.com",
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Email is required';
-                  }
-                  if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value.trim())) {
-                    return 'Enter a valid email';
-                  }
-                  return null;
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context)
+                      .push(PageTransition(page: LoginPage()));
                 },
-              ),
-              const SizedBox(height: 20),
-              PasswordTextField(
-                labelText: "Password",
-                controller: teacherPasswordController,
-                hintText: "At least 6 characters",
-                validator:
-                    (value) =>
-                        value == null || value.trim().isEmpty
-                            ? 'Password is required'
-                            : null,
-              ),
-              const SizedBox(height: 20),
-              PasswordTextField(
-                labelText: "Confirm Password",
-                controller: confirmPasswordController,
-                hintText: "Re-enter your password",
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Confirm Password is required';
-                  }
-                  if (value != teacherPasswordController.text) {
-                    return 'Passwords do not match';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 20),
-              SignUpButton(text: "Sign Up", onPressed: registerTeacher),
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    "Already have an account?",
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
+                child: Text(
+                  "Log In",
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
                   ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(
-                        context,
-                      ).push(PageTransition(page: LoginPage()));
-                    },
-                    child: Text(
-                      "Log In",
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ],
           ),
@@ -350,7 +380,6 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
     ),
   );
 
-  /// Builds a reusable text field with icon, label, and validation.
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -363,50 +392,19 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
       decoration: InputDecoration(
         labelText: label,
         hintText: hintText,
-        hintStyle: TextStyle(
-          fontStyle: FontStyle.italic,
-          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-        ),
-        // <-- italicized
-        labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+        prefixIcon:
+        Icon(icon, color: Theme.of(context).colorScheme.onSurface),
         filled: true,
         fillColor: const Color.fromARGB(52, 158, 158, 158),
-        prefixIcon: Icon(icon, color: Theme.of(context).colorScheme.onSurface),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(12)),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(12)),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(12)),
-          borderSide: BorderSide(
-            color: Theme.of(context).colorScheme.primary,
-            width: 2,
-          ),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(12)),
-          borderSide: BorderSide(color: Colors.red, width: 2),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(12)),
-          borderSide: BorderSide(color: Colors.red, width: 2),
-        ),
-        errorStyle: TextStyle(
-          color: Colors.red,
-          fontWeight: FontWeight.bold,
-          fontSize: 13,
-        ),
-        contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
       ),
       validator: validator,
     );
   }
 
-  /// Builds the background with a gradient overlay.
   Widget _buildBackground(BuildContext context) => Container(
     decoration: BoxDecoration(
       gradient: LinearGradient(
@@ -420,36 +418,29 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
     ),
   );
 
-  /// Main build method for the teacher sign up page.
-  /// Assembles the app bar, background, header, and sign up form.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.primary,
-        iconTheme: IconThemeData(
-          color: Theme.of(context).colorScheme.onPrimary,
-        ),
+        iconTheme:
+        IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
         actions: [
-          ThemeToggleButton(iconColor: Theme.of(context).colorScheme.onPrimary),
+          ThemeToggleButton(
+            iconColor: Theme.of(context).colorScheme.onPrimary,
+          ),
         ],
       ),
       body: Stack(
         children: [
           _buildBackground(context),
           SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: MediaQuery.of(context).size.height,
-              ),
-              child: IntrinsicHeight(
-                child: Column(
-                  children: [
-                    _buildHeader(context),
-                    Expanded(child: _buildSignUpForm(context)),
-                  ],
-                ),
-              ),
+            padding: const EdgeInsets.only(bottom: 20),
+            child: Column(
+              children: [
+                _buildHeader(context),
+                _buildSignUpForm(context),
+              ],
             ),
           ),
         ],

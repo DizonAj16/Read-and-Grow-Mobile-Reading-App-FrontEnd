@@ -1,10 +1,15 @@
-import 'package:deped_reading_app_laravel/api/auth_service.dart';
+import 'package:deped_reading_app_laravel/api/supabase_auth_service.dart';
 import 'package:deped_reading_app_laravel/models/teacher_model.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'pupil_submissions_and_report_page.dart';
 import 'teacher dashboard/teacher_dashboard_page.dart';
 import 'badges_list_page.dart';
 import 'teacher_profile_page.dart';
+import 'pupil_management_page.dart';
+import 'reading_recordings_grading_page.dart';
+import 'teacher_reading_materials_page.dart';
+import 'view_graded_recordings_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../pages/auth pages/landing_page.dart';
 import '../../widgets/navigation/page_transition.dart';
@@ -32,32 +37,65 @@ class _TeacherPageState extends State<TeacherPage> {
 
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token') ?? '';
 
-    final response = await AuthService.logout(token);
+    try {
+      await SupabaseAuthService.logout(); // ✅ Use Supabase service
 
-    if (response.statusCode == 200) {
       await Teacher.clearPrefs();
       await prefs.remove('teacher_classes');
       await prefs.remove('students_data');
 
       _showLoadingDialog(context);
-
       await Future.delayed(const Duration(seconds: 1));
 
       if (mounted) {
         Navigator.of(context).pop();
         Navigator.of(context).pushAndRemoveUntil(
           PageTransition(page: const LandingPage()),
-          (route) => false,
+              (route) => false,
         );
       }
-    } else {
+    } catch (e) {
       _showErrorDialog(
         context,
         'Logout Failed',
         'Unable to logout. Please try again.',
       );
+      debugPrint("Logout error: $e");
+    }
+  }
+
+  Future<void> _loadTeacherData({bool forceRefresh = false}) async {
+    try {
+      // If forcing refresh, clear cached data first
+      if (forceRefresh && mounted) {
+        setState(() {
+          _profilePicture = null;
+        });
+      }
+      
+      final profileResponse = await SupabaseAuthService.getAuthProfile(); // ✅
+
+      final teacherDetails = profileResponse?['profile'] ?? profileResponse ?? {};
+      final teacher = Teacher.fromJson(teacherDetails);
+
+      await teacher.saveToPrefs();
+
+      String? profilePicture;
+      if (teacher.profilePicture != null && teacher.profilePicture!.isNotEmpty) {
+        // Always rebuild URL with new timestamp to force image refresh
+        profilePicture = _buildProfilePictureUrl(teacher.profilePicture!, forceRefresh: true);
+      }
+
+      if (mounted) {
+        setState(() {
+          _teacherName = teacher.name;
+          _profilePicture = profilePicture;
+        });
+      }
+    } catch (e) {
+      debugPrint("Failed to load teacher from API: $e");
+      await _loadTeacherFromPrefs();
     }
   }
 
@@ -79,52 +117,14 @@ class _TeacherPageState extends State<TeacherPage> {
     }
   }
 
-  Future<void> _loadTeacherData() async {
-    try {
-      final profileResponse = await AuthService.getAuthProfile();
-      final teacherDetails = profileResponse['profile'] ?? profileResponse;
-      final teacher = Teacher.fromJson(teacherDetails);
-      await teacher.saveToPrefs();
-
-      final prefs = await SharedPreferences.getInstance();
-      String baseUrl = prefs.getString('base_url') ?? '';
-      baseUrl = baseUrl.replaceAll(RegExp(r'/api/?$'), '');
-
-      String? profilePicture;
-      if (teacher.profilePicture != null &&
-          teacher.profilePicture!.isNotEmpty) {
-        profilePicture = _buildProfilePictureUrl(
-          baseUrl,
-          teacher.profilePicture!,
-        );
-      }
-
-      if (mounted) {
-        setState(() {
-          _teacherName = teacher.name;
-          _profilePicture = profilePicture;
-        });
-      }
-    } catch (e) {
-      debugPrint("Failed to load teacher from API: $e");
-      await _loadTeacherFromPrefs();
-    }
-  }
-
   Future<void> _loadTeacherFromPrefs() async {
     try {
       final teacher = await Teacher.fromPrefs();
-      final prefs = await SharedPreferences.getInstance();
-      String baseUrl = prefs.getString('base_url') ?? '';
-      baseUrl = baseUrl.replaceAll(RegExp(r'/api/?$'), '');
 
       String? profilePicture;
       if (teacher.profilePicture != null &&
           teacher.profilePicture!.isNotEmpty) {
-        profilePicture = _buildProfilePictureUrl(
-          baseUrl,
-          teacher.profilePicture!,
-        );
+        profilePicture = _buildProfilePictureUrl(teacher.profilePicture!);
       }
 
       if (mounted) {
@@ -144,8 +144,39 @@ class _TeacherPageState extends State<TeacherPage> {
     }
   }
 
-  String _buildProfilePictureUrl(String baseUrl, String profilePicturePath) {
-    return "$baseUrl/${profilePicturePath.replaceFirst(RegExp(r'^/'), '')}?t=${DateTime.now().millisecondsSinceEpoch}";
+  /// Builds the profile picture URL, handling both full URLs and storage paths
+  String _buildProfilePictureUrl(String profilePicturePath, {bool forceRefresh = false}) {
+    // If it's already a full URL (from Supabase storage), use it as-is
+    if (profilePicturePath.startsWith('http://') || 
+        profilePicturePath.startsWith('https://')) {
+      // Add cache buster to force refresh
+      // Use a more unique timestamp that includes microseconds for better cache busting
+      final timestamp = DateTime.now().microsecondsSinceEpoch;
+      if (profilePicturePath.contains('?')) {
+        // Replace existing query params with new timestamp
+        return profilePicturePath.split('?').first + '?t=$timestamp&refresh=${forceRefresh ? 1 : 0}';
+      } else {
+        return '$profilePicturePath?t=$timestamp&refresh=${forceRefresh ? 1 : 0}';
+      }
+    }
+    
+    // If it's a storage path, try to get Supabase public URL
+    try {
+      final supabase = Supabase.instance.client;
+      // Remove leading slash if present
+      final cleanPath = profilePicturePath.replaceFirst(RegExp(r'^/'), '');
+      final publicUrl = supabase.storage
+          .from('materials')
+          .getPublicUrl(cleanPath);
+      
+      // Add cache buster with microseconds for better uniqueness
+      final timestamp = DateTime.now().microsecondsSinceEpoch;
+      return '$publicUrl?t=$timestamp&refresh=${forceRefresh ? 1 : 0}';
+    } catch (e) {
+      debugPrint('⚠️ Error getting Supabase storage URL: $e');
+      // Fallback: return the path as-is (will be handled by error builder)
+      return profilePicturePath;
+    }
   }
 
   Widget _buildDrawerItem(
@@ -266,6 +297,13 @@ class _TeacherPageState extends State<TeacherPage> {
                   ),
                   _buildDrawerItem(
                     context,
+                    icon: Icons.people_rounded,
+                    title: 'Manage Pupils',
+                    route: '/pupils',
+                    isSelected: _currentRoute == '/pupils',
+                  ),
+                  _buildDrawerItem(
+                    context,
                     icon: Icons.emoji_events_rounded,
                     title: 'Badges List',
                     route: '/badges',
@@ -277,6 +315,27 @@ class _TeacherPageState extends State<TeacherPage> {
                     title: 'Pupil Submissions/Reports',
                     route: '/submissions',
                     isSelected: _currentRoute == '/submissions',
+                  ),
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.mic_rounded,
+                    title: 'Grade Reading Recordings',
+                    route: '/grade_recordings',
+                    isSelected: _currentRoute == '/grade_recordings',
+                  ),
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.check_circle_rounded,
+                    title: 'View Graded Recordings',
+                    route: '/view_graded_recordings',
+                    isSelected: _currentRoute == '/view_graded_recordings',
+                  ),
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.library_books_rounded,
+                    title: 'Reading Materials',
+                    route: '/reading_materials',
+                    isSelected: _currentRoute == '/reading_materials',
                   ),
                 ],
               ),
@@ -321,13 +380,25 @@ class _TeacherPageState extends State<TeacherPage> {
         children: [
           GestureDetector(
             onTap: () async {
+              // Clear any cached profile picture before navigating
+              setState(() {
+                _profilePicture = null;
+              });
+              
               await Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => const TeacherProfilePage(),
                 ),
               );
+              
+              // Force reload teacher data after returning from profile page
               await _loadTeacherData();
+              
+              // Force a rebuild of the drawer
+              if (mounted) {
+                setState(() {});
+              }
             },
             child: Stack(
               alignment: Alignment.bottomRight,
@@ -357,25 +428,31 @@ class _TeacherPageState extends State<TeacherPage> {
                         child:
                             _profilePicture != null &&
                                     _profilePicture!.isNotEmpty
-                                ? FadeInImage.assetNetwork(
-                                  placeholder:
-                                      'assets/placeholder/avatar_placeholder.jpg',
-                                  image: _profilePicture!,
+                                ? Image.network(
+                                  _profilePicture!,
+                                  key: ValueKey(_profilePicture), // Force rebuild when URL changes
                                   fit: BoxFit.cover,
-                                  fadeInDuration: const Duration(
-                                    milliseconds: 300,
-                                  ),
-                                  fadeInCurve: Curves.easeInOut,
-                                  imageErrorBuilder: (
-                                    context,
-                                    error,
-                                    stackTrace,
-                                  ) {
+                                  loadingBuilder: (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
                                     return Image.asset(
                                       'assets/placeholder/avatar_placeholder.jpg',
                                       fit: BoxFit.cover,
                                     );
                                   },
+                                  errorBuilder: (
+                                    context,
+                                    error,
+                                    stackTrace,
+                                  ) {
+                                    debugPrint('❌ Failed to load profile picture: $error');
+                                    debugPrint('❌ URL was: $_profilePicture');
+                                    return Image.asset(
+                                      'assets/placeholder/avatar_placeholder.jpg',
+                                      fit: BoxFit.cover,
+                                    );
+                                  },
+                                  cacheWidth: 200, // Optimize memory usage
+                                  cacheHeight: 200,
                                 )
                                 : Image.asset(
                                   'assets/placeholder/avatar_placeholder.jpg',
@@ -439,11 +516,23 @@ class _TeacherPageState extends State<TeacherPage> {
   Route _generateRoute(RouteSettings settings) {
     Widget page;
     switch (settings.name) {
+      case '/pupils':
+        page = const PupilManagementPage();
+        break;
       case '/badges':
         page = const BadgesListPage();
         break;
       case '/submissions':
         page = const StudentSubmissionsPage();
+        break;
+      case '/grade_recordings':
+        page = const ReadingRecordingsGradingPage();
+        break;
+      case '/view_graded_recordings':
+        page = const ViewGradedRecordingsPage();
+        break;
+      case '/reading_materials':
+        page = const TeacherReadingMaterialsPage();
         break;
       case '/dashboard':
       default:

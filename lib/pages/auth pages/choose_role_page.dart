@@ -9,42 +9,42 @@ class ChooseRolePage extends StatelessWidget {
   final bool showLogin;
   const ChooseRolePage({super.key, this.showLogin = true});
 
-  // Returns a list of role options based on login/signup mode
   List<Map<String, dynamic>> _roleOptions(BuildContext context) {
     if (showLogin) {
       return [
-        // Student login option
         _roleOption(
           icon: Icons.school_outlined,
           label: 'Student',
           color: Colors.blue,
           onTap: () => Navigator.of(context).push(PageTransition(page: LoginPage())),
         ),
-        // Teacher login option
         _roleOption(
           icon: Icons.person_2_outlined,
           label: 'Teacher',
           color: Colors.orange,
           onTap: () => Navigator.of(context).push(PageTransition(page: LoginPage())),
         ),
-        // Admin login option
         _roleOption(
           icon: Icons.admin_panel_settings_outlined,
           label: 'Admin',
           color: Colors.green,
           onTap: () => Navigator.of(context).push(PageTransition(page: AdminLoginPage())),
         ),
+        _roleOption(
+          icon: Icons.family_restroom,
+          label: 'Parent',
+          color: Colors.purple,
+          onTap: () => Navigator.of(context).push(PageTransition(page: AdminLoginPage())),
+        ),
       ];
     } else {
       return [
-        // Student sign up option
         _roleOption(
           icon: Icons.school_outlined,
           label: 'Student',
           color: Colors.blue,
           onTap: () => Navigator.of(context).push(PageTransition(page: StudentSignUpPage())),
         ),
-        // Teacher sign up option
         _roleOption(
           icon: Icons.person_2_outlined,
           label: 'Teacher',
@@ -55,7 +55,6 @@ class ChooseRolePage extends StatelessWidget {
     }
   }
 
-  // Helper to create a role option map
   static Map<String, dynamic> _roleOption({
     required IconData icon,
     required String label,
@@ -74,10 +73,8 @@ class ChooseRolePage extends StatelessWidget {
     final options = _roleOptions(context);
 
     return Scaffold(
-      // Removed AppBar
       body: Stack(
         children: [
-          // Blended background image with color overlay for effect
           ColorFiltered(
             colorFilter: ColorFilter.mode(
               Theme.of(context).colorScheme.primary.withOpacity(0.7),
@@ -93,13 +90,11 @@ class ChooseRolePage extends StatelessWidget {
               ),
             ),
           ),
-          // Add a dark overlay for readability
           Container(
             color: Colors.black.withOpacity(0.35),
             width: double.infinity,
             height: double.infinity,
           ),
-          // Custom back button at top left
           SafeArea(
             child: Align(
               alignment: Alignment.topLeft,
@@ -113,7 +108,6 @@ class ChooseRolePage extends StatelessWidget {
               ),
             ),
           ),
-          // Main content column
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -145,8 +139,6 @@ class ChooseRolePage extends StatelessWidget {
   }
 }
 
-
-// ChooseRoleCard displays a selectable card for choosing a user role (student, teacher, admin)
 class ChooseRoleCard extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -168,7 +160,7 @@ class ChooseRoleCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        onTap: onTap, // Handles tap to select role
+        onTap: onTap,
         child: Container(
           width: 260,
           padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
@@ -179,10 +171,8 @@ class ChooseRoleCard extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Role icon
               Icon(icon, color: color, size: 36),
               const SizedBox(width: 18),
-              // Role label
               Text(
                 label,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(

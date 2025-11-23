@@ -1,14 +1,17 @@
-import 'dart:convert';
 import 'dart:ui';
-import 'package:deped_reading_app_laravel/api/auth_service.dart';
 import 'package:deped_reading_app_laravel/api/user_service.dart';
 import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../widgets/ui_states.dart';
+import '../../utils/database_helpers.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'edit_student_profile_page.dart';
+
+
 
 class StudentProfilePage extends StatefulWidget {
   const StudentProfilePage({super.key});
@@ -20,8 +23,8 @@ class StudentProfilePage extends StatefulWidget {
 class _StudentProfilePageState extends State<StudentProfilePage> {
   late Future<Student> _studentFuture;
   XFile? _pickedImageFile;
-  String _baseUrl = 'http://10.0.2.2:8000';
   bool _isUploading = false;
+  Student? _currentStudent;
 
   @override
   void initState() {
@@ -30,44 +33,80 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
   }
 
   Future<Student> _initializeStudentData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedBaseUrl =
-        prefs.getString('base_url') ?? 'http://10.0.2.2:8000/api';
-    final uri = Uri.parse(savedBaseUrl);
-    _baseUrl = '${uri.scheme}://${uri.authority}';
+    final supabase = Supabase.instance.client;
 
     Student student;
 
     try {
-      // Try fetching from API
-      final profileData =
-          await AuthService.getAuthProfile(); // your existing function
-      debugPrint('📡 API profileData: $profileData');
+      final currentUser = supabase.auth.currentUser;
+      if (currentUser == null) throw Exception('No logged in student');
 
-      student = Student.fromJson(profileData['student']);
-      debugPrint('✅ Student from API: ${student.toJson()}');
+      // Validate user ID
+      if (currentUser.id.isEmpty) {
+        throw Exception('Invalid user ID');
+      }
 
-      await student.saveToPrefs(); // save to SharedPreferences
+      final response = await DatabaseHelpers.safeGetSingle(
+        supabase: supabase,
+        table: 'students',
+        id: currentUser.id,
+      );
+
+      if (response == null) throw Exception('Student record not found');
+
+      try {
+        student = Student.fromJson(Map<String, dynamic>.from(response));
+        await student.saveToPrefs();
+        debugPrint('✅ Student data fetched from Supabase');
+      } catch (e) {
+        debugPrint('Error parsing student data: $e');
+        throw Exception('Failed to parse student data');
+      }
     } catch (e) {
-      debugPrint('⚠️ Error fetching from API: $e');
-      // Fallback to saved data
-      student = await Student.fromPrefs();
-      debugPrint('📦 Student from SharedPreferences: ${student.toJson()}');
+      debugPrint('⚠️ Error fetching from Supabase: $e');
+
+      try {
+        student = await Student.fromPrefs();
+        debugPrint('📦 Student data loaded from SharedPreferences');
+      } catch (prefsError) {
+        debugPrint('Error loading from preferences: $prefsError');
+        // Return a default student to prevent null errors
+        student = Student(
+          id: '',
+          studentName: 'Student',
+          studentLrn: null,
+          completedTasks: 0,
+        );
+      }
     }
 
-    // Normalize profile picture path if needed
-    if (student.profilePicture != null &&
-        !student.profilePicture!.startsWith('http')) {
-      student = student.copyWith(
-        profilePicture: '$_baseUrl/${student.profilePicture}',
-      );
-      debugPrint(
-        '🖼️ Normalized profile picture URL: ${student.profilePicture}',
-      );
+    // Safely normalize profile picture URL - use 'materials' bucket as per UserService
+    if (student.profilePicture != null && student.profilePicture!.isNotEmpty) {
+      try {
+        // If already a full URL (starts with http/https), use it as is
+        if (student.profilePicture!.startsWith('http')) {
+          debugPrint('🖼️ Profile picture is already a full URL');
+          return student;
+        }
+        
+        // Get public URL from Supabase storage 'materials' bucket (matches UserService.uploadProfilePicture)
+        final bucketBaseUrl = supabase.storage
+            .from('materials')
+            .getPublicUrl(student.profilePicture!);
+        
+        if (bucketBaseUrl.isNotEmpty) {
+          student = student.copyWith(profilePicture: bucketBaseUrl);
+          debugPrint('🖼️ Normalized profile picture URL: $bucketBaseUrl');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Error normalizing profile picture URL: $e');
+        // Continue with original URL or null - don't break the profile loading
+      }
     }
 
     return student;
   }
+
 
   Future<void> _pickAndUploadImage(Student student) async {
     try {
@@ -79,11 +118,10 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
 
       final confirmed = await showDialog<bool>(
         context: context,
-        builder:
-            (context) => ConfirmationDialog(
-              imagePath: pickedFile.path,
-              title: "Confirm Upload",
-            ),
+        builder: (context) => ConfirmationDialog(
+          imagePath: pickedFile.path,
+          title: "Confirm Upload",
+        ),
       );
 
       if (confirmed != true) {
@@ -94,7 +132,7 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
       setState(() => _isUploading = true);
       final uploadStartTime = DateTime.now();
 
-      final response = await UserService.uploadProfilePicture(
+      final uploadedUrl = await UserService.uploadProfilePicture(
         userId: student.userId.toString(),
         role: 'student',
         filePath: pickedFile.path,
@@ -106,14 +144,8 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
         await Future.delayed(remainingDelay);
       }
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(await response.stream.bytesToString());
-        final newProfileUrl =
-            data['profile_picture']?.startsWith('http')
-                ? data['profile_picture']
-                : '$_baseUrl/${data['profile_picture']}';
-
-        final updatedStudent = student.copyWith(profilePicture: newProfileUrl);
+      if (uploadedUrl != null) {
+        final updatedStudent = student.copyWith(profilePicture: uploadedUrl);
         await updatedStudent.saveToPrefs();
 
         setState(() {
@@ -123,14 +155,14 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
 
         ScaffoldMessenger.of(context).showSnackBar(UploadSuccessSnackBar());
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(UploadErrorSnackBar(response.statusCode));
+        ScaffoldMessenger.of(context).showSnackBar(
+          UploadErrorSnackBar(500),
+        );
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: ${e.toString()}")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: ${e.toString()}")),
+      );
     } finally {
       setState(() => _isUploading = false);
     }
@@ -156,6 +188,15 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit, color: Colors.white),
+            tooltip: 'Edit Info',
+            onPressed: _currentStudent == null
+                ? null
+                : () => _handleEditStudent(_currentStudent!),
+          ),
+        ],
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -172,39 +213,36 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
           future: _studentFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return Center(
-                child: Lottie.asset(
-                  'assets/animation/loading_rainbow.json',
-                  width: 90,
-                  height: 90,
-                ),
-              );
+              return const LoadingState(message: 'Loading profile...');
             }
 
             if (!snapshot.hasData || snapshot.hasError) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Image.asset('assets/images/confused_owl.png', width: 120),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Oops! Couldn\'t load profile',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyLarge?.copyWith(color: Colors.white),
-                    ),
-                  ],
-                ),
-              );
+              return const ErrorState(message: "Couldn't load profile");
             }
 
             final student = snapshot.data!;
+            _currentStudent = student;
             return _buildProfileContent(student);
           },
         ),
       ),
     );
+  }
+
+  Future<void> _handleEditStudent(Student student) async {
+    final updated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const EditStudentProfilePage(),
+      ),
+    );
+
+    if (updated == true) {
+      // Reload student data after update
+      setState(() {
+        _studentFuture = _initializeStudentData();
+      });
+    }
   }
 
   Widget _buildProfileContent(Student student) {
@@ -213,7 +251,6 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
       child: Column(
         children: [
           const SizedBox(height: 80),
-          // Profile Card
           _GlassCard(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -258,7 +295,6 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
             ),
           ),
           const SizedBox(height: 30),
-          // Info Card
           _GlassCard(
             child: Column(
               children: [
@@ -293,10 +329,8 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
             ),
           ),
           const SizedBox(height: 30),
-          // Progress indicator
           _TaskProgressIndicator(completedTasks: student.completedTasks),
           const SizedBox(height: 20),
-          // Fun decoration
           Image.asset('assets/activity_images/reading_owl.jpg', width: 100),
         ],
       ),

@@ -160,12 +160,12 @@ class _StudentClassPageState extends State<StudentClassPage> {
       if (!mounted) return;
       Navigator.pop(context);
 
-      if (res.statusCode == 200) {
+      if (res['success'] == true)  {
         _showSuccessSnackBar("Successfully joined the class!");
         _classCodeController.clear();
         await _refresh();
       } else {
-        _handleErrorMessage(res.body);
+        print("Failed: ${res['message']}");
       }
     } catch (_) {
       if (mounted) Navigator.pop(context);
@@ -267,7 +267,7 @@ class _ClassListView extends StatelessWidget {
       itemBuilder: (context, index) {
         final classItem = classes[index];
         return ClassCard(
-          classId: classItem.id ?? 0,
+          classId: classItem.id ?? '',
           className: classItem.className,
           sectionName: "${classItem.gradeLevel} - ${classItem.section}",
           teacherName: classItem.teacherName ?? "N/A",

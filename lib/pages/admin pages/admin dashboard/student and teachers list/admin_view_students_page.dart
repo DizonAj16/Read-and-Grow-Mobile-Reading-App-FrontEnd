@@ -2,6 +2,7 @@ import 'package:deped_reading_app_laravel/api/prefs_service.dart';
 import 'package:deped_reading_app_laravel/api/user_service.dart';
 import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AdminViewStudentsPage extends StatefulWidget {
   const AdminViewStudentsPage({super.key});
@@ -186,67 +187,146 @@ class _AdminViewStudentsPageState extends State<AdminViewStudentsPage> {
                                               borderRadius:
                                                   BorderRadius.circular(24),
                                             ),
-                                            child: Padding(
-                                              padding: const EdgeInsets.all(0),
-                                              child: Stack(
-                                                children: [
-                                                  // X button at upper right
-                                                  Positioned(
-                                                    top: 0,
-                                                    right: 0,
-                                                    child: IconButton(
-                                                      icon: Icon(
-                                                        Icons.close,
-                                                        color: Colors.grey[700],
-                                                      ),
-                                                      onPressed:
-                                                          () =>
-                                                              Navigator.of(
-                                                                context,
-                                                              ).pop(),
-                                                      tooltip: "Close",
-                                                    ),
-                                                  ),
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.fromLTRB(
-                                                          24,
-                                                          32,
-                                                          24,
-                                                          32,
+                                            child: ConstrainedBox(
+                                              constraints: BoxConstraints(
+                                                maxHeight: MediaQuery.of(context).size.height * 0.8,
+                                              ),
+                                              child: Padding(
+                                                padding: const EdgeInsets.all(0),
+                                                child: Stack(
+                                                  children: [
+                                                    // X button at upper right
+                                                    Positioned(
+                                                      top: 0,
+                                                      right: 0,
+                                                      child: IconButton(
+                                                        icon: Icon(
+                                                          Icons.close,
+                                                          color: Colors.grey[700],
                                                         ),
-                                                    child: Column(
-                                                      mainAxisSize:
-                                                          MainAxisSize.min,
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .center,
-                                                      children: [
-                                                        CircleAvatar(
-                                                          radius: 55,
-                                                          backgroundColor:
-                                                              Theme.of(context)
-                                                                  .colorScheme
-                                                                  .primary
-                                                                  .withOpacity(
-                                                                    0.15,
-                                                                  ),
-                                                          child: Text(
-                                                            student
-                                                                .avatarLetter,
-                                                            style: TextStyle(
-                                                              color:
-                                                                  Theme.of(
-                                                                        context,
-                                                                      )
-                                                                      .colorScheme
-                                                                      .primary,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                              fontSize: 48,
-                                                            ),
+                                                        onPressed:
+                                                            () =>
+                                                                Navigator.of(
+                                                                  context,
+                                                                ).pop(),
+                                                        tooltip: "Close",
+                                                      ),
+                                                    ),
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets.fromLTRB(
+                                                            24,
+                                                            32,
+                                                            24,
+                                                            32,
                                                           ),
+                                                      child: SingleChildScrollView(
+                                                        child: Column(
+                                                          mainAxisSize:
+                                                              MainAxisSize.min,
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .center,
+                                                          children: [
+                                                        FutureBuilder<String?>(
+                                                          future: _getBaseUrl(),
+                                                          builder:
+                                                              (context,
+                                                                  snapshot) {
+                                                            final String?
+                                                                profileUrl = (snapshot
+                                                                        .hasData &&
+                                                                    student.profilePicture !=
+                                                                        null &&
+                                                                    student
+                                                                        .profilePicture!
+                                                                        .isNotEmpty)
+                                                                ? "${snapshot.data}/${student.profilePicture}"
+                                                                : null;
+
+                                                            if (profileUrl == null || !snapshot.hasData) {
+                                                              return CircleAvatar(
+                                                                radius: 55,
+                                                                backgroundColor:
+                                                                    Theme.of(
+                                                                            context)
+                                                                        .colorScheme
+                                                                        .primary
+                                                                        .withOpacity(
+                                                                          0.15,
+                                                                        ),
+                                                                child: Text(
+                                                                  student
+                                                                      .avatarLetter,
+                                                                  style:
+                                                                      TextStyle(
+                                                                    color: Theme.of(
+                                                                            context)
+                                                                        .colorScheme
+                                                                        .primary,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold,
+                                                                    fontSize:
+                                                                        48,
+                                                                  ),
+                                                                ),
+                                                              );
+                                                            }
+
+                                                            return CircleAvatar(
+                                                              radius: 55,
+                                                              backgroundColor:
+                                                                  Theme.of(
+                                                                          context)
+                                                                      .colorScheme
+                                                                      .primary
+                                                                      .withOpacity(
+                                                                        0.15,
+                                                                      ),
+                                                              child: ClipOval(
+                                                                child: FadeInImage.assetNetwork(
+                                                                  placeholder:
+                                                                      'assets/placeholder/avatar_placeholder.jpg',
+                                                                  image: profileUrl,
+                                                                  fit: BoxFit.cover,
+                                                                  width: 110,
+                                                                  height: 110,
+                                                                  imageErrorBuilder:
+                                                                      (_, __, ___) {
+                                                                    return Container(
+                                                                      color: Theme.of(
+                                                                              context)
+                                                                          .colorScheme
+                                                                          .primary
+                                                                          .withOpacity(
+                                                                            0.15,
+                                                                          ),
+                                                                      alignment:
+                                                                          Alignment
+                                                                              .center,
+                                                                      child: Text(
+                                                                        student
+                                                                            .avatarLetter,
+                                                                        style:
+                                                                            TextStyle(
+                                                                          color: Theme.of(
+                                                                                  context)
+                                                                              .colorScheme
+                                                                              .primary,
+                                                                          fontWeight:
+                                                                              FontWeight
+                                                                                  .bold,
+                                                                          fontSize:
+                                                                              48,
+                                                                        ),
+                                                                      ),
+                                                                    );
+                                                                  },
+                                                                ),
+                                                              ),
+                                                            );
+                                                          },
                                                         ),
                                                         SizedBox(height: 24),
                                                         Text(
@@ -265,6 +345,8 @@ class _AdminViewStudentsPageState extends State<AdminViewStudentsPage> {
                                                           ),
                                                           textAlign:
                                                               TextAlign.center,
+                                                          maxLines: 2,
+                                                          overflow: TextOverflow.ellipsis,
                                                         ),
                                                         Divider(
                                                           color: Theme.of(
@@ -320,10 +402,12 @@ class _AdminViewStudentsPageState extends State<AdminViewStudentsPage> {
                                                           ],
                                                         ),
                                                         SizedBox(height: 24),
-                                                      ],
+                                                          ],
+                                                        ),
+                                                      ),
                                                     ),
-                                                  ),
-                                                ],
+                                                  ],
+                                                ),
                                               ),
                                             ),
                                           );
@@ -677,30 +761,83 @@ class _AdminViewStudentsPageState extends State<AdminViewStudentsPage> {
                                 ),
                               ],
                             ),
-                            // Avatar with dynamic color
-                            CircleAvatar(
-                              radius: 50,
-                              backgroundColor: _getDynamicColor(index),
-                              child: Text(
-                                student.avatarLetter,
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.primary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 32,
-                                ),
-                              ),
+                            // Avatar with profile picture or initials
+                            FutureBuilder<String?>(
+                              future: _getBaseUrl(),
+                              builder: (context, snapshot) {
+                                final String? profileUrl = (snapshot.hasData &&
+                                        student.profilePicture != null &&
+                                        student.profilePicture!.isNotEmpty)
+                                    ? "${snapshot.data}/${student.profilePicture}"
+                                    : null;
+
+                                if (profileUrl == null || !snapshot.hasData) {
+                                  return CircleAvatar(
+                                    radius: 50,
+                                    backgroundColor: _getDynamicColor(index),
+                                    child: Text(
+                                      student.avatarLetter,
+                                      style: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 32,
+                                      ),
+                                    ),
+                                  );
+                                }
+
+                                return CircleAvatar(
+                                  radius: 50,
+                                  backgroundColor: _getDynamicColor(index),
+                                  child: ClipOval(
+                                    child: FadeInImage.assetNetwork(
+                                      placeholder:
+                                          'assets/placeholder/avatar_placeholder.jpg',
+                                      image: profileUrl,
+                                      fit: BoxFit.cover,
+                                      width: 100,
+                                      height: 100,
+                                      imageErrorBuilder: (_, __, ___) {
+                                        return Container(
+                                          color: _getDynamicColor(index),
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            student.avatarLetter,
+                                            style: TextStyle(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 32,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
                             SizedBox(height: 12),
                             // Name
-                            Text(
-                              student.studentName,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                                color: Theme.of(context).colorScheme.primary,
-                                letterSpacing: 1.1,
+                            Expanded(
+                              flex: 2,
+                              child: Center(
+                                child: Text(
+                                  student.studentName,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                    color: Theme.of(context).colorScheme.primary,
+                                    letterSpacing: 1.1,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                              textAlign: TextAlign.center,
                             ),
                             // LRN only
                             SizedBox(height: 10),
@@ -712,12 +849,20 @@ class _AdminViewStudentsPageState extends State<AdminViewStudentsPage> {
                                 fontSize: 13,
                               ),
                             ),
-                            Text(
-                              student.studentLrn ?? "N/A",
-                              style: TextStyle(
-                                color: Colors.black87,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 15,
+                            Expanded(
+                              flex: 1,
+                              child: Center(
+                                child: Text(
+                                  student.studentLrn ?? "N/A",
+                                  style: TextStyle(
+                                    color: Colors.black87,
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 15,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                ),
                               ),
                             ),
                           ],
@@ -819,14 +964,18 @@ class _AdminViewStudentsPageState extends State<AdminViewStudentsPage> {
             ),
           ),
           SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              color: Colors.black87,
-              fontWeight: FontWeight.w600,
-              fontSize: valueFontSize,
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: Colors.black87,
+                fontWeight: FontWeight.w600,
+                fontSize: valueFontSize,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -849,5 +998,14 @@ class _AdminViewStudentsPageState extends State<AdminViewStudentsPage> {
       Colors.lime.shade100,
     ];
     return colors[index % colors.length];
+  }
+
+  Future<String?> _getBaseUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? baseUrl = prefs.getString('base_url');
+    if (baseUrl != null) {
+      baseUrl = baseUrl.replaceAll(RegExp(r'/api/?$'), '');
+    }
+    return baseUrl;
   }
 }

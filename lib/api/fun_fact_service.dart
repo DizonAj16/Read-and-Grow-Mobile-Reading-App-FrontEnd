@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class FunFactService {
-  // Local fallback facts
   static const List<String> _localFacts = [
     "Did you know? A group of flamingos is called a 'flamboyance'! 🦩",
     "Octopuses have three hearts! ❤️❤️❤️",
@@ -19,7 +18,6 @@ class FunFactService {
     "Sharks existed before trees did! 🌲🦈",
   ];
 
-  // Get a fact immediately (from prefs or local)
   static Future<String> getInstantFact() async {
     final prefs = await SharedPreferences.getInstance();
     final usedIndexes = prefs.getStringList('used_fact_indexes') ?? [];
@@ -32,7 +30,7 @@ class FunFactService {
 
     if (availableIndexes.isEmpty) {
       await prefs.remove('used_fact_indexes');
-      return _localFacts[0]; // fallback
+      return _localFacts[0];
     }
 
     final random = availableIndexes.toList()..shuffle();
@@ -43,7 +41,6 @@ class FunFactService {
     return _localFacts[index];
   }
 
-  // Get a fresh fact from API with fallbacks
   static Future<String> getRandomFact() async {
     final prefs = await SharedPreferences.getInstance();
     final lastFact = prefs.getString('last_fun_fact');
@@ -61,7 +58,6 @@ class FunFactService {
     return lastFact ?? _getLocalFact();
   }
 
-  // Fetch from API
   static Future<String?> _fetchApiFact() async {
     try {
       final response = await http
@@ -80,12 +76,10 @@ class FunFactService {
     return null;
   }
 
-  // Get random local fact
   static String _getLocalFact() {
     return _localFacts[Random().nextInt(_localFacts.length)];
   }
 
-  // Clean up fact text
   static String _sanitizeFact(String fact) {
     return fact
         .replaceAll(RegExp(r'\[.*?\]'), '')
@@ -93,7 +87,6 @@ class FunFactService {
         .trim();
   }
 
-  // Save to SharedPreferences
   static Future<void> _saveFactToPrefs(String fact) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('last_fun_fact', fact);

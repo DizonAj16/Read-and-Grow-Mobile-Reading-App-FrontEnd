@@ -1,23 +1,27 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Teacher {
-  final int? id; // teacher_id from profile
-  final int? userId; // user_id from user object
+  final int? id;
+  final int? userId;
   final String name;
   final String? position;
   final String? email;
   final String? username;
   String? profilePicture;
+  final bool? isApproved; // Keep for backward compatibility
+  final String? accountStatus; // 'pending', 'active', 'suspended', etc.
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
   static const String _kTeacherIdKey = 'teacher_id';
-  static const String _kUserIdKey = 'user_id';
+  static const String _kUserIdKey = 'id';
   static const String _kNameKey = 'teacher_name';
   static const String _kPositionKey = 'teacher_position';
   static const String _kEmailKey = 'teacher_email';
   static const String _kUsernameKey = 'username';
   static const String _kProfilePictureKey = 'profile_picture';
+  static const String _kIsApprovedKey = 'is_approved';
+  static const String _kAccountStatusKey = 'account_status';
   static const String _kCreatedAtKey = 'created_at';
   static const String _kUpdatedAtKey = 'updated_at';
 
@@ -29,6 +33,8 @@ class Teacher {
     this.email,
     this.username,
     this.profilePicture,
+    this.isApproved,
+    this.accountStatus,
     this.createdAt,
     this.updatedAt,
   });
@@ -42,6 +48,8 @@ class Teacher {
         email: '',
         username: '',
         profilePicture: null,
+        isApproved: false,
+        accountStatus: 'pending',
         createdAt: null,
         updatedAt: null,
       );
@@ -49,26 +57,26 @@ class Teacher {
   /// Create a Teacher object from SharedPreferences
   static Future<Teacher> fromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
-    return Teacher(
-      id: _parseInt(prefs.getString(_kTeacherIdKey)),
-      userId: _parseInt(prefs.getString(_kUserIdKey)),
-      name: prefs.getString(_kNameKey) ?? 'Teacher',
-      position: prefs.getString(_kPositionKey),
-      email: prefs.getString(_kEmailKey),
-      username: prefs.getString(_kUsernameKey),
-      profilePicture: prefs.getString(_kProfilePictureKey),
-      createdAt: DateTime.tryParse(prefs.getString(_kCreatedAtKey) ?? ''),
-      updatedAt: DateTime.tryParse(prefs.getString(_kUpdatedAtKey) ?? ''),
-    );
+      return Teacher(
+        id: _parseInt(prefs.getString(_kTeacherIdKey)),
+        userId: _parseInt(prefs.getString(_kUserIdKey)),
+        name: prefs.getString(_kNameKey) ?? 'Teacher',
+        position: prefs.getString(_kPositionKey),
+        email: prefs.getString(_kEmailKey),
+        username: prefs.getString(_kUsernameKey),
+        profilePicture: prefs.getString(_kProfilePictureKey),
+        isApproved: prefs.getBool(_kIsApprovedKey),
+        accountStatus: prefs.getString(_kAccountStatusKey),
+        createdAt: DateTime.tryParse(prefs.getString(_kCreatedAtKey) ?? ''),
+        updatedAt: DateTime.tryParse(prefs.getString(_kUpdatedAtKey) ?? ''),
+      );
   }
 
   /// Create a Teacher object from JSON or Map - handles both API response formats
   factory Teacher.fromJson(Map<String, dynamic> json) {
-    // Check if this is the nested API response structure
     final hasUserProfileStructure = json.containsKey('user') && json.containsKey('profile');
     
     if (hasUserProfileStructure) {
-      // Handle the nested API response structure
       final userData = json['user'] ?? {};
       final profileData = json['profile'] ?? {};
       
@@ -80,6 +88,8 @@ class Teacher {
         email: profileData['teacher_email'],
         username: userData['username'] ?? profileData['username'],
         profilePicture: profileData['profile_picture'],
+        isApproved: profileData['is_approved'] as bool?,
+        accountStatus: profileData['account_status'] as String?,
         createdAt: profileData['created_at'] != null
             ? DateTime.tryParse(profileData['created_at'])
             : null,
@@ -88,20 +98,25 @@ class Teacher {
             : null,
       );
     } else {
-      // Handle flat structure (already merged or from prefs)
+      // Handle both UUID (string) and integer IDs
+      final idValue = json['id'] ?? json['teacher_id'];
+      final parsedId = idValue is int ? idValue : _parseInt(idValue?.toString());
+      
       return Teacher(
-        id: _parseInt(json['id'] ?? json['teacher_id']),
-        userId: _parseInt(json['user_id']),
+        id: parsedId,
+        userId: parsedId,
         name: json['teacher_name'] ?? 'Teacher',
         position: json['teacher_position'],
         email: json['teacher_email'],
         username: json['username'],
         profilePicture: json['profile_picture'],
+        isApproved: json['is_approved'] == null ? false : (json['is_approved'] as bool? ?? false),
+        accountStatus: json['account_status'] as String?,
         createdAt: json['created_at'] != null
-            ? DateTime.tryParse(json['created_at'])
+            ? DateTime.tryParse(json['created_at'].toString())
             : null,
         updatedAt: json['updated_at'] != null
-            ? DateTime.tryParse(json['updated_at'])
+            ? DateTime.tryParse(json['updated_at'].toString())
             : null,
       );
     }
@@ -110,12 +125,14 @@ class Teacher {
   /// Convert to JSON for storage (flattened structure)
   Map<String, dynamic> toJson() => {
         'teacher_id': id,
-        'user_id': userId,
+        'id': userId,
         'teacher_name': name,
         'teacher_position': position,
         'teacher_email': email,
         'username': username,
         'profile_picture': profilePicture,
+        'is_approved': isApproved,
+        'account_status': accountStatus,
         'created_at': createdAt?.toIso8601String(),
         'updated_at': updatedAt?.toIso8601String(),
       };
@@ -128,6 +145,8 @@ class Teacher {
     await prefs.setString(_kEmailKey, email ?? '');
     await prefs.setString(_kUsernameKey, username ?? '');
     await prefs.setString(_kProfilePictureKey, profilePicture ?? '');
+    await prefs.setBool(_kIsApprovedKey, isApproved ?? false);
+    await prefs.setString(_kAccountStatusKey, accountStatus ?? 'pending');
     await prefs.setString(_kCreatedAtKey, createdAt?.toIso8601String() ?? '');
     await prefs.setString(_kUpdatedAtKey, updatedAt?.toIso8601String() ?? '');
 
@@ -149,6 +168,8 @@ class Teacher {
     await prefs.remove(_kEmailKey);
     await prefs.remove(_kUsernameKey);
     await prefs.remove(_kProfilePictureKey);
+    await prefs.remove(_kIsApprovedKey);
+    await prefs.remove(_kAccountStatusKey);
     await prefs.remove(_kCreatedAtKey);
     await prefs.remove(_kUpdatedAtKey);
   }

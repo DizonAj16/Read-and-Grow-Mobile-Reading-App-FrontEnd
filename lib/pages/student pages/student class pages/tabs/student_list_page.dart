@@ -7,8 +7,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lottie/lottie.dart';
 import 'package:flutter_custom_clippers/flutter_custom_clippers.dart';
 
+import '../../../../api/reading_activity_page.dart';
+
+
 class StudentListPage extends StatefulWidget {
-  final int classId;
+  final String classId;
   const StudentListPage({super.key, required this.classId});
 
   @override
@@ -16,7 +19,6 @@ class StudentListPage extends StatefulWidget {
 }
 
 class _StudentListPageState extends State<StudentListPage> {
-  // State variables - initialized with default values
   List<Student> _students = [];
   bool _isLoading = true;
   bool _hasError = false;
@@ -34,18 +36,9 @@ class _StudentListPageState extends State<StudentListPage> {
   }
 
   Future<void> _initialize() async {
-    await _loadSharedPreferences();
     await _fetchStudents();
   }
 
-  Future<void> _loadSharedPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    _baseUrl = prefs.getString('base_url') ?? 'http://10.0.2.2:8000';
-    final studentIdString = prefs.getString('student_id');
-    if (studentIdString != null) {
-      _currentStudentId = int.tryParse(studentIdString);
-    }
-  }
 
   Future<void> _fetchStudents() async {
     try {
@@ -54,9 +47,8 @@ class _StudentListPageState extends State<StudentListPage> {
         _hasError = false;
       });
 
-      final fetchedStudents = await ClassroomService.getAssignedStudents(
-        widget.classId,
-      );
+      // Use class-specific method to get only classmates in this class
+      final fetchedStudents = await ClassroomService.getStudentsByClass(widget.classId);
       if (!mounted) return;
 
       _sortAndSetStudents(fetchedStudents);
@@ -433,21 +425,20 @@ class _StudentCard extends StatelessWidget {
   }
 
   void _navigateToStudentProfile(
-    BuildContext context,
-    String name,
-    String avatarLetter,
-    String? profileUrl,
-  ) {
+      BuildContext context,
+      String name,
+      String avatarLetter,
+      String? profileUrl,
+      ) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder:
-            (_) => StudentProfilePage(
-              name: name,
-              avatarLetter: avatarLetter,
-              avatarColor: Colors.blue[300]!,
-              profileUrl: profileUrl,
-            ),
+        builder: (_) => StudentProfilePage(
+          name: name,
+          avatarLetter: avatarLetter,
+          avatarColor: Colors.blue,
+          profileUrl: profileUrl,
+        ),
       ),
     );
   }

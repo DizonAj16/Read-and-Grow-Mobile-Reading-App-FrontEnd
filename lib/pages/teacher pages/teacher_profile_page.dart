@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
-import 'package:deped_reading_app_laravel/api/auth_service.dart';
+import 'package:deped_reading_app_laravel/api/supabase_auth_service.dart';
 import 'package:deped_reading_app_laravel/api/user_service.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
@@ -9,7 +9,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/teacher_model.dart';
+import 'edit_teacher_profile_page.dart';
 
 class TeacherProfilePage extends StatefulWidget {
   const TeacherProfilePage({super.key});
@@ -35,20 +37,31 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
     final startTime = DateTime.now();
 
     try {
-      final profileResponse = await AuthService.getAuthProfile();
-      final teacherDetails = profileResponse['profile'] ?? profileResponse;
-      final teacher = Teacher.fromJson(teacherDetails);
+      // ✅ Call SupabaseAuthService instead of AuthService
+      final profileResponse = await SupabaseAuthService.getAuthProfile();
+
+      // ✅ Cast maps safely
+      final Map<String, dynamic> userData =
+          (profileResponse?['user'] as Map?)?.cast<String, dynamic>() ?? {};
+      final Map<String, dynamic> profileData =
+          (profileResponse?['profile'] as Map?)?.cast<String, dynamic>() ?? {};
+
+      // ✅ Merge into one JSON for Teacher model
+      final teacherJson = {
+        ...userData,
+        ...profileData,
+        'id': userData['id'], // Supabase user id
+        'teacher_id': profileData['id'], // teacher table id
+      };
+
+      final teacher = Teacher.fromJson(teacherJson);
       await teacher.saveToPrefs();
 
-      final prefs = await SharedPreferences.getInstance();
-      final savedBaseUrl =
-          prefs.getString('base_url') ?? 'http://10.0.2.2:8000/api';
-      final uri = Uri.parse(savedBaseUrl);
-      baseUrl = '${uri.scheme}://${uri.authority}';
+      if (mounted) {
+        setState(() => _teacher = teacher);
+      }
 
-      setState(() => _teacher = teacher);
-
-      // Ensure minimum 2 second loading
+      // ✅ Ensure minimum 2 second loading
       final elapsed = DateTime.now().difference(startTime);
       final remaining = const Duration(seconds: 2) - elapsed;
       if (remaining > Duration.zero) await Future.delayed(remaining);
@@ -59,7 +72,9 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
 
       try {
         final teacher = await Teacher.fromPrefs();
-        setState(() => _teacher = teacher);
+        if (mounted) {
+          setState(() => _teacher = teacher);
+        }
 
         final elapsed = DateTime.now().difference(startTime);
         final remaining = const Duration(seconds: 2) - elapsed;
@@ -260,76 +275,128 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
 
       setState(() => _isUploading = true);
 
-      final response = await UserService.uploadProfilePicture(
+      final uploadedUrl = await UserService.uploadProfilePicture(
         userId: userId,
         role: role,
         filePath: pickedFile.path,
       );
 
-      if (response.statusCode == 200) {
-        final responseBody = await response.stream.bytesToString();
-        final data = jsonDecode(responseBody);
-        debugPrint('✅ Uploaded Profile URL: ${data['profile_picture']}');
+      if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
+        debugPrint('✅ Uploaded Profile URL: $uploadedUrl');
 
-        // 🔄 Refresh data from API
+        // Reload teacher data to get the updated profile picture
         setState(() {
-          _teacherFuture = _loadTeacherData();
+          _isUploading = false;
           _pickedImageFile = null;
         });
+        
+        // Reload teacher data
+        final updatedTeacher = await _loadTeacherData();
+        
+        if (mounted) {
+          setState(() {
+            _teacher = updatedTeacher;
+            _teacherFuture = Future.value(updatedTeacher);
+          });
 
-        // Success SnackBar
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green.shade100, size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      "Profile picture updated successfully!",
+                      style: TextStyle(
+                        color: Colors.green.shade100,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.green.shade800,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              duration: const Duration(seconds: 3),
+              elevation: 6,
+            ),
+          );
+        }
+      }  else {
+        // Error SnackBar
+        if (mounted) {
+          setState(() {
+            _isUploading = false;
+            _pickedImageFile = null;
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.error_outline, color: Colors.red.shade100, size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      "Failed to upload image. Please try again.",
+                      style: TextStyle(
+                        color: Colors.red.shade100,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.red.shade800,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              duration: const Duration(seconds: 4),
+              elevation: 6,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error uploading profile picture: $e');
+      // Exception SnackBar
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+          _pickedImageFile = null;
+        });
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
                 Icon(
-                  Icons.check_circle,
-                  color: Colors.green.shade100,
+                  Icons.warning_amber_rounded,
+                  color: Colors.orange.shade100,
                   size: 24,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    "Profile picture updated successfully!",
+                    "Error uploading image: ${e.toString().split(':').last}",
                     style: TextStyle(
-                      color: Colors.green.shade100,
+                      color: Colors.orange.shade100,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
               ],
             ),
-            backgroundColor: Colors.green.shade800,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            duration: const Duration(seconds: 3),
-            elevation: 6,
-          ),
-        );
-      } else {
-        // Error SnackBar
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.error_outline, color: Colors.red.shade100, size: 24),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    "Failed to upload image. Please try again.",
-                    style: TextStyle(
-                      color: Colors.red.shade100,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.red.shade800,
+            backgroundColor: Colors.orange.shade800,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -341,43 +408,10 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
           ),
         );
       }
-    } catch (e) {
-      // Exception SnackBar
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(
-                Icons.warning_amber_rounded,
-                color: Colors.orange.shade100,
-                size: 24,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  "Error uploading image: ${e.toString().split(':').last}",
-                  style: TextStyle(
-                    color: Colors.orange.shade100,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.orange.shade800,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          duration: const Duration(seconds: 4),
-          elevation: 6,
-        ),
-      );
-      debugPrint('❌ Error uploading profile picture: $e');
     } finally {
-      setState(() => _isUploading = false);
+      if (mounted) {
+        setState(() => _isUploading = false);
+      }
     }
   }
 
@@ -427,17 +461,45 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
       );
     } else if (_teacher?.profilePicture != null &&
         _teacher!.profilePicture!.isNotEmpty) {
-      String cleanBaseUrl = baseUrl.replaceAll(RegExp(r'/api$'), '');
-      final profilePath = _teacher!.profilePicture!.replaceFirst(
-        RegExp(r'^/'),
-        '',
-      );
-      final fullUrl =
-          '$cleanBaseUrl/$profilePath?t=${DateTime.now().millisecondsSinceEpoch}';
+      // Handle profile picture URL - check if it's already a full URL or needs Supabase storage path
+      String profileUrl = _teacher!.profilePicture!;
+      
+      // If not a full URL, assume it's a Supabase storage file path and get public URL
+      if (!profileUrl.startsWith('http')) {
+        try {
+          final supabase = Supabase.instance.client;
+          // Remove leading slash if present
+          final cleanPath = profileUrl.replaceFirst(RegExp(r'^/'), '');
+          profileUrl = supabase.storage
+              .from('materials')
+              .getPublicUrl(cleanPath);
+          debugPrint('🖼️ Normalized teacher profile URL from path: $profileUrl');
+        } catch (e) {
+          debugPrint('⚠️ Error normalizing teacher profile URL: $e');
+          // Fallback: try constructing URL from baseUrl if available
+          String cleanBaseUrl = baseUrl.replaceAll(RegExp(r'/api/?$'), '');
+          final profilePath = _teacher!.profilePicture!.replaceFirst(
+            RegExp(r'^/'),
+            '',
+          );
+          profileUrl = '$cleanBaseUrl/$profilePath';
+        }
+      }
+      
+      // Add cache buster for network images to force refresh
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      if (profileUrl.contains('?')) {
+        // Replace existing query params with new timestamp
+        profileUrl = profileUrl.split('?').first + '?t=$timestamp';
+      } else {
+        profileUrl += '?t=$timestamp';
+      }
+      
+      debugPrint('🖼️ Final teacher profile URL: $profileUrl');
 
       return FadeInImage.assetNetwork(
         placeholder: 'assets/placeholder/avatar_placeholder.jpg',
-        image: fullUrl,
+        image: profileUrl,
         fit: BoxFit.cover,
         fadeInDuration: const Duration(milliseconds: 100),
         fadeInCurve: Curves.fastEaseInToSlowEaseOut,
@@ -824,8 +886,19 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
                   ),
                   const SizedBox(height: 25),
                   ElevatedButton.icon(
-                    onPressed: () {
-                      // TODO: Implement edit profile
+                    onPressed: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const EditTeacherProfilePage(),
+                        ),
+                      );
+                      if (result == true && mounted) {
+                        // Refresh teacher data
+                        setState(() {
+                          _teacherFuture = _loadTeacherData();
+                        });
+                      }
                     },
                     icon: const Icon(Icons.edit, size: 20),
                     label: const Text(

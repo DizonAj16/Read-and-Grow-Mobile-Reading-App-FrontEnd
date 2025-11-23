@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:deped_reading_app_laravel/api/classroom_service.dart';
 import 'package:deped_reading_app_laravel/api/user_service.dart';
 import 'package:flutter/material.dart';
@@ -9,11 +8,13 @@ import 'student_form.dart';
 class CreateClassOrStudentDialog extends StatefulWidget {
   final VoidCallback? onStudentAdded;
   final VoidCallback? onClassAdded;
+  final int initialTab; // 0 = Class, 1 = Student
 
   const CreateClassOrStudentDialog({
     super.key,
     this.onStudentAdded,
     this.onClassAdded,
+    this.initialTab = 0, // Default to Class form
   });
 
   @override
@@ -23,7 +24,7 @@ class CreateClassOrStudentDialog extends StatefulWidget {
 
 class _CreateClassOrStudentDialogState
     extends State<CreateClassOrStudentDialog> {
-  int selectedTab = 0; // 0 = Class, 1 = Student
+  late int selectedTab; // 0 = Class, 1 = Student
   final _formKey = GlobalKey<FormState>();
   bool _autoValidate = false;
   bool _isLoading = false;
@@ -47,6 +48,12 @@ class _CreateClassOrStudentDialogState
       TextEditingController();
   final TextEditingController confirmStudentPasswordController =
       TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    selectedTab = widget.initialTab;
+  }
 
   @override
   void dispose() {
@@ -73,44 +80,68 @@ class _CreateClassOrStudentDialogState
 
     try {
       final response = await UserService.registerStudent({
-        'student_username': studentUsernameController.text,
+        'student_username': studentUsernameController.text.trim(),
         'student_password': studentPasswordController.text,
-        'student_password_confirmation': confirmStudentPasswordController.text,
-        'student_name': studentNameController.text,
-        'student_lrn': studentLrnController.text,
-        'student_grade': studentGradeController.text,
-        'student_section': studentSectionController.text,
+        'student_name': studentNameController.text.trim(),
+        'student_lrn': studentLrnController.text.trim(),
+        'student_grade': studentGradeController.text.trim().isNotEmpty 
+            ? studentGradeController.text.trim() 
+            : null,
+        'student_section': studentSectionController.text.trim().isNotEmpty
+            ? studentSectionController.text.trim()
+            : null,
       });
 
-      dynamic data;
-      try {
-        data = jsonDecode(response.body);
-      } catch (e) {
-        _handleError(
-          title: 'Server Error',
-          message:
-              response.statusCode >= 500
-                  ? 'A server error occurred. Please try again later.'
-                  : 'Server error: Invalid response format.',
-        );
-        return;
-      }
-
-      if (response.statusCode == 201) {
-        await _handleSuccess(data['message'] ?? 'Student account created!');
-        widget.onStudentAdded?.call();
+      if (response != null && !response.containsKey('error')) {
+        // Close loading dialog
+        if (Navigator.of(context, rootNavigator: true).canPop()) {
+          Navigator.of(context, rootNavigator: true).pop();
+        }
+        await Future.delayed(const Duration(milliseconds: 100));
+        await _handleSuccess("Student account created successfully!");
       } else {
-        _handleError(
-          title: 'Registration Failed',
-          message: data['message'] ?? 'Registration failed',
-        );
+        // Close loading dialog
+        if (Navigator.of(context, rootNavigator: true).canPop()) {
+          Navigator.of(context, rootNavigator: true).pop();
+        }
+        // Show error message
+        setState(() => _isLoading = false);
+        final errorMsg = response?['error'] ?? 'Student registration failed. Please try again.';
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMsg),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
     } catch (e) {
-      _handleError(
-        title: 'Error',
-        message: 'An error occurred. Please try again.',
-      );
+      // Close loading dialog
+      if (Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+      
+      setState(() => _isLoading = false);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
+  }
+
+
+  String _generateClassCode() {
+    final random = DateTime.now().millisecondsSinceEpoch.remainder(1000000);
+    return random.toString().padLeft(6, '0'); // ensures always 6 digits
   }
 
   Future<void> _addClass() async {
@@ -124,74 +155,104 @@ class _CreateClassOrStudentDialogState
     final startTime = DateTime.now();
 
     try {
-      final response = await ClassroomService.createClass({
-        'class_name': classNameController.text.trim(),
-        'section': classSectionController.text.trim(),
-        'grade_level': gradeLevelController.text.trim(),
-        'school_year': schoolYearController.text.trim(),
-      });
+      final response = await ClassroomService.createClassV2(
+        className: classNameController.text,
+        gradeLevel: gradeLevelController.text,
+        section: classSectionController.text,
+        schoolYear: schoolYearController.text,
+        classroomCode: _generateClassCode(),
+      );
 
       final elapsed = DateTime.now().difference(startTime).inMilliseconds;
       if (elapsed < 2000) {
         await Future.delayed(Duration(milliseconds: 2000 - elapsed));
       }
 
-      dynamic data;
-      try {
-        data = jsonDecode(response.body);
-      } catch (_) {
-        _handleError(
-          title: 'Server Error',
-          message: 'Invalid server response format.',
-        );
-        return;
-      }
+      if (response != null) {
+        await Future.delayed(const Duration(milliseconds: 100));
 
-      if (response.statusCode == 201) {
-        await _handleSuccess('Class created!');
-        widget.onClassAdded?.call();
+        await _handleSuccess("Class created successfully!");
       } else {
-        _handleError(
-          title: 'Create Class Failed',
-          message: data['message'] ?? 'An error occurred.',
-        );
+        await Future.delayed(const Duration(milliseconds: 100));
+
+
       }
     } catch (e) {
-      _handleError(
-        title: 'Error',
-        message: 'Failed to create class. Please try again.',
-      );
+      await Future.delayed(const Duration(milliseconds: 100));
+
+
     }
   }
 
+
   Future<void> _handleSuccess(String message) async {
     if (!mounted) return;
+    
+    // Hide keyboard just in case
+    FocusScope.of(context).unfocus();
 
-    Navigator.of(context).pop(); // Close loading dialog
+    // 🕐 Small delay to let animation settle
+    await Future.delayed(const Duration(milliseconds: 150));
+
+    // ✅ Show success modal
     await DialogUtils.showSuccessDialog(context, message);
 
     if (!mounted) return;
-    setState(() => _isLoading = false);
-    Navigator.of(context).pop(); // Close dialog
 
-    _showSuccessSnackbar(
-      selectedTab == 0
-          ? "Class created successfully!"
-          : "Student created successfully!",
-    );
+    // 🔄 Trigger refresh callback before closing
+    if (selectedTab == 0) {
+      widget.onClassAdded?.call();
+    } else {
+      widget.onStudentAdded?.call();
+    }
+
+    // Reset form state
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        _autoValidate = false;
+        // Clear form fields
+        if (selectedTab == 1) {
+          studentNameController.clear();
+          studentLrnController.clear();
+          studentSectionController.clear();
+          studentGradeController.clear();
+          studentUsernameController.clear();
+          studentPasswordController.clear();
+          confirmStudentPasswordController.clear();
+        } else {
+          classNameController.clear();
+          classSectionController.clear();
+          gradeLevelController.clear();
+          schoolYearController.clear();
+        }
+      });
+    }
+
+    // Close the main dialog
+    if (mounted && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+
+    // ✅ Optional snackbar
+    if (mounted) {
+      _showSuccessSnackbar(message);
+    }
   }
 
-  void _handleError({required String title, required String message}) {
-    if (!mounted) return;
 
-    setState(() => _isLoading = false);
-    Navigator.of(context).pop(); // Close loading dialog
-    DialogUtils.showErrorDialog(
-      context: context,
-      title: title,
-      message: message,
-    );
-  }
+  // void _handleError({required String title, required String message}) {
+  //   if (!mounted) return;
+  //
+  //   setState(() => _isLoading = false);
+  //
+  //   Navigator.of(context).pop(); // Close loading dialog
+  //   DialogUtils.showErrorDialog(
+  //     context: context,
+  //     title: title,
+  //     message: message,
+  //   );
+  // }
 
   void _showSuccessSnackbar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -238,7 +299,7 @@ class _CreateClassOrStudentDialogState
               ),
           const SizedBox(height: 8),
           Text(
-            selectedTab == 0 ? "Create New Class" : "Create Student Account",
+            selectedTab == 0 ? "Create New Class" : "Create Sdtudent Account",
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.bold,
               color: Theme.of(context).colorScheme.primary,

@@ -17,6 +17,7 @@ class StudentListItem extends StatelessWidget {
   final VoidCallback onViewPressed;
   final VoidCallback onEditPressed;
   final VoidCallback onDeletePressed;
+  final VoidCallback? onAssignLevelPressed;
 
   // ===========================================================================
   // CONSTRUCTOR
@@ -29,6 +30,7 @@ class StudentListItem extends StatelessWidget {
     required this.onViewPressed,
     required this.onEditPressed,
     required this.onDeletePressed,
+    this.onAssignLevelPressed,
   });
 
   // ===========================================================================
@@ -265,6 +267,9 @@ class StudentListItem extends StatelessWidget {
       case 'edit':
         onEditPressed();
         break;
+      case 'assign_level':
+        if (onAssignLevelPressed != null) onAssignLevelPressed!();
+        break;
       case 'delete':
         onDeletePressed();
         break;
@@ -309,6 +314,28 @@ class StudentListItem extends StatelessWidget {
             const SizedBox(width: 10), // Smaller spacing
             Text(
               'Edit',
+              style: TextStyle(
+                // Shorter label
+                fontSize: 12, // Smaller font size
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+          ],
+        ),
+      ),
+      PopupMenuItem(
+        value: 'assign_level',
+        height: 34, // Smaller height
+        child: Row(
+          children: [
+            Icon(
+              Icons.star_rate_rounded,
+              color: Colors.amber,
+              size: 18, // Smaller icon
+            ),
+            const SizedBox(width: 10), // Smaller spacing
+            Text(
+              'Assign Level',
               style: TextStyle(
                 // Shorter label
                 fontSize: 12, // Smaller font size

@@ -119,6 +119,7 @@ class _CreateAccountDialogState extends State<CreateAccountDialog> {
       _isLoading = true;
     });
     _showLoadingDialog("Creating teacher account...");
+
     try {
       final response = await UserService.registerTeacher({
         'teacher_username': usernameController.text,
@@ -129,46 +130,35 @@ class _CreateAccountDialogState extends State<CreateAccountDialog> {
         'teacher_position': positionController.text,
       });
 
-      dynamic data;
-      try {
-        data = jsonDecode(response.body);
-      } catch (e) {
-        _handleErrorDialog(
-          title: 'Server Error',
-          message:
-              response.statusCode >= 500
-                  ? 'A server error occurred. Please try again later.'
-                  : 'Server error: Invalid response format.',
-        );
-        return;
-      }
-
-      if (response.statusCode == 201) {
+      if (response != null) {
+        // ✅ Supabase returned inserted row
         await Future.delayed(const Duration(seconds: 1));
         Navigator.of(context).pop(); // Close loading dialog
-        await _showSuccessDialog(data['message'] ?? 'Teacher account created!');
+        await _showSuccessDialog("Teacher account created!");
         if (mounted) {
           setState(() {
             _isLoading = false;
           });
         }
-        Navigator.of(context).pop(); // Close dialog
+        Navigator.of(context).pop(); // Close form/dialog
         ScaffoldMessenger.of(context).showSnackBar(
           SuccessSnackBar(message: "Teacher created successfully!"),
         );
       } else {
+        // Insert failed or no data returned
         _handleErrorDialog(
           title: 'Registration Failed',
-          message: data['message'] ?? 'Registration failed',
+          message: 'Teacher registration failed. Please try again.',
         );
       }
     } catch (e) {
       _handleErrorDialog(
         title: 'Error',
-        message: 'An error occurred. Please try again.',
+        message: 'An error occurred: $e',
       );
     }
   }
+
 
   /// Register a new student using the API.
   Future<void> _addStudent() async {
@@ -182,6 +172,7 @@ class _CreateAccountDialogState extends State<CreateAccountDialog> {
       _isLoading = true;
     });
     _showLoadingDialog("Creating student account...");
+
     try {
       final response = await UserService.registerStudent({
         'student_username': studentUsernameController.text,
@@ -193,46 +184,35 @@ class _CreateAccountDialogState extends State<CreateAccountDialog> {
         'student_section': studentSectionController.text,
       });
 
-      dynamic data;
-      try {
-        data = jsonDecode(response.body);
-      } catch (e) {
-        _handleErrorDialog(
-          title: 'Server Error',
-          message:
-              response.statusCode >= 500
-                  ? 'A server error occurred. Please try again later.'
-                  : 'Server error: Invalid response format.',
-        );
-        return;
-      }
-
-      if (response.statusCode == 201) {
+      if (response != null) {
+        // ✅ Success, Supabase returned inserted row
         await Future.delayed(const Duration(seconds: 1));
         Navigator.of(context).pop(); // Close loading dialog
-        await _showSuccessDialog(data['message'] ?? 'Student account created!');
+        await _showSuccessDialog("Student account created!");
         if (mounted) {
           setState(() {
             _isLoading = false;
           });
         }
-        Navigator.of(context).pop(); // Close dialog
+        Navigator.of(context).pop(); // Close form/dialog
         ScaffoldMessenger.of(context).showSnackBar(
           SuccessSnackBar(message: "Student created successfully!"),
         );
       } else {
+        // Insert failed or no data returned
         _handleErrorDialog(
           title: 'Registration Failed',
-          message: data['message'] ?? 'Registration failed',
+          message: 'Student registration failed. Please try again.',
         );
       }
     } catch (e) {
       _handleErrorDialog(
         title: 'Error',
-        message: 'An error occurred. Please try again.',
+        message: 'An error occurred: $e',
       );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

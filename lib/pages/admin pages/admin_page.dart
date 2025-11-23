@@ -1,11 +1,10 @@
-import 'package:deped_reading_app_laravel/api/auth_service.dart';
 import 'package:deped_reading_app_laravel/pages/admin%20pages/admin%20dashboard/admin_dashboard_page.dart';
 import 'package:deped_reading_app_laravel/pages/admin%20pages/admin_profile_page.dart';
 import 'package:deped_reading_app_laravel/pages/auth%20pages/landing_page.dart';
 import 'package:deped_reading_app_laravel/widgets/navigation/page_transition.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
@@ -19,36 +18,92 @@ class _AdminPageState extends State<AdminPage> {
   int _currentIndex = 0;
 
   Future<void> _logout(BuildContext context) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token') ?? '';
+    // Show confirmation dialog first
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Column(
+          children: [
+            Icon(
+              Icons.logout,
+              color: Theme.of(context).colorScheme.error,
+              size: 50,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Logout?",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          "Are you sure you want to logout?",
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              "Cancel",
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Logout"),
+          ),
+        ],
+      ),
+    );
 
-    final response = await AuthService.logout(token);
+    if (confirmed != true) return;
 
-    if (response.statusCode == 200) {
-      // Only remove token and user-related data, not all preferences
-      await prefs.remove('token');
-      await prefs.remove('admin_name');
-      await prefs.remove('admin_email');
-      // ...add/remove other admin-specific keys as needed...
-
+    try {
+      // Show loading dialog
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (context) => const _LoggingOutDialog(),
       );
+
+      // Logout from Supabase
+      await Supabase.instance.client.auth.signOut();
+      
+      // Clear SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('id');
+      await prefs.remove('role');
+      await prefs.remove('admin_name');
+      await prefs.remove('admin_email');
+      await prefs.clear();
+
       await Future.delayed(const Duration(seconds: 1));
+
       if (mounted) {
         Navigator.of(context).pop(); // Close loading dialog
         Navigator.of(context).pushAndRemoveUntil(
-          PageTransition(page: LandingPage()),
+          PageTransition(page: const LandingPage()),
           (route) => false,
         );
       }
-    } else {
-      showDialog(
-        context: context,
-        builder: (context) => const _LogoutFailedDialog(),
-      );
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog if open
+        showDialog(
+          context: context,
+          builder: (context) => const _LogoutFailedDialog(),
+        );
+      }
     }
   }
 
@@ -58,7 +113,7 @@ class _AdminPageState extends State<AdminPage> {
     });
     _pageController.animateToPage(
       index,
-      duration: Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
   }
@@ -69,10 +124,32 @@ class _AdminPageState extends State<AdminPage> {
       appBar: AppBar(
         title: Text(
           _currentIndex == 0 ? "Admin Dashboard" : "Admin Profile",
-          style: TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.white),
         ),
         backgroundColor: Theme.of(context).colorScheme.primary,
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.white),
+            onSelected: (value) {
+              if (value == 'logout') {
+                _logout(context);
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, color: Colors.red, size: 20),
+                    SizedBox(width: 8),
+                    Text('Logout'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       body: PageView(
         controller: _pageController,
@@ -82,14 +159,14 @@ class _AdminPageState extends State<AdminPage> {
           });
         },
         children: [
-          AdminDashboardPage(),
+          const AdminDashboardPage(),
           AdminProfilePage(onLogout: () => _logout(context)),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onTabTapped,
-        items: [
+        items: const [
           BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Dashboard"),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
         ],

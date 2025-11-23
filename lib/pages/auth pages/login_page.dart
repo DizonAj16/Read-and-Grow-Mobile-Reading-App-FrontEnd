@@ -1,17 +1,19 @@
-import 'package:deped_reading_app_laravel/api/auth_service.dart';
+import 'package:deped_reading_app_laravel/api/supabase_auth_service.dart';
 import 'package:deped_reading_app_laravel/pages/admin%20pages/admin_page.dart';
 import 'package:deped_reading_app_laravel/pages/student%20pages/student_page.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher_page.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../widgets/appbar/theme_toggle_button.dart';
 import 'auth buttons widgets/login_button.dart';
 import 'form fields widgets/password_text_field.dart';
 import '../../widgets/navigation/page_transition.dart';
 import '../auth pages/student_signup_page.dart';
 import '../auth pages/teacher_signup_page.dart';
+import '../auth pages/parent_signup_page.dart';
+import '../parent pages/parent_dashboard_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -26,93 +28,69 @@ class _LoginPageState extends State<LoginPage> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   bool _autoValidate = false;
 
-  /// Handles the login process:
-  /// - Validates the form.
-  /// - Shows a loading dialog.
-  /// - Calls the API for login.
-  /// - Handles response, stores token/role, and navigates to dashboard.
-  /// - Shows appropriate dialogs for errors or success.
   Future<void> login() async {
     if (!_formKey.currentState!.validate()) {
-      setState(() {
-        _autoValidate = true;
-      });
+      if (mounted) {
+        setState(() {
+          _autoValidate = true;
+        });
+      }
       return;
     }
 
     _showLoadingDialog("Logging in...");
 
     try {
-      final response = await AuthService.login({
-        'login': usernameController.text,
-        'password': passwordController.text,
-      });
+      final result = await SupabaseAuthService.login(
+        usernameController.text.trim(),
+        passwordController.text.trim(),
+      );
 
-      final decoded = jsonDecode(response.body);
-      final data = decoded['data'] ?? {};
-      await Future.delayed(const Duration(seconds: 2));
       Navigator.of(context).pop();
+      final userMap = result['user'];
+      final role = result['role'] ?? 'student';
 
-      if (response.statusCode == 200 && data.isNotEmpty) {
-        // Store auth data
-        final prefs = await SharedPreferences.getInstance();
-        final token = data['token'] ?? '';
-        await prefs.setString('token', token);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('id', userMap['id']);
+      await prefs.setString('role', role);
 
-        final role = data['user']?['role']?.toString() ?? '';
-        await prefs.setString('role', role);
-
-        if (data['user']?['id'] != null) {
-          await prefs.setString('user_id', data['user']['id'].toString());
-        }
-
-        // 🚫 Temporarily disable profile fetching
-        /*
-      _showLoadingDialog("Loading profile...");
-      try {
-        final profile = await AuthService.getAuthProfile();
-        Navigator.of(context).pop();
-
-        final profileData = profile;
-        if (role == 'teacher') {
-          final teacherData = profileData['teacher'] ?? profileData;
-          print("📌 Teacher Profile Data: $teacherData"); // debug log
-          await UserService.storeTeacherDetails(teacherData);
-        } else if (role == 'student') {
-          final studentData = profileData['student'] ?? profileData;
-          print("📌 Student Profile Data: $studentData"); // debug log
-          await UserService.storeStudentDetails(studentData);
-        }
-
-        await _showSuccessAndProceedDialogs(role);
-      } catch (e) {
-        Navigator.of(context).pop();
-        _showErrorDialog(
-          title: 'Profile Error',
-          message: 'Logged in but failed to load profile. Please try again.',
-        );
-        debugPrint('Profile error: $e');
-      }
-      */
-
-        // ✅ Directly go to success flow without profile
-        await _showSuccessAndProceedDialogs(role);
+      final session = Supabase.instance.client.auth.currentSession;
+      if (session == null) {
       } else {
-        final errorMessage = decoded['message'] ?? 'Login failed';
-        _showErrorDialog(title: 'Login Failed', message: errorMessage);
       }
+
+      await _showSuccessAndProceedDialogs(role);
+
     } catch (e) {
       Navigator.of(context).pop();
-      _showErrorDialog(
-        title: 'Error',
-        message: 'An error occurred. Please try again.',
-      );
+      final errorMessage = e.toString();
+      
+      // Check if it's an approval-related error
+      if (errorMessage.contains('pending approval')) {
+        _showErrorDialog(
+          title: 'Account Pending Approval',
+          message: 'Your teacher account is pending approval from an administrator. Please contact your administrator to approve your account before you can log in.',
+        );
+      } else if (errorMessage.contains('deactivated') || errorMessage.contains('inactive')) {
+        _showErrorDialog(
+          title: 'Account Deactivated',
+          message: 'Your teacher account has been deactivated. Please contact an administrator for assistance.',
+        );
+      } else if (errorMessage.contains('not active')) {
+        _showErrorDialog(
+          title: 'Account Not Active',
+          message: 'Your teacher account is not active. Please contact an administrator for assistance.',
+        );
+      } else {
+        _showErrorDialog(
+          title: 'Login Failed',
+          message: errorMessage.replaceAll('Exception: ', '').replaceAll('Exception', ''),
+        );
+      }
       debugPrint('Login error: $e');
     }
   }
 
-  /// Displays a loading dialog with a custom message.
-  /// Used during async operations like login.
   void _showLoadingDialog(String message) {
     showDialog(
       context: context,
@@ -148,17 +126,11 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  /// Shows a success dialog, then a proceeding dialog, then navigates to dashboard.
-  /// Used after a successful login.
   Future<void> _showSuccessAndProceedDialogs(String? role) async {
     await _showSuccessDialog();
     _navigateToDashboard(role);
   }
 
-  /// Shows a success dialog for login.
-  /// Waits for a few seconds before closing.
-  /// Shows a success dialog for login.
-  /// Waits for a few seconds before closing.
   Future<void> _showSuccessDialog() async {
     showDialog(
       context: context,
@@ -193,34 +165,51 @@ class _LoginPageState extends State<LoginPage> {
     );
 
     await Future.delayed(const Duration(milliseconds: 2100));
-    Navigator.of(context).pop(); // Close success dialog
+    if (mounted && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
   }
 
-  /// Navigates to the appropriate dashboard page based on user role.
-  void _navigateToDashboard(String? role) {
+  void _navigateToDashboard(String? role) async {
+    if (!mounted) return;
     debugPrint("Navigating to dashboard for role: $role");
 
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('id') ?? '';
+
     if (role == 'student') {
-      Navigator.of(context).pushAndRemoveUntil(
-        PageTransition(page: StudentPage()),
-        (route) => false,
-      );
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          PageTransition(page: StudentPage()),
+          (route) => false,
+        );
+      }
     } else if (role == 'teacher') {
-      Navigator.of(context).pushAndRemoveUntil(
-        PageTransition(page: TeacherPage()),
-        (route) => false,
-      );
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          PageTransition(page: TeacherPage()),
+          (route) => false,
+        );
+      }
     } else if (role == 'admin') {
-      Navigator.of(
-        context,
-      ).pushAndRemoveUntil(PageTransition(page: AdminPage()), (route) => false);
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          PageTransition(page: AdminPage()),
+          (route) => false,
+        );
+      }
+    } else if (role == 'parent') {
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          PageTransition(page: ParentDashboardPage(parentId: userId)),
+          (route) => false,
+        );
+      }
     } else {
       debugPrint("No valid role detected.");
     }
   }
 
-  /// Shows an error dialog with a title and message.
-  /// Used for displaying validation, login, or storage errors.
   void _showErrorDialog({required String title, required String message}) {
     showDialog(
       context: context,
@@ -287,11 +276,9 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  /// Builds the header section with avatar and title for the login page.
   Widget _buildHeader(BuildContext context) => Column(
     children: [
       const SizedBox(height: 50),
-      // User avatar icon
       CircleAvatar(
         radius: 80,
         backgroundColor: Theme.of(context).colorScheme.onPrimary,
@@ -302,7 +289,6 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ),
       const SizedBox(height: 5),
-      // Page title
       Text(
         "Login",
         style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -314,8 +300,6 @@ class _LoginPageState extends State<LoginPage> {
     ],
   );
 
-  /// Builds the login form with username/email, password, and action buttons.
-  /// Includes validation and navigation to sign up pages.
   Widget _buildLoginForm(BuildContext context) => Form(
     key: _formKey,
     autovalidateMode:
@@ -330,7 +314,6 @@ class _LoginPageState extends State<LoginPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 20),
-          // Username input field
           TextFormField(
             controller: usernameController,
             decoration: InputDecoration(
@@ -385,7 +368,6 @@ class _LoginPageState extends State<LoginPage> {
             },
           ),
           const SizedBox(height: 20),
-          // Password input field
           PasswordTextField(
             labelText: "Password",
             controller: passwordController,
@@ -397,7 +379,6 @@ class _LoginPageState extends State<LoginPage> {
             },
           ),
           const SizedBox(height: 10),
-          // Forgot password link
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
@@ -410,9 +391,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
           ),
-          // Login button
           LoginButton(text: "Login", onPressed: login),
-          // Add sign up as student and teacher buttons
           const SizedBox(height: 20),
           Divider(height: 10),
           const SizedBox(height: 5),
@@ -433,7 +412,7 @@ class _LoginPageState extends State<LoginPage> {
               elevation: 4,
             ),
             icon: Image.asset(
-              'assets/icons/graduating-student.png', // for student
+              'assets/icons/graduating-student.png',
               width: 30,
               height: 30,
             ),
@@ -459,7 +438,7 @@ class _LoginPageState extends State<LoginPage> {
               elevation: 4,
             ),
             icon: Image.asset(
-              'assets/icons/teacher.png', // for teacher
+              'assets/icons/teacher.png',
               width: 30,
               height: 30,
             ),
@@ -473,15 +452,35 @@ class _LoginPageState extends State<LoginPage> {
               ).push(PageTransition(page: TeacherSignUpPage()));
             },
           ),
+          const SizedBox(height: 10),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.purple.shade700,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: EdgeInsets.symmetric(vertical: 20),
+              elevation: 4,
+            ),
+            icon: const Icon(Icons.family_restroom, size: 30),
+            label: const Text(
+              "Sign up as Parent",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            onPressed: () {
+              Navigator.of(
+                context,
+              ).push(PageTransition(page: ParentSignUpPage()));
+            },
+          ),
         ],
       ),
     ),
   );
 
-  /// Builds the background with an image and a gradient overlay.
   Widget _buildBackground(BuildContext context) => Stack(
     children: [
-      // Background image with color filter
       ColorFiltered(
         colorFilter: ColorFilter.mode(
           Theme.of(context).colorScheme.primary.withOpacity(0.7),
@@ -497,7 +496,6 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
       ),
-      // Gradient overlay
       Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -513,8 +511,6 @@ class _LoginPageState extends State<LoginPage> {
     ],
   );
 
-  /// Main build method for the login page.
-  /// Assembles the app bar, background, header, and login form.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -524,15 +520,12 @@ class _LoginPageState extends State<LoginPage> {
           color: Theme.of(context).colorScheme.onPrimary,
         ),
         actions: [
-          // Theme toggle button in the app bar
           ThemeToggleButton(iconColor: Theme.of(context).colorScheme.onPrimary),
         ],
       ),
       body: Stack(
         children: [
-          // Page background
           _buildBackground(context),
-          // Scrollable content with header and login form
           SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(
@@ -542,7 +535,6 @@ class _LoginPageState extends State<LoginPage> {
                 child: Column(
                   children: [
                     _buildHeader(context),
-                    // Expands login form to fill remaining space
                     Expanded(child: _buildLoginForm(context)),
                   ],
                 ),

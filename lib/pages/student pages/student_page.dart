@@ -1,21 +1,20 @@
-import 'package:deped_reading_app_laravel/api/auth_service.dart';
+import 'package:deped_reading_app_laravel/api/supabase_auth_service.dart';
+import 'package:deped_reading_app_laravel/api/classroom_service.dart';
 import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:deped_reading_app_laravel/pages/auth%20pages/landing_page.dart';
+import 'package:deped_reading_app_laravel/pages/student%20pages/enhanced_reading_level_page.dart';
+import 'package:deped_reading_app_laravel/pages/student%20pages/student_dashboard_page.dart';
+import 'package:deped_reading_app_laravel/pages/student%20pages/student_reading_materials_page.dart';
 import 'package:deped_reading_app_laravel/widgets/helpers/tts_helper.dart';
 import 'package:deped_reading_app_laravel/widgets/helpers/tts_modal.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../widgets/navigation/page_transition.dart';
 import 'student class pages/student_class_page.dart';
-import 'student_dashboard_page.dart';
+
 import 'student_profile_page.dart';
 
-// =============================================================================
-// STUDENT PAGE - MAIN CONTAINER FOR STUDENT FUNCTIONALITY
-// =============================================================================
-
-/// Main page container for student functionality with bottom navigation
-/// Handles navigation between dashboard and class pages
 class StudentPage extends StatefulWidget {
   const StudentPage({super.key});
 
@@ -24,22 +23,16 @@ class StudentPage extends StatefulWidget {
 }
 
 class _StudentPageState extends State<StudentPage> {
-  // ===========================================================================
-  // STATE VARIABLES
-  // ===========================================================================
-
   int _currentIndex = 0;
   final PageController _pageController = PageController();
   final TTSHelper _ttsHelper = TTSHelper();
 
-  final List<Widget> _pages = const [
-    StudentDashboardPage(),
-    StudentClassPage(),
+  final List<Widget> _pages = [
+    const StudentDashboardPage(),
+    const StudentClassPage(),
+    const EnhancedReadingLevelPage(),
+    const StudentReadingMaterialsPage(),
   ];
-
-  // ===========================================================================
-  // LIFECYCLE METHODS
-  // ===========================================================================
 
   @override
   void initState() {
@@ -54,27 +47,21 @@ class _StudentPageState extends State<StudentPage> {
     super.dispose();
   }
 
-  // ===========================================================================
-  // AUTHENTICATION METHODS
-  // ===========================================================================
-
-  /// Logs out the student with comprehensive cleanup
   Future<void> _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token') ?? '';
+    try {
+      await SupabaseAuthService.logout();
 
-    final response = await AuthService.logout(token);
-
-    if (response.statusCode == 200) {
+      final prefs = await SharedPreferences.getInstance();
       await _clearUserData(prefs);
+
       await _showLogoutSuccess(context);
       _navigateToLandingPage();
-    } else {
+    } catch (e) {
+      debugPrint("Logout failed: $e");
       _showLogoutError(context);
     }
   }
 
-  /// Clears all user-specific data from shared preferences
   Future<void> _clearUserData(SharedPreferences prefs) async {
     await prefs.remove('token');
     await prefs.remove('student_name');
@@ -86,7 +73,6 @@ class _StudentPageState extends State<StudentPage> {
     await prefs.remove('student_data');
   }
 
-  /// Shows logout success dialog with progress indicator
   Future<void> _showLogoutSuccess(BuildContext context) async {
     showDialog(
       context: context,
@@ -97,7 +83,6 @@ class _StudentPageState extends State<StudentPage> {
     if (mounted) Navigator.of(context).pop();
   }
 
-  /// Navigates to landing page after logout
   void _navigateToLandingPage() {
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
@@ -107,7 +92,6 @@ class _StudentPageState extends State<StudentPage> {
     }
   }
 
-  /// Shows logout error dialog
   void _showLogoutError(BuildContext context) {
     showDialog(
       context: context,
@@ -115,11 +99,6 @@ class _StudentPageState extends State<StudentPage> {
     );
   }
 
-  // ===========================================================================
-  // NAVIGATION METHODS
-  // ===========================================================================
-
-  /// Handles bottom navigation tab selection
   void _onTabTapped(int index) {
     setState(() => _currentIndex = index);
     _pageController.animateToPage(
@@ -129,7 +108,6 @@ class _StudentPageState extends State<StudentPage> {
     );
   }
 
-  /// Shows logout confirmation dialog
   void _showLogoutConfirmation() {
     showDialog(
       context: context,
@@ -141,24 +119,217 @@ class _StudentPageState extends State<StudentPage> {
     );
   }
 
-  // ===========================================================================
-  // BUILD METHOD
-  // ===========================================================================
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: _buildAppBar(context),
       body: _buildPageView(),
       bottomNavigationBar: _buildBottomNavigationBar(context),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showEnrollDialog,
+        icon: const Icon(Icons.meeting_room),
+        label: const Text("Join Class"),
+      ),
     );
   }
 
-  // ===========================================================================
-  // UI COMPONENT BUILDERS
-  // ===========================================================================
+  Future<void> _showEnrollDialog() async {
+    final TextEditingController codeController = TextEditingController();
 
-  /// Builds the app bar with dynamic title
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Enter Classroom Code"),
+        content: TextField(
+          controller: codeController,
+          decoration: const InputDecoration(
+            labelText: "Classroom Code",
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final code = codeController.text.trim();
+              if (code.isNotEmpty) {
+                await _enrollStudentToClass(code);
+                Navigator.pop(context);
+              }
+            },
+            child: const Text("Join"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _enrollStudentToClass(String classroomCode) async {
+    if (!mounted) return;
+
+    try {
+      debugPrint('📝 [STUDENT_ENROLL] Starting enrollment with code: $classroomCode');
+      final supabase = Supabase.instance.client;
+
+      // 1️⃣ Validate classroom code
+      final classroomResponse = await supabase
+          .from('class_rooms')
+          .select('id, class_name')
+          .eq('classroom_code', classroomCode.trim())
+          .maybeSingle();
+
+      if (classroomResponse == null || classroomResponse['id'] == null) {
+        debugPrint('❌ [STUDENT_ENROLL] Invalid classroom code: $classroomCode');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("❌ Invalid classroom code"),
+            backgroundColor: Colors.redAccent,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+
+      final classId = classroomResponse['id'] as String;
+      final className = classroomResponse['class_name'] as String? ?? 'Unknown';
+
+      debugPrint('✅ [STUDENT_ENROLL] Found class: $className ($classId)');
+
+      // 2️⃣ Get current student
+      final user = supabase.auth.currentUser;
+      if (user == null) {
+        debugPrint('❌ [STUDENT_ENROLL] No logged-in user');
+        throw Exception("No logged-in user");
+      }
+
+      final studentResponse = await supabase
+          .from('students')
+          .select('id, student_name')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (studentResponse == null) {
+        debugPrint('❌ [STUDENT_ENROLL] No matching student profile found');
+        throw Exception("No matching student profile found for this user");
+      }
+
+      final studentId = studentResponse['id'] as String;
+      final studentName = studentResponse['student_name'] as String? ?? 'Student';
+
+      debugPrint('✅ [STUDENT_ENROLL] Found student: $studentName ($studentId)');
+
+      // 3️⃣ Check if already enrolled in another class
+      final existingEnrollment = await supabase
+          .from('student_enrollments')
+          .select('class_room_id, class_rooms(class_name)')
+          .eq('student_id', studentId)
+          .maybeSingle();
+
+      if (existingEnrollment != null) {
+        final existingClassId = existingEnrollment['class_room_id'] as String?;
+        final existingClassName = existingEnrollment['class_rooms']?['class_name'] as String?;
+
+        // If already enrolled in this class
+        if (existingClassId == classId) {
+          debugPrint('ℹ️ [STUDENT_ENROLL] Already enrolled in this class');
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("You are already enrolled in $className"),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          if (Navigator.of(context, rootNavigator: true).canPop()) {
+            Navigator.of(context, rootNavigator: true).pop();
+          }
+          return;
+        }
+
+        // If enrolled in different class
+        debugPrint('❌ [STUDENT_ENROLL] Already enrolled in different class: $existingClassName');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("You are already enrolled in \"${existingClassName ?? 'another class'}\". Please contact your teacher to switch classes."),
+            backgroundColor: Colors.redAccent,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+
+      // 4️⃣ Insert enrollment using ClassroomService for consistency
+      debugPrint('📝 [STUDENT_ENROLL] No existing enrollment - proceeding with join');
+      final enrollmentResult = await ClassroomService.assignStudent(
+        studentId: studentId,
+        classRoomId: classId,
+      );
+
+      if (enrollmentResult != null && enrollmentResult.containsKey('error')) {
+        final errorMessage = enrollmentResult['error'] as String? ?? 'Failed to join class';
+        debugPrint('❌ [STUDENT_ENROLL] Assignment failed: $errorMessage');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.redAccent,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+
+      debugPrint('✅ [STUDENT_ENROLL] Successfully enrolled in class');
+
+      // 5️⃣ Show success snackbar
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("✅ Successfully joined $className!"),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      // 6️⃣ Close the dialog
+      if (Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      // 7️⃣ Wait a short moment to finish animations
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      // 8️⃣ Refresh My Classes tab safely
+      if (!mounted) return;
+      setState(() {
+        _currentIndex = 1;
+      });
+
+      // Rebuild StudentClassPage (forces refresh)
+      _pageController.jumpToPage(1);
+
+    } catch (e, stack) {
+      debugPrint("❌ [STUDENT_ENROLL] Enrollment error: $e");
+      debugPrintStack(stackTrace: stack);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error enrolling: ${e.toString().replaceAll('Exception: ', '')}"),
+            backgroundColor: Colors.redAccent,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
+
+
+
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
       title: Text(
@@ -181,7 +352,6 @@ class _StudentPageState extends State<StudentPage> {
     );
   }
 
-  /// Builds the page view for navigation
   PageView _buildPageView() {
     return PageView(
       controller: _pageController,
@@ -190,7 +360,6 @@ class _StudentPageState extends State<StudentPage> {
     );
   }
 
-  /// Builds the bottom navigation bar
   BottomNavigationBar _buildBottomNavigationBar(BuildContext context) {
     return BottomNavigationBar(
       currentIndex: _currentIndex,
@@ -207,7 +376,6 @@ class _StudentPageState extends State<StudentPage> {
     );
   }
 
-  /// Builds bottom navigation items
   List<BottomNavigationBarItem> _buildBottomNavItems() {
     return const [
       BottomNavigationBarItem(
@@ -220,13 +388,15 @@ class _StudentPageState extends State<StudentPage> {
         activeIcon: Icon(Icons.class_),
         label: "My Class",
       ),
+      BottomNavigationBarItem(
+        icon: Icon(Icons.library_books_outlined),
+        activeIcon: Icon(Icons.library_books),
+        label: "Reading Tasks",
+      ),
+
     ];
   }
 }
-
-// =============================================================================
-// PROFILE POPUP MENU COMPONENT
-// =============================================================================
 
 class _ProfilePopupMenu extends StatefulWidget {
   final VoidCallback onLogout;
@@ -239,16 +409,8 @@ class _ProfilePopupMenu extends StatefulWidget {
 }
 
 class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
-  // ===========================================================================
-  // STATE VARIABLES
-  // ===========================================================================
-
   Student? _student;
   String? _profilePictureUrl;
-
-  // ===========================================================================
-  // LIFECYCLE METHODS
-  // ===========================================================================
 
   @override
   void initState() {
@@ -256,25 +418,12 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
     _loadStudentData();
   }
 
-  // ===========================================================================
-  // DATA LOADING METHODS (ENHANCED WITH API FALLBACK)
-  // ===========================================================================
-
-  /// Loads student data with robust fallback mechanism
-  /// Tries API first, then falls back to local storage if API fails
   Future<void> _loadStudentData() async {
     try {
-      // ✅ Try fetching from API first
-      final profileResponse = await AuthService.getAuthProfile();
-      final studentProfile = profileResponse['profile'] ?? profileResponse;
-
-      // Create Student object from API response
+      final profileResponse = await SupabaseAuthService.getAuthProfile();
+      final studentProfile = profileResponse?['profile'] ?? {};
       final Student student = Student.fromJson(studentProfile);
-
-      // ✅ Save to prefs using the model's saveToPrefs method
       await student.saveToPrefs();
-
-      // ✅ Build full profile picture URL
       final String? fullProfileUrl = await _buildProfilePictureUrl(
         student.profilePicture,
       );
@@ -284,40 +433,26 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
           _student = student;
           _profilePictureUrl = fullProfileUrl;
         });
-        debugPrint("🖼️ Profile URL: $_profilePictureUrl");
       }
 
-      debugPrint("✅ Loaded student profile from API: ${student.studentName}");
     } catch (e) {
-      debugPrint("⚠️ API failed, loading student from prefs instead: $e");
 
       try {
-        // ✅ Fallback to prefs using the model's fromPrefs method
         final Student student = await Student.fromPrefs();
-
-        // ✅ Build full profile picture URL
         final String? fullProfileUrl = await _buildProfilePictureUrl(
           student.profilePicture,
         );
-
         if (mounted) {
           setState(() {
             _student = student;
             _profilePictureUrl = fullProfileUrl;
           });
         }
-
-        debugPrint(
-          "✅ Loaded student profile from prefs: ${student.studentName}",
-        );
       } catch (prefsError) {
-        debugPrint("❌ Failed to load student from prefs: $prefsError");
-
-        // ✅ Handle case where both API & prefs fail
         if (mounted) {
           setState(() {
             _student = Student(
-              id: 0,
+              id: '',
               studentName: "Student",
               studentLrn: null,
               studentGrade: null,
@@ -334,33 +469,31 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
     }
   }
 
-  /// Builds the complete profile picture URL from base URL
   Future<String?> _buildProfilePictureUrl(String? profilePicture) async {
     if (profilePicture == null || profilePicture.isEmpty) {
       return null;
     }
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final savedBaseUrl =
-          prefs.getString('base_url') ?? 'http://10.0.2.2:8000/api';
-
-      final uri = Uri.parse(savedBaseUrl);
-      final baseUrl = '${uri.scheme}://${uri.authority}';
-      final url = '$baseUrl/$profilePicture';
-
-      debugPrint("✅ Built profile picture URL: $url"); // 👈 print here
-
-      return url;
+      // If already a full URL (starts with http/https), use it as is
+      if (profilePicture.startsWith('http://') || profilePicture.startsWith('https://')) {
+        debugPrint('🖼️ Profile picture is already a full URL');
+        return profilePicture;
+      }
+      
+      // Get public URL from Supabase storage 'materials' bucket (matches UserService.uploadProfilePicture)
+      final supabase = Supabase.instance.client;
+      final bucketBaseUrl = supabase.storage
+          .from('materials')
+          .getPublicUrl(profilePicture);
+      
+      debugPrint('🖼️ Normalized profile picture URL: $bucketBaseUrl');
+      return bucketBaseUrl;
     } catch (e) {
-      debugPrint("❌ Error building profile picture URL: $e");
+      debugPrint('⚠️ Error building profile picture URL: $e');
       return null;
     }
   }
-
-  // ===========================================================================
-  // BUILD METHOD
-  // ===========================================================================
 
   @override
   Widget build(BuildContext context) {
@@ -375,11 +508,6 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
     );
   }
 
-  // ===========================================================================
-  // MENU HANDLING METHODS
-  // ===========================================================================
-
-  /// Handles menu item selection
   Future<void> _handleMenuSelection(String value, BuildContext context) async {
     switch (value) {
       case 'logout':
@@ -394,7 +522,6 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
     }
   }
 
-  /// Shows profile modal bottom sheet
   Future<void> _showProfileModal(BuildContext context) async {
     await showModalBottomSheet(
       context: context,
@@ -404,10 +531,9 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
           (context) =>
               _ProfileModalContainer(child: const StudentProfilePage()),
     );
-    await _loadStudentData(); // Refresh data after closing profile
+    await _loadStudentData();
   }
 
-  /// Shows settings modal bottom sheet
   Future<void> _showSettingsModal(BuildContext context) async {
     await showModalBottomSheet(
       context: context,
@@ -424,18 +550,12 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
     );
   }
 
-  // ===========================================================================
-  // UI COMPONENT BUILDERS
-  // ===========================================================================
-
-  /// Builds the popup menu items
   List<PopupMenuEntry<String>> _buildMenuItems(BuildContext context) {
     final theme = Theme.of(context);
     final textColor = theme.colorScheme.onSurface;
     final studentName = _student?.studentName ?? "Student";
 
     return [
-      // Profile header
       PopupMenuItem<String>(
         value: 'profile',
         height: 100,
@@ -467,7 +587,6 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
         ),
       ),
       const PopupMenuDivider(),
-      // Settings option
       PopupMenuItem<String>(
         value: 'settings',
         height: 48,
@@ -487,7 +606,6 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
           ),
         ),
       ),
-      // Logout option
       PopupMenuItem<String>(
         value: 'logout',
         height: 48,
@@ -513,7 +631,6 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
     ];
   }
 
-  /// Builds the profile avatar with image or fallback
   Widget _buildProfileAvatar({required double radius}) {
     final studentName = _student?.studentName ?? "Student";
     final initials =
@@ -565,10 +682,6 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
     );
   }
 }
-
-// =============================================================================
-// SUPPORTING DIALOG COMPONENTS
-// =============================================================================
 
 class _ProfileModalContainer extends StatelessWidget {
   final Widget child;

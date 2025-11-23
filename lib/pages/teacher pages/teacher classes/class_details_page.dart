@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:deped_reading_app_laravel/api/classroom_service.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/tabs/students_management_page.dart';
-import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/tabs/students_progress_page.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/tabs/materials_page.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/tabs/tasks_page.dart';
 import 'package:flutter/material.dart';
@@ -360,54 +359,65 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
     setState(() => _isUploading = true);
 
     try {
-      final response = await ClassroomService.uploadClassBackground(
-        classId: int.parse(widget.classDetails['id'].toString()),
+
+    final response = await ClassroomService.uploadClassBackground(
+        classId: (widget.classDetails['id'].toString()),
         filePath: pickedFile.path,
       );
 
-      if (response.statusCode == 200) {
-        final responseBody = await response.stream.bytesToString();
+      if (response != null && response.statusCode == 200) {
+        final responseBody = response.body;
         final data = jsonDecode(responseBody);
+        final newBackgroundUrl = data['background_image'] as String?;
 
-        setState(() {
-          widget.classDetails['background_image'] = data['background_image'];
-          _previewBackground = null;
-        });
+        if (newBackgroundUrl != null && newBackgroundUrl.isNotEmpty) {
+          setState(() {
+            _previewBackground = null;
+          });
 
-        final prefs = await SharedPreferences.getInstance();
-        final classId = widget.classDetails['id'].toString();
-        await prefs.setString(
-          "class_background_$classId",
-          data['background_image'],
-        );
-
-        await Future.delayed(const Duration(seconds: 2));
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.white, size: 22),
-                  const SizedBox(width: 10),
-                  const Expanded(
-                    child: Text(
-                      "Background image updated!",
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-              backgroundColor: Colors.green[700],
-              behavior: SnackBarBehavior.floating,
-              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 8,
-              duration: const Duration(seconds: 2),
-            ),
+          // Update SharedPreferences
+          final prefs = await SharedPreferences.getInstance();
+          final classId = widget.classDetails['id'].toString();
+          await prefs.setString(
+            "class_background_$classId",
+            newBackgroundUrl,
           );
+
+          // Trigger rebuild by updating widget state through setState
+          // Since widget.classDetails is final, we'll rely on SharedPreferences
+          // which is already being read in _getBackgroundUrl()
+          if (mounted) {
+            setState(() {}); // Force rebuild to show new image
+          }
+
+          await Future.delayed(const Duration(seconds: 2));
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.white, size: 22),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        "Background image updated!",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.green[700],
+                behavior: SnackBarBehavior.floating,
+                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 8,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
         }
       } else {
         await Future.delayed(const Duration(seconds: 2));
@@ -635,16 +645,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
           onPageChanged: (index) => setState(() => _currentIndex = index),
           children: [
             ClassInfoPage(classDetails: widget.classDetails),
-            StudentsManagementPage(
-              classId: int.parse(widget.classDetails['id'].toString()),
-            ),
-            StudentsProgressPage(
-              classId: int.parse(widget.classDetails['id'].toString()),
-            ),
-            MaterialsPage(
-              classId: int.parse(widget.classDetails['id'].toString()),
-            ),
-            TasksPage(), // <- New Tab
+            StudentsManagementPage(classId: widget.classDetails['id'].toString()),
+            MaterialsPage(classId: widget.classDetails['id'].toString()),
+            TasksPage(classId: widget.classDetails['id'].toString()), // Tasks
           ],
         ),
       ),
@@ -666,17 +669,13 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
             activeIcon: Icon(Icons.people),
             label: "Students",
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bar_chart_outlined),
-            label: "Progress",
-          ),
+
           BottomNavigationBarItem(
             icon: Icon(Icons.assignment_outlined),
             activeIcon: Icon(Icons.assignment),
             label: "Materials",
           ),
           BottomNavigationBarItem(
-            // <- New Tab
             icon: Icon(Icons.task_outlined),
             activeIcon: Icon(Icons.task),
             label: "Tasks",

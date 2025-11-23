@@ -1,22 +1,229 @@
 import 'package:deped_reading_app_laravel/constants.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-class TeacherInfoPage extends StatelessWidget {
-  final String teacherName;
-  final String teacherEmail;
-  final String teacherPosition;
-  final String? teacherAvatar;
+class _SocialLinksSection extends StatelessWidget {
+  final Map<String, dynamic> socialLinks;
 
-  const TeacherInfoPage({
-    super.key,
-    required this.teacherName,
-    required this.teacherEmail,
-    required this.teacherPosition,
-    this.teacherAvatar,
-  });
+  const _SocialLinksSection({required this.socialLinks});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12),
+      child: Column(
+        children: [
+          Text(
+            "📱 Connect with Teacher",
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Colors.blueGrey[800],
+              fontFamily: 'ComicNeue',
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              if (socialLinks['facebook'] != null)
+                _SocialButton(
+                  icon: Icons.facebook,
+                  color: Colors.blue[700]!,
+                  label: "Facebook",
+                  url: socialLinks['facebook'],
+                ),
+              if (socialLinks['linkedin'] != null)
+                _SocialButton(
+                  icon: Icons.business_center_rounded,
+                  color: Colors.indigo,
+                  label: "LinkedIn",
+                  url: socialLinks['linkedin'],
+                ),
+              if (socialLinks['twitter'] != null)
+                _SocialButton(
+                  icon: Icons.alternate_email_rounded,
+                  color: Colors.lightBlue,
+                  label: "Twitter / X",
+                  url: socialLinks['twitter'],
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SocialButton extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String label;
+  final String url;
+
+  const _SocialButton({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.url,
+  });
+
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      debugPrint('❌ Could not launch $url');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () => _launchUrl(url),
+      child: Chip(
+        avatar: CircleAvatar(
+          backgroundColor: color.withOpacity(0.15),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        label: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.blueGrey,
+            fontWeight: FontWeight.w600,
+            fontFamily: 'ComicNeue',
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 2,
+        shadowColor: color.withOpacity(0.2),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        side: BorderSide(color: color.withOpacity(0.3), width: 1),
+      ),
+    );
+  }
+}
+
+
+class TeacherInfoPage extends StatefulWidget {
+  final String classId;
+
+  const TeacherInfoPage({
+    super.key,
+    required this.classId,
+  });
+
+  @override
+  State<TeacherInfoPage> createState() => _TeacherInfoPageState();
+}
+
+class _TeacherInfoPageState extends State<TeacherInfoPage> {
+  final supabase = Supabase.instance.client;
+  bool _isLoading = true;
+  Map<String, dynamic>? _teacherData;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTeacherData();
+  }
+
+  /// Load teacher data from database based on class ID
+  Future<void> _loadTeacherData() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      // Get class room details with teacher information
+      final classResponse = await supabase
+          .from('class_rooms')
+          .select('''
+            teacher_id,
+            teachers:teachers(
+              id,
+              teacher_name,
+              teacher_email,
+              teacher_position,
+              profile_picture,
+              social_links
+            )
+          ''')
+          .eq('id', widget.classId)
+          .maybeSingle();
+
+      if (classResponse == null) {
+        throw Exception('Class not found');
+      }
+
+      final teacherData = classResponse['teachers'];
+      if (teacherData == null) {
+        throw Exception('Teacher not found for this class');
+      }
+
+      setState(() {
+        _teacherData = Map<String, dynamic>.from(teacherData);
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('❌ Error loading teacher data: $e');
+      setState(() {
+        _errorMessage = 'Failed to load teacher information';
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: Colors.lightBlue[50],
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_errorMessage != null || _teacherData == null) {
+      return Scaffold(
+        backgroundColor: Colors.lightBlue[50],
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+              const SizedBox(height: 16),
+              Text(
+                _errorMessage ?? 'Teacher information not available',
+                style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _loadTeacherData,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Extract teacher data with fallbacks
+    final teacherName = _teacherData!['teacher_name']?.toString() ?? 'Teacher';
+    final teacherEmail = _teacherData!['teacher_email']?.toString() ?? 'Email not available';
+    final teacherPosition = _teacherData!['teacher_position']?.toString() ?? 'Position not set';
+    final teacherAvatar = _teacherData!['profile_picture']?.toString();
+    final socialLinks = _teacherData!['social_links'] as Map<String, dynamic>?;
+
     final avatarLetter = teacherName.isNotEmpty ? teacherName[0].toUpperCase() : '?';
     final avatarColor = _getAvatarColor(teacherName);
 
@@ -38,11 +245,21 @@ class TeacherInfoPage extends StatelessWidget {
                     avatarLetter: avatarLetter,
                     avatarColor: avatarColor,
                   ),
+
+                  // Social links section - now using database data
+                  if (socialLinks != null && socialLinks.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    _SocialLinksSection(
+                      socialLinks: socialLinks,
+                    ),
+                  ],
+
                   const _SuperpowersSection(),
                 ],
               ),
             ),
           ),
+
         ],
       ),
     );
