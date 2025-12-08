@@ -708,7 +708,7 @@ class _EditStudentProfilePageState extends State<EditStudentProfilePage> {
       return 'Please enter username';
     }
     final trimmed = value.trim();
-    if (trimmed.length < 4) {
+    if (trimmed.length < 2) {
       return 'Username must be at least 4 characters';
     }
     if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(trimmed)) {

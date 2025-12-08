@@ -1,8 +1,10 @@
+import 'package:deped_reading_app_laravel/pages/student%20pages/enhanced_reading_level_page.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../list_of_quiz_and_lessons.dart';
 import 'tabs/student_list_page.dart';
 import 'tabs/teacher_info_page.dart';
+// Add this import for the reading level page
 
 class ClassDetailsPage extends StatefulWidget {
   final String classId;
@@ -34,8 +36,6 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
   final ScrollController _scrollController = ScrollController();
   double _appBarOpacity = 0.0;
   final user = Supabase.instance.client.auth.currentUser;
-
-
 
   @override
   void initState() {
@@ -100,7 +100,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
     bool innerBoxIsScrolled,
   ) {
     return SliverAppBar(
-      expandedHeight: 200,
+      expandedHeight: 180,
       pinned: true,
       backgroundColor: theme.colorScheme.primary.withOpacity(_appBarOpacity),
       iconTheme: const IconThemeData(color: Colors.white),
@@ -255,11 +255,10 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
         });
       },
       children: [
-        ClassContentScreen(classRoomId: widget.classId,),
+        ClassContentScreen(classRoomId: widget.classId),
         StudentListPage(classId: widget.classId),
-        TeacherInfoPage(
-          classId: widget.classId,
-        ),
+        TeacherInfoPage(classId: widget.classId),
+        EnhancedReadingLevelPage(classId: widget.classId), // Added Reading Level tab
       ],
     );
   }
@@ -297,6 +296,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
       _buildBottomNavItem(0, Icons.task_outlined, "Tasks", theme),
       _buildBottomNavItem(1, Icons.people_outline, "Classmates", theme),
       _buildBottomNavItem(2, Icons.person_outline, "Teacher", theme),
+      _buildBottomNavItem(3, Icons.library_books_outlined, "Reading Level", theme), // Added Reading Level
     ];
   }
 

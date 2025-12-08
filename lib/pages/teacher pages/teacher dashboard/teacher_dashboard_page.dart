@@ -878,12 +878,12 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
                 ],
                 icon: Icons.people_outline,
                 onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const PupilManagementPage(),
-                    ),
-                  );
+                  // Navigator.push(
+                  //   context,
+                  //   MaterialPageRoute(
+                  //     builder: (_) => const PupilManagementPage(),
+                  //   ),
+                  // );
                 },
               ),
               const SizedBox(width: 16),

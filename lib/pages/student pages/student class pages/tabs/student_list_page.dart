@@ -6,9 +6,7 @@ import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lottie/lottie.dart';
 import 'package:flutter_custom_clippers/flutter_custom_clippers.dart';
-
-import '../../../../api/reading_activity_page.dart';
-
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class StudentListPage extends StatefulWidget {
   final String classId;
@@ -26,7 +24,7 @@ class _StudentListPageState extends State<StudentListPage> {
   final int _studentsPerPage = 6;
   final PageController _pageController = PageController();
   String? _baseUrl;
-  int? _currentStudentId;
+  String? _currentStudentId; // Changed to String for UUID
   final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey = GlobalKey();
 
   @override
@@ -36,9 +34,69 @@ class _StudentListPageState extends State<StudentListPage> {
   }
 
   Future<void> _initialize() async {
+    await _getCurrentStudentId(); // Get current student ID first
     await _fetchStudents();
   }
 
+  // NEW: Query current student from Supabase using the authenticated user
+  Future<void> _getCurrentStudentId() async {
+    try {
+      // Get the current authenticated user from Supabase
+      final supabase = Supabase.instance.client;
+      final currentUser = supabase.auth.currentUser;
+      
+      if (currentUser == null) {
+        debugPrint('No authenticated user found');
+        await _getCurrentStudentIdFromPrefs();
+        return;
+      }
+      
+      debugPrint('Authenticated user ID: ${currentUser.id}');
+      
+      // Query the students table to get the student record for this user
+      final response = await supabase
+          .from('students')
+          .select('id, student_name')
+          .eq('id', currentUser.id)
+          .maybeSingle();
+      
+      if (response != null) {
+        _currentStudentId = response['id'] as String;
+        debugPrint('Current student ID from Supabase: $_currentStudentId');
+        debugPrint('Current student name: ${response['student_name']}');
+      } else {
+        debugPrint('No student record found for user ${currentUser.id}');
+        await _getCurrentStudentIdFromPrefs();
+      }
+    } catch (e) {
+      debugPrint('Error getting current student from Supabase: $e');
+      // Fallback to SharedPreferences
+      await _getCurrentStudentIdFromPrefs();
+    }
+  }
+
+  // Fallback method: Try to get from SharedPreferences
+  Future<void> _getCurrentStudentIdFromPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Try common keys for student ID (UUID as string)
+      final possibleKeys = ['student_id', 'id', 'userId', 'studentId', 'user_id'];
+      
+      for (final key in possibleKeys) {
+        final value = prefs.getString(key);
+        if (value != null && value.isNotEmpty) {
+          _currentStudentId = value;
+          debugPrint('Found student ID from SharedPreferences ($key): $_currentStudentId');
+          return;
+        }
+      }
+      
+      debugPrint('No student ID found in SharedPreferences');
+    } catch (e) {
+      debugPrint('Error getting student ID from SharedPreferences: $e');
+    }
+  }
 
   Future<void> _fetchStudents() async {
     try {
@@ -48,9 +106,13 @@ class _StudentListPageState extends State<StudentListPage> {
       });
 
       // Use class-specific method to get only classmates in this class
-      final fetchedStudents = await ClassroomService.getStudentsByClass(widget.classId);
+      final fetchedStudents = await ClassroomService.getStudentsByClass(
+        widget.classId,
+      );
+      
       if (!mounted) return;
 
+      // Sort students with current student first
       _sortAndSetStudents(fetchedStudents);
     } catch (e) {
       debugPrint('Error loading students: $e');
@@ -63,12 +125,34 @@ class _StudentListPageState extends State<StudentListPage> {
     }
   }
 
+  // UPDATED METHOD: Sort with current student always first
   void _sortAndSetStudents(List<Student> students) {
+    // Make sure we have the current student ID before sorting
+    if (_currentStudentId == null) {
+      debugPrint('No current student ID found, sorting alphabetically');
+      // Sort alphabetically if no current student ID
+      students.sort((a, b) => a.studentName.toLowerCase().compareTo(b.studentName.toLowerCase()));
+      setState(() {
+        _students = students;
+        _isLoading = false;
+      });
+      return;
+    }
+    
+    // Sort the list: current student first, then others alphabetically by name
     students.sort((a, b) {
-      if (a.id == _currentStudentId) return -1;
-      if (b.id == _currentStudentId) return 1;
-      return 0;
+      final bool aIsCurrent = a.id == _currentStudentId;
+      final bool bIsCurrent = b.id == _currentStudentId;
+      
+      // If a is current student, it should come first
+      if (aIsCurrent && !bIsCurrent) return -1;
+      // If b is current student, it should come first
+      if (!aIsCurrent && bIsCurrent) return 1;
+      
+      // If neither or both are current student, sort alphabetically by name
+      return a.studentName.toLowerCase().compareTo(b.studentName.toLowerCase());
     });
+    
     setState(() {
       _students = students;
       _isLoading = false;
@@ -169,7 +253,7 @@ class _StudentListContent extends StatelessWidget {
   final int currentPage;
   final PageController pageController;
   final int studentsPerPage;
-  final int? currentStudentId;
+  final String? currentStudentId;
   final String? baseUrl;
   final VoidCallback onRetry;
   final Function(int) onPageChanged;
@@ -318,7 +402,7 @@ class _StudentGridView extends StatelessWidget {
   final int currentPage;
   final PageController pageController;
   final int studentsPerPage;
-  final int? currentStudentId;
+  final String? currentStudentId;
   final String? baseUrl;
   final Function(int) onPageChanged;
 
@@ -373,7 +457,7 @@ class _StudentGridView extends StatelessWidget {
 class _StudentCard extends StatelessWidget {
   final Student student;
   final int index;
-  final int? currentStudentId;
+  final String? currentStudentId;
   final String? baseUrl;
 
   const _StudentCard({
@@ -417,31 +501,36 @@ class _StudentCard extends StatelessWidget {
   }
 
   String? _getProfileUrl(Student student) {
-    final sanitizedBaseUrl = baseUrl?.replaceAll(RegExp(r'/api/?$'), '') ?? '';
-    return (student.profilePicture != null &&
-            student.profilePicture!.isNotEmpty)
-        ? "$sanitizedBaseUrl/${student.profilePicture}"
-        : null;
+    if (student.profilePicture != null && student.profilePicture!.isNotEmpty) {
+      final url = student.profilePicture!;
+      debugPrint('Profile URL for ${student.studentName}: $url');
+      return url;
+    }
+    debugPrint('No profile picture for ${student.studentName}');
+    return null; // fallback to avatar initials
   }
 
-  void _navigateToStudentProfile(
-      BuildContext context,
-      String name,
-      String avatarLetter,
-      String? profileUrl,
-      ) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => StudentProfilePage(
-          name: name,
-          avatarLetter: avatarLetter,
-          avatarColor: Colors.blue,
-          profileUrl: profileUrl,
-        ),
+// In the _StudentCard class, update the _navigateToStudentProfile method:
+
+void _navigateToStudentProfile(
+  BuildContext context,
+  String name,
+  String avatarLetter,
+  String? profileUrl,
+) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => StudentProfilePage(
+        name: name,
+        avatarLetter: avatarLetter,
+        avatarColor: Colors.blue,
+        profileUrl: profileUrl,
+        studentId: student.id, // Pass the student ID here
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _PageIndicators extends StatelessWidget {
@@ -528,7 +617,7 @@ class StudentCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: Colors.blue,
+          color: const Color.fromARGB(255, 243, 33, 33),
           borderRadius: BorderRadius.circular(8),
         ),
         child: const Text(

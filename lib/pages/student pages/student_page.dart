@@ -2,9 +2,9 @@ import 'package:deped_reading_app_laravel/api/supabase_auth_service.dart';
 import 'package:deped_reading_app_laravel/api/classroom_service.dart';
 import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:deped_reading_app_laravel/pages/auth%20pages/landing_page.dart';
-import 'package:deped_reading_app_laravel/pages/student%20pages/enhanced_reading_level_page.dart';
+// Removed import: import 'package:deped_reading_app_laravel/pages/student%20pages/enhanced_reading_level_page.dart';
 import 'package:deped_reading_app_laravel/pages/student%20pages/student_dashboard_page.dart';
-import 'package:deped_reading_app_laravel/pages/student%20pages/student_reading_materials_page.dart';
+// import 'package:deped_reading_app_laravel/pages/student%20pages/student_reading_materials_page.dart';
 import 'package:deped_reading_app_laravel/widgets/helpers/tts_helper.dart';
 import 'package:deped_reading_app_laravel/widgets/helpers/tts_modal.dart';
 import 'package:flutter/material.dart';
@@ -12,7 +12,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../widgets/navigation/page_transition.dart';
 import 'student class pages/student_class_page.dart';
-
 import 'student_profile_page.dart';
 
 class StudentPage extends StatefulWidget {
@@ -27,11 +26,18 @@ class _StudentPageState extends State<StudentPage> {
   final PageController _pageController = PageController();
   final TTSHelper _ttsHelper = TTSHelper();
 
+  // Page titles for AppBar
+  final List<String> _pageTitles = [
+    "Dashboard",
+    "My Class",
+    // Removed "My Reading Level" from here
+  ];
+
+  // Fixed pages - order must match bottom navigation
   final List<Widget> _pages = [
     const StudentDashboardPage(),
     const StudentClassPage(),
-    const EnhancedReadingLevelPage(),
-    const StudentReadingMaterialsPage(),
+    // Removed EnhancedReadingLevelPage from here
   ];
 
   @override
@@ -101,11 +107,7 @@ class _StudentPageState extends State<StudentPage> {
 
   void _onTabTapped(int index) {
     setState(() => _currentIndex = index);
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
+    _pageController.jumpToPage(index); // Use jumpToPage instead of animateToPage for instant navigation
   }
 
   void _showLogoutConfirmation() {
@@ -125,11 +127,11 @@ class _StudentPageState extends State<StudentPage> {
       appBar: _buildAppBar(context),
       body: _buildPageView(),
       bottomNavigationBar: _buildBottomNavigationBar(context),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showEnrollDialog,
-        icon: const Icon(Icons.meeting_room),
-        label: const Text("Join Class"),
-      ),
+      // floatingActionButton: FloatingActionButton.extended(
+      //   onPressed: _showEnrollDialog,
+      //   icon: const Icon(Icons.meeting_room),
+      //   label: const Text("Join Class"),
+      // ),
     );
   }
 
@@ -328,12 +330,10 @@ class _StudentPageState extends State<StudentPage> {
     }
   }
 
-
-
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
       title: Text(
-        _currentIndex == 0 ? "Student Dashboard" : "My Classes",
+        _pageTitles[_currentIndex], // Use dynamic page titles
         style: const TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.w600,
@@ -352,11 +352,17 @@ class _StudentPageState extends State<StudentPage> {
     );
   }
 
-  PageView _buildPageView() {
+  Widget _buildPageView() {
     return PageView(
       controller: _pageController,
       onPageChanged: (index) => setState(() => _currentIndex = index),
       children: _pages,
+      physics: const PageScrollPhysics(), // Standard page physics
+      // Prevent overscroll/bounce
+      scrollBehavior: const ScrollBehavior().copyWith(
+        overscroll: false,
+        scrollbars: false,
+      ),
     );
   }
 
@@ -388,12 +394,7 @@ class _StudentPageState extends State<StudentPage> {
         activeIcon: Icon(Icons.class_),
         label: "My Class",
       ),
-      BottomNavigationBarItem(
-        icon: Icon(Icons.library_books_outlined),
-        activeIcon: Icon(Icons.library_books),
-        label: "Reading Tasks",
-      ),
-
+      // Removed Reading Level tab
     ];
   }
 }
@@ -541,7 +542,7 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
       backgroundColor: Colors.transparent,
       builder:
           (context) => _ProfileModalContainer(
-            heightFactor: 0.6,
+            heightFactor: 0.4,
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: TTSSettingsModal(ttsHelper: widget.ttsHelper),
@@ -587,25 +588,25 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
         ),
       ),
       const PopupMenuDivider(),
-      PopupMenuItem<String>(
-        value: 'settings',
-        height: 48,
-        child: SizedBox(
-          width: double.infinity,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              Icon(Icons.settings, size: 20, color: Colors.blue),
-              const SizedBox(width: 12),
-              Text(
-                'Settings',
-                style: theme.textTheme.bodyMedium?.copyWith(color: textColor),
-              ),
-            ],
-          ),
-        ),
-      ),
+      // PopupMenuItem<String>(
+      //   value: 'settings',
+      //   height: 48,
+      //   child: SizedBox(
+      //     width: double.infinity,
+      //     child: Row(
+      //       mainAxisSize: MainAxisSize.min,
+      //       mainAxisAlignment: MainAxisAlignment.start,
+      //       children: [
+      //         Icon(Icons.settings, size: 20, color: Colors.blue),
+      //         const SizedBox(width: 12),
+      //         Text(
+      //           'Settings',
+      //           style: theme.textTheme.bodyMedium?.copyWith(color: textColor),
+      //         ),
+      //       ],
+      //     ),
+      //   ),
+      // ),
       PopupMenuItem<String>(
         value: 'logout',
         height: 48,
@@ -687,7 +688,7 @@ class _ProfileModalContainer extends StatelessWidget {
   final Widget child;
   final double heightFactor;
 
-  const _ProfileModalContainer({required this.child, this.heightFactor = 0.85});
+  const _ProfileModalContainer({required this.child, this.heightFactor = 0.68});
 
   @override
   Widget build(BuildContext context) {

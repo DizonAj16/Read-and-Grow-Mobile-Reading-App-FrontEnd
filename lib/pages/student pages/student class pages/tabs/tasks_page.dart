@@ -5,7 +5,6 @@ import 'package:lottie/lottie.dart';
 import '../../../../api/classroom_service.dart';
 import '../../student_quiz_pages.dart';
 
-// ✅ StudentTasksPage (StatelessWidget)
 class StudentTasksPage extends StatelessWidget {
   final String classId;
 
@@ -15,13 +14,16 @@ class StudentTasksPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.lightBlue[50],
-      body: Column(
+      body: Stack(
         children: [
+          // Wave header
           _buildHeader(),
-          Expanded(
+          // Content below header
+          Padding(
+            padding: const EdgeInsets.only(top: 140), // same as header height
             child: RefreshIndicator(
               onRefresh: () async {
-                // Add refresh functionality here if needed
+                // Add refresh functionality here
               },
               color: Colors.blue,
               backgroundColor: Colors.white,
@@ -38,36 +40,49 @@ class StudentTasksPage extends StatelessWidget {
       clipper: WaveClipper(),
       child: Container(
         height: 140,
+        width: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              kPrimaryColor, // main primary color
-              Color(0xFFB71C1C), // darker shade for depth
+              kPrimaryColor,
+              Color(0xFFB71C1C),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
         ),
-        alignment: Alignment.center,
-        child: const Text(
-          "Class Tasks",
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 26,
-            fontWeight: FontWeight.bold,
+        child: const SafeArea(
+          child: Center(
+            child: Text(
+              "Lessons & Quizzes",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ),
       ),
     );
   }
 
-  // ⚠️ You need to define this (placeholder for now)
   Widget _buildContent(BuildContext context) {
-    return const Center(
-      child: Text("Task content goes here"),
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: const [
+        SizedBox(height: 20),
+        Center(
+          child: Text(
+            "Task content goes here",
+            style: TextStyle(fontSize: 18),
+          ),
+        ),
+      ],
     );
   }
 }
+
 
 // ✅ StudentQuizzesPage (StatefulWidget)
 class StudentQuizzesPage extends StatefulWidget {

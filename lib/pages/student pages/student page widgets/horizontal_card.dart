@@ -6,6 +6,8 @@ class StudentDashboardHorizontalCard extends StatelessWidget {
   final List<Color> gradientColors;
   final IconData icon;
   final VoidCallback? onPressed;
+  final Color? iconColor;
+  final Color? textColor;
 
   const StudentDashboardHorizontalCard({
     Key? key,
@@ -14,10 +16,15 @@ class StudentDashboardHorizontalCard extends StatelessWidget {
     required this.gradientColors,
     required this.icon,
     this.onPressed,
+    this.iconColor,
+    this.textColor,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final effectiveIconColor = iconColor ?? Colors.white;
+    final effectiveTextColor = textColor ?? Colors.white;
+    
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(
@@ -27,7 +34,7 @@ class StudentDashboardHorizontalCard extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: onPressed,
-        splashColor: Colors.white.withOpacity(0.1),
+        splashColor: effectiveTextColor.withOpacity(0.1),
         highlightColor: Colors.transparent,
         child: Container(
           width: 170,
@@ -37,7 +44,7 @@ class StudentDashboardHorizontalCard extends StatelessWidget {
               colors: gradientColors,
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              stops: [0.1, 0.9],
+              stops: const [0.1, 0.9],
             ),
             borderRadius: BorderRadius.circular(20),
           ),
@@ -51,7 +58,7 @@ class StudentDashboardHorizontalCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white.withOpacity(0.95),
+                  color: effectiveTextColor.withOpacity(0.95),
                   letterSpacing: 0.5,
                 ),
               ),
@@ -65,7 +72,7 @@ class StudentDashboardHorizontalCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 50,
                         fontWeight: FontWeight.w800,
-                        color: Colors.white,
+                        color: effectiveTextColor,
                         height: 0.9,
                       ),
                       maxLines: 1,
@@ -75,16 +82,17 @@ class StudentDashboardHorizontalCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
+                      color: effectiveTextColor.withOpacity(0.15),
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.3),
+                        color: effectiveTextColor.withOpacity(0.3),
                         width: 1.5,
                       ),
                     ),
-                    child: Icon(icon, 
-                      size: 40, 
-                      color: Colors.white,
+                    child: Icon(
+                      icon,
+                      size: 40,
+                      color: effectiveIconColor,
                     ),
                   ),
                 ],

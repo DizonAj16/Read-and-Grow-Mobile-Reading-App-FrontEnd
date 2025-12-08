@@ -1,3 +1,4 @@
+import 'package:deped_reading_app_laravel/pages/auth%20pages/parent_login_page.dart';
 import 'package:deped_reading_app_laravel/pages/auth%20pages/student_signup_page.dart';
 import 'package:deped_reading_app_laravel/pages/auth%20pages/teacher_signup_page.dart';
 import 'package:flutter/material.dart';
@@ -34,7 +35,7 @@ class ChooseRolePage extends StatelessWidget {
           icon: Icons.family_restroom,
           label: 'Parent',
           color: Colors.purple,
-          onTap: () => Navigator.of(context).push(PageTransition(page: AdminLoginPage())),
+          onTap: () => Navigator.of(context).push(PageTransition(page: ParentLoginPage())),
         ),
       ];
     } else {

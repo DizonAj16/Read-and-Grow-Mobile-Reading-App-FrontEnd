@@ -21,7 +21,7 @@ class StudentDashboardPage extends StatefulWidget {
 class _StudentDashboardPageState extends State<StudentDashboardPage> {
   String? username;
   final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey =
-  GlobalKey<RefreshIndicatorState>();
+      GlobalKey<RefreshIndicatorState>();
   bool _isLoading = false;
   bool _minimumLoadingTimeElapsed = false;
   bool _dataLoaded = false;
@@ -36,12 +36,29 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
   List<double> _recentScores = [];
   int _badgesCount = 0;
   String _levelDisplay = 'N/A';
+  String _levelNumber = 'N/A'; // ADD THIS LINE
+
+  // Theme colors
+  late ColorScheme _colorScheme;
+  Color get _primaryColor => _colorScheme.primary;
+  Color get _onPrimaryColor => _colorScheme.onPrimary;
+  Color get _primaryContainer => _colorScheme.primaryContainer;
+  Color get _onPrimaryContainer => _colorScheme.onPrimaryContainer;
+  Color get _secondaryColor => _colorScheme.secondary;
+  Color get _surfaceVariant => _colorScheme.surfaceVariant;
+  Color get _surface => _colorScheme.surface;
 
   @override
   void initState() {
     super.initState();
     _loadData();
     _startMinimumLoadingTimer();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _colorScheme = Theme.of(context).colorScheme;
   }
 
   void _startMinimumLoadingTimer() {
@@ -95,11 +112,12 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
       if (userId == null) return;
 
       // Get student.id from students table
-      final studentRow = await supabase
-          .from('students')
-          .select('id')
-          .eq('id', userId)
-          .maybeSingle();
+      final studentRow =
+          await supabase
+              .from('students')
+              .select('id')
+              .eq('id', userId)
+              .maybeSingle();
 
       if (studentRow == null) return;
       final String studentId = studentRow['id'] as String;
@@ -110,16 +128,19 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
           .select('class_room_id')
           .eq('student_id', studentId);
 
-      final classIds = (enrollments as List)
-          .map((e) => e['class_room_id'] as String)
-          .toList();
+      final classIds =
+          (enrollments as List)
+              .map((e) => e['class_room_id'] as String)
+              .toList();
 
       // Get all assignments for these classes
       // Important: If a task has a quiz, we count the quiz, not the task (to avoid double counting)
       List<String> assignedTaskIds = []; // Only tasks WITHOUT quizzes
-      List<String> assignedQuizIds = []; // All quizzes (from tasks or directly linked)
-      Set<String> tasksWithQuizzes = {}; // Track which tasks have quizzes (so we don't count them separately)
-      
+      List<String> assignedQuizIds =
+          []; // All quizzes (from tasks or directly linked)
+      Set<String> tasksWithQuizzes =
+          {}; // Track which tasks have quizzes (so we don't count them separately)
+
       if (classIds.isNotEmpty) {
         final assignments = await supabase
             .from('assignments')
@@ -132,14 +153,14 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
           if (directQuizId != null && !assignedQuizIds.contains(directQuizId)) {
             assignedQuizIds.add(directQuizId);
           }
-          
+
           // Handle task_id assignments
           final taskId = assignment['task_id'] as String?;
           if (taskId != null) {
             // Check if this task has quizzes
             final task = assignment['tasks'] as Map<String, dynamic>?;
             bool taskHasQuiz = false;
-            
+
             if (task != null) {
               final quizzes = task['quizzes'] as List?;
               if (quizzes != null && quizzes.isNotEmpty) {
@@ -154,7 +175,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
                 }
               }
             }
-            
+
             // Only add task to assignedTaskIds if it doesn't have a quiz
             // Tasks with quizzes are counted via their quizzes to avoid double counting
             if (!taskHasQuiz && !assignedTaskIds.contains(taskId)) {
@@ -167,12 +188,16 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
       // Get existing progress records
       final response = await supabase
           .from('student_task_progress')
-          .select('task_id, score, max_score, correct_answers, wrong_answers, completed, updated_at')
+          .select(
+            'task_id, score, max_score, correct_answers, wrong_answers, completed, updated_at',
+          )
           .eq('student_id', userId)
           .order('updated_at', ascending: false);
 
       // Handle case where there's no progress data yet
-      if (response.isEmpty && assignedTaskIds.isEmpty && assignedQuizIds.isEmpty) {
+      if (response.isEmpty &&
+          assignedTaskIds.isEmpty &&
+          assignedQuizIds.isEmpty) {
         setState(() {
           _averageScore = 0;
           _completedTasks = 0;
@@ -189,7 +214,9 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
       // Include both quizzes linked through tasks and quizzes directly linked via quiz_id
       final quizSubmissions = await supabase
           .from('student_submissions')
-          .select('assignment_id, assignments(id, task_id, quiz_id, tasks(id, quizzes(id)))')
+          .select(
+            'assignment_id, assignments(id, task_id, quiz_id, tasks(id, quizzes(id)))',
+          )
           .eq('student_id', userId);
 
       Set<String> completedQuizIds = {};
@@ -201,7 +228,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
           if (directQuizId != null && directQuizId.isNotEmpty) {
             completedQuizIds.add(directQuizId);
           }
-          
+
           // Check for quizzes linked through tasks
           final task = assignment['tasks'] as Map<String, dynamic>?;
           if (task != null) {
@@ -259,14 +286,19 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
 
       // Filter out tasks with quizzes from pending/completed task counts
       // (they're counted via their quizzes)
-      Set<String> pendingTasksWithoutQuizzes = pendingTaskIds.where((id) => !tasksWithQuizzes.contains(id)).toSet();
-      Set<String> completedTasksWithoutQuizzes = completedTaskIds.where((id) => !tasksWithQuizzes.contains(id)).toSet();
+      Set<String> pendingTasksWithoutQuizzes =
+          pendingTaskIds.where((id) => !tasksWithQuizzes.contains(id)).toSet();
+      Set<String> completedTasksWithoutQuizzes =
+          completedTaskIds
+              .where((id) => !tasksWithQuizzes.contains(id))
+              .toSet();
 
       // Count newly assigned tasks (without quizzes) that haven't been started yet
       int newPendingTasks = 0;
       for (var taskId in assignedTaskIds) {
         // assignedTaskIds already excludes tasks with quizzes, so we can count all
-        if (!completedTasksWithoutQuizzes.contains(taskId) && !pendingTasksWithoutQuizzes.contains(taskId)) {
+        if (!completedTasksWithoutQuizzes.contains(taskId) &&
+            !pendingTasksWithoutQuizzes.contains(taskId)) {
           newPendingTasks++;
         }
       }
@@ -281,10 +313,14 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
 
       // Total pending = existing pending tasks (without quizzes) + newly assigned tasks (without quizzes) + newly assigned quizzes
       // We don't separately count "tasks with quizzes" because they're already counted via their quizzes
-      int totalPendingCount = pendingTasksWithoutQuizzes.length + newPendingTasks + newPendingQuizzes;
-      
+      int totalPendingCount =
+          pendingTasksWithoutQuizzes.length +
+          newPendingTasks +
+          newPendingQuizzes;
+
       // Total completed = completed tasks (without quizzes) + completed quizzes
-      int totalCompletedCount = completedTasksWithoutQuizzes.length + completedQuizIds.length;
+      int totalCompletedCount =
+          completedTasksWithoutQuizzes.length + completedQuizIds.length;
 
       scores = scores.take(5).toList().reversed.toList();
 
@@ -309,17 +345,14 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
       if (authUserId == null) return;
 
       // Get student.id from students by user_id
-      final studentRow = await supabase
-          .from('students')
-          .select('id, current_reading_level_id')
-          .eq('id', authUserId)
-          .maybeSingle();
+      final studentRow =
+          await supabase
+              .from('students')
+              .select('id, current_reading_level_id')
+              .eq('id', authUserId)
+              .maybeSingle();
 
       if (studentRow == null) return;
-
-      // (Removed unused enrollments/classIds fetch)
-
-      // (Removed unused assigned tasks count)
 
       // Badges: count submissions with score ratio >= 0.8
       final submissions = await supabase
@@ -336,20 +369,25 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
         }
       }
 
-      // Level display
+      // Level display - store number separately
       String levelText = 'N/A';
+      String levelNumberDisplay = 'N/A';
       final levelId = studentRow['current_reading_level_id'] as String?;
       if (levelId != null) {
-        final levelRow = await supabase
-            .from('reading_levels')
-            .select('level_number, title')
-            .eq('id', levelId)
-            .maybeSingle();
+        final levelRow =
+            await supabase
+                .from('reading_levels')
+                .select('level_number, title')
+                .eq('id', levelId)
+                .maybeSingle();
         if (levelRow != null) {
           final num = levelRow['level_number'];
           final title = levelRow['title'];
-          levelText = (num != null ? 'Level $num' : '') + (title != null ? ' - $title' : '');
+          levelText =
+              (num != null ? 'Level $num' : '') +
+              (title != null ? ' - $title' : '');
           levelText = levelText.isEmpty ? 'N/A' : levelText;
+          levelNumberDisplay = num != null ? '$num' : 'N/A';
         }
       }
 
@@ -357,6 +395,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
         setState(() {
           _badgesCount = badges;
           _levelDisplay = levelText;
+          _levelNumber = levelNumberDisplay;
         });
       }
     } catch (e) {
@@ -388,55 +427,57 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
     final showLoading = _isLoading || !_minimumLoadingTimeElapsed;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFCEEEE),
+      backgroundColor: _surface.withOpacity(0.97),
       body: SafeArea(
-        child: showLoading
-            ? Center(
-          child: Lottie.asset(
-            'assets/animation/loading_rainbow.json',
-            width: 90,
-            height: 90,
-          ),
-        )
-            : RefreshIndicator(
-          key: _refreshIndicatorKey,
-          onRefresh: _handleRefresh,
-          color: Colors.purple,
-          backgroundColor: Colors.white,
-          strokeWidth: 3.0,
-          displacement: 40.0,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(20.0),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: constraints.maxHeight,
+        child:
+            showLoading
+                ? Center(
+                  child: Lottie.asset(
+                    'assets/animation/loading_rainbow.json',
+                    width: 90,
+                    height: 90,
                   ),
-                  child: IntrinsicHeight(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Center(child: _buildWelcomeSection(context)),
-                        const SizedBox(height: 20),
-                        _buildStatisticsCards(),
-                        const SizedBox(height: 30),
-                        _buildProgressSection(),
-                        const SizedBox(height: 30),
-                        _buildQuickAccessSection(context),
-                        const SizedBox(height: 20),
-                        _buildMyGradesCard(context),
-                        const SizedBox(height: 30),
-                        _buildRecentActivitiesSection(context),
-                      ],
-                    ),
+                )
+                : RefreshIndicator(
+                  key: _refreshIndicatorKey,
+                  onRefresh: _handleRefresh,
+                  color: _primaryColor,
+                  backgroundColor: _surface,
+                  strokeWidth: 3.0,
+                  displacement: 40.0,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.all(20.0),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight,
+                          ),
+                          child: IntrinsicHeight(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildWelcomeSection(context),
+                                const SizedBox(height: 20),
+                                _buildStatisticsCards(),
+                                const SizedBox(height: 30),
+                                _buildProgressSection(),
+                                const SizedBox(height: 30),
+                                _buildQuickAccessSection(context),
+                                const SizedBox(height: 20),
+                                _buildMyGradesCard(context),
+                                const SizedBox(height: 30),
+                                _buildRecentActivitiesSection(context),
+                                const SizedBox(height: 20),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
-              );
-            },
-          ),
-        ),
       ),
     );
   }
@@ -445,41 +486,86 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.purple.shade50,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.purple.shade200),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            _primaryColor.withOpacity(0.08),
+            _primaryColor.withOpacity(0.03),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: _primaryColor.withOpacity(0.15), width: 1.5),
         boxShadow: [
-          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3)),
+          BoxShadow(
+            color: _primaryColor.withOpacity(0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
+            decoration: BoxDecoration(
+              color: _primaryColor.withOpacity(0.1),
               shape: BoxShape.circle,
+              border: Border.all(
+                color: _primaryColor.withOpacity(0.3),
+                width: 2,
+              ),
             ),
             padding: const EdgeInsets.all(12),
             child: Lottie.asset(
               'assets/animation/waving_hello.json',
-              height: 150,
+              height: 80,
               fit: BoxFit.contain,
             ),
           ),
-          const SizedBox(height: 10),
-          Text(
-            "Hi ${username ?? ''}! 👋",
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.purple.shade700,
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Welcome back,",
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: _primaryColor.withOpacity(0.8),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  username ?? 'Student',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: _primaryColor,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  "Ready for today's learning adventure?",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: _primaryColor.withOpacity(0.6),
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            "Ready to learn and have fun today?",
-            style: TextStyle(fontSize: 16, color: Colors.purple.shade400),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: _primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(Icons.school_outlined, color: _primaryColor, size: 28),
           ),
         ],
       ),
@@ -488,260 +574,562 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
 
   Widget _buildStatisticsCards() {
     return SizedBox(
-      height: 170,
+      height: 140,
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
+          const SizedBox(width: 4),
           StudentDashboardHorizontalCard(
             title: "Completed",
             value: _completedTasks.toString(),
-            gradientColors: [Colors.lightGreen, Colors.green],
+            gradientColors: [
+              _primaryColor.withOpacity(0.9),
+              _secondaryColor.withOpacity(0.8),
+            ],
             icon: Icons.check_circle_outline,
+            iconColor: Colors.white,
+            textColor: Colors.white,
           ),
           const SizedBox(width: 16),
           StudentDashboardHorizontalCard(
             title: "Pending",
             value: _pendingTasks.toString(),
-            gradientColors: [Colors.orangeAccent, Colors.deepOrange],
+            gradientColors: [
+              _primaryColor.withOpacity(0.7),
+              _primaryColor.withOpacity(0.4),
+            ],
             icon: Icons.pending_actions,
+            iconColor: Colors.white,
+            textColor: Colors.white,
           ),
           const SizedBox(width: 16),
           StudentDashboardHorizontalCard(
             title: "Badges",
             value: _badgesCount.toString(),
-            gradientColors: [Colors.pinkAccent, Colors.redAccent],
+            gradientColors: [_secondaryColor, _secondaryColor.withOpacity(0.6)],
             icon: Icons.emoji_events_outlined,
+            iconColor: Colors.white,
+            textColor: Colors.white,
             onPressed: () {
               Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const StudentBadgesPage(),
-                ),
+                MaterialPageRoute(builder: (_) => const StudentBadgesPage()),
               );
             },
           ),
           const SizedBox(width: 16),
           StudentDashboardHorizontalCard(
             title: "Level",
-            value: _levelDisplay,
-            gradientColors: [Colors.blueAccent, Colors.lightBlue],
+            value: _levelNumber, // Change from _levelDisplay to _levelNumber
+            gradientColors: [
+              _primaryColor.withOpacity(0.6),
+              _secondaryColor.withOpacity(0.4),
+            ],
             icon: Icons.star_border,
+            iconColor: Colors.white,
+            textColor: Colors.white,
           ),
+          const SizedBox(width: 4),
         ],
       ),
     );
   }
 
-  // ✅ PROGRESS SECTION
   Widget _buildProgressSection() {
     final percent = _averageScore.clamp(0, 1);
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFEDE7F6), Color(0xFFF3E5F5)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
+        color: _surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: _surfaceVariant.withOpacity(0.5), width: 1.5),
         boxShadow: [
           BoxShadow(
-              color: Colors.purple.shade100,
-              blurRadius: 6,
-              offset: const Offset(0, 3)),
+            color: _primaryColor.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
+          ),
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "📊 My Progress Report",
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.purple.shade700,
-            ),
-          ),
-          const SizedBox(height: 20),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              CircularPercentIndicator(
-                radius: 70,
-                lineWidth: 10,
-               percent: percent.toDouble(),
-                animation: true,
-                circularStrokeCap: CircularStrokeCap.round,
-                center: Text(
-                  "${(percent * 100).toStringAsFixed(1)}%",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                    color: Colors.purple.shade800,
-                  ),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: _primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                progressColor: Colors.purpleAccent,
-                backgroundColor: Colors.purple.shade100,
+                child: Icon(
+                  Icons.analytics_outlined,
+                  color: _primaryColor,
+                  size: 24,
+                ),
               ),
-              const SizedBox(width: 10),
-              Expanded(child: _buildTrendChart()),
+              const SizedBox(width: 12),
+              Text(
+                "Progress Overview",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: _primaryColor,
+                  letterSpacing: -0.5,
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
+
+          // Progress Visuals Row
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _progressStat(Icons.check_circle, "Completed",
-                  _completedTasks.toString(), Colors.green),
-              _progressStat(Icons.check, "Correct", _totalCorrect.toString(),
-                  Colors.blue),
-              _progressStat(
-                  Icons.close, "Wrong", _totalWrong.toString(), Colors.redAccent),
+              // Circular Progress Indicator
+              Column(
+                children: [
+                  CircularPercentIndicator(
+                    radius: 65,
+                    lineWidth: 12,
+                    percent: percent.toDouble(),
+                    animation: true,
+                    animationDuration: 1500,
+                    circularStrokeCap: CircularStrokeCap.round,
+                    center: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          "${(percent * 100).toStringAsFixed(1)}%",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 22,
+                            color: _primaryColor,
+                          ),
+                        ),
+                        Text(
+                          "Score",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _primaryColor.withOpacity(0.6),
+                          ),
+                        ),
+                      ],
+                    ),
+                    progressColor: _primaryColor,
+                    backgroundColor: _primaryColor.withOpacity(0.1),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color:
+                          percent >= 0.7
+                              ? Colors.green.withOpacity(0.1)
+                              : percent >= 0.4
+                              ? Colors.orange.withOpacity(0.1)
+                              : Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      percent >= 0.7
+                          ? "Excellent! 🎯"
+                          : percent >= 0.4
+                          ? "Good Work ✨"
+                          : "Keep Going! 💪",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color:
+                            percent >= 0.7
+                                ? Colors.green
+                                : percent >= 0.4
+                                ? Colors.orange
+                                : Colors.red,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(width: 24),
+
+              // Trend Chart
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Performance Trend",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: _primaryColor.withOpacity(0.8),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(height: 140, child: _buildTrendChart()),
+                  ],
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 10),
-          if (_lastUpdated != null)
-            Text(
-              "Last updated: ${_lastUpdated!.toLocal().toString().split('.')[0]}",
-              style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+
+          const SizedBox(height: 24),
+
+          // Stats Grid
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: _surfaceVariant.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(16),
             ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _progressStat(
+                  Icons.check_circle,
+                  "Completed",
+                  _completedTasks.toString(),
+                  Colors.green,
+                ),
+                _progressStat(
+                  Icons.check,
+                  "Correct",
+                  _totalCorrect.toString(),
+                  _primaryColor,
+                ),
+                _progressStat(
+                  Icons.close,
+                  "Wrong",
+                  _totalWrong.toString(),
+                  Colors.redAccent,
+                ),
+                _progressStat(
+                  Icons.timer,
+                  "Pending",
+                  _pendingTasks.toString(),
+                  Colors.orange,
+                ),
+              ],
+            ),
+          ),
+
+          if (_lastUpdated != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: _primaryColor.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.update,
+                    size: 16,
+                    color: _primaryColor.withOpacity(0.6),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    "Updated ${_lastUpdated!.toLocal().toString().split(' ')[0]}",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _primaryColor.withOpacity(0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _progressStat(
-      IconData icon, String label, String value, Color color) {
+  Widget _progressStat(IconData icon, String label, String value, Color color) {
     return Column(
       children: [
-        Icon(icon, color: color, size: 28),
-        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: color, size: 22),
+        ),
+        const SizedBox(height: 8),
         Text(
           value,
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: 16,
+            fontSize: 18,
             color: color,
           ),
         ),
+        const SizedBox(height: 4),
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 13,
-            color: Colors.black54,
-          ),
+          style: TextStyle(fontSize: 12, color: _primaryColor.withOpacity(0.6)),
         ),
       ],
     );
   }
 
-  // 📈 TREND CHART
   Widget _buildTrendChart() {
     if (_recentScores.isEmpty) {
-      return const Center(
-        child: Text(
-          "No recent scores yet",
-          style: TextStyle(fontSize: 12, color: Colors.grey),
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: _primaryColor.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.show_chart,
+                color: _primaryColor.withOpacity(0.4),
+                size: 32,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "No recent scores yet",
+                style: TextStyle(
+                  fontSize: 12,
+                  color: _primaryColor.withOpacity(0.6),
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
 
-    return SizedBox(
-      height: 120,
-      child: LineChart(
-        LineChartData(
-          gridData: FlGridData(show: true, drawVerticalLine: false),
-          titlesData: FlTitlesData(show: false),
-          borderData: FlBorderData(show: false),
-          lineBarsData: [
-            LineChartBarData(
-              isCurved: true,
-              spots: _recentScores
-                  .asMap()
-                  .entries
-                  .map((e) => FlSpot(e.key.toDouble(), e.value))
-                  .toList(),
-              color: Colors.purpleAccent,
-              barWidth: 3,
-              dotData: FlDotData(show: true),
-              belowBarData: BarAreaData(
-                show: true,
-                color: Colors.purpleAccent.withOpacity(0.2),
+    return LineChart(
+      LineChartData(
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: 0.2,
+          getDrawingHorizontalLine: (value) {
+            return FlLine(
+              color: _primaryColor.withOpacity(0.1),
+              strokeWidth: 1,
+              dashArray: [3, 3],
+            );
+          },
+        ),
+        titlesData: FlTitlesData(
+          show: true,
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              interval: 0.2,
+              getTitlesWidget: (value, meta) {
+                if (value == 0 ||
+                    value == 0.2 ||
+                    value == 0.4 ||
+                    value == 0.6 ||
+                    value == 0.8 ||
+                    value == 1.0) {
+                  return Text(
+                    '${(value * 100).toInt()}%',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: _primaryColor.withOpacity(0.6),
+                    ),
+                  );
+                }
+                return const Text('');
+              },
+              reservedSize: 30,
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (value, meta) {
+                if (value >= 0 && value < _recentScores.length) {
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      '${value.toInt() + 1}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: _primaryColor.withOpacity(0.6),
+                      ),
+                    ),
+                  );
+                }
+                return const Text('');
+              },
+              reservedSize: 20,
+            ),
+          ),
+        ),
+        borderData: FlBorderData(
+          show: true,
+          border: Border.all(color: _primaryColor.withOpacity(0.2), width: 1),
+        ),
+        lineBarsData: [
+          LineChartBarData(
+            spots:
+                _recentScores
+                    .asMap()
+                    .entries
+                    .map((e) => FlSpot(e.key.toDouble(), e.value))
+                    .toList(),
+            isCurved: true,
+            color: _primaryColor,
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: FlDotData(
+              show: true,
+              getDotPainter: (spot, percent, barData, index) {
+                return FlDotCirclePainter(
+                  radius: 4,
+                  color: Colors.white,
+                  strokeWidth: 2,
+                  strokeColor: _primaryColor,
+                );
+              },
+            ),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                colors: [
+                  _primaryColor.withOpacity(0.3),
+                  _primaryColor.withOpacity(0.05),
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
               ),
             ),
-          ],
-          minY: 0,
-          maxY: 1,
+            gradient: LinearGradient(
+              colors: [_primaryColor, _secondaryColor],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+          ),
+        ],
+        minY: 0,
+        maxY: 1,
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipItems: (touchedSpots) {
+              return touchedSpots.map((spot) {
+                return LineTooltipItem(
+                  'Score: ${(spot.y * 100).toStringAsFixed(1)}%',
+                  const TextStyle(color: Colors.white),
+                );
+              }).toList();
+            },
+          ),
         ),
       ),
     );
   }
 
   Widget _buildQuickAccessSection(BuildContext context) {
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          // Navigate to reading levels page
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const EnhancedReadingLevelPage()),
-          );
-        },
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.indigo.shade400, Colors.purple.shade400],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(16),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: _primaryColor.withOpacity(0.15),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
           ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(12),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Material(
+          child: InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const EnhancedReadingLevelPage(),
                 ),
-                child: const Icon(
-                  Icons.book,
-                  color: Colors.white,
-                  size: 32,
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [_primaryColor, _primaryColor.withOpacity(0.8)],
                 ),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '📚 My Reading Tasks',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Continue your reading journey',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white.withOpacity(0.9),
-                      ),
+                    child: const Icon(
+                      Icons.book_rounded,
+                      color: Colors.white,
+                      size: 36,
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Reading Materials',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Continue your reading journey with assigned materials',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white.withOpacity(0.9),
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ],
               ),
-              const Icon(
-                Icons.arrow_forward_ios,
-                color: Colors.white,
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -749,70 +1137,92 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
   }
 
   Widget _buildMyGradesCard(BuildContext context) {
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const MyGradesPage()),
-          );
-        },
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.amber.shade400, Colors.orange.shade400],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(16),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: _secondaryColor.withOpacity(0.15),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
           ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.grade,
-                  color: Colors.white,
-                  size: 32,
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Material(
+          child: InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MyGradesPage()),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [_secondaryColor, _secondaryColor.withOpacity(0.7)],
                 ),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '📊 My Grades',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'View quiz scores & reading grades',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white.withOpacity(0.9),
-                      ),
+                    child: const Icon(
+                      Icons.insights_rounded,
+                      color: Colors.white,
+                      size: 36,
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Grades & Analytics',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'View detailed scores, quiz results, and performance analytics',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white.withOpacity(0.9),
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ],
               ),
-              const Icon(
-                Icons.arrow_forward_ios,
-                color: Colors.white,
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -823,66 +1233,133 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
     final List activities = [];
 
     if (activities.isEmpty) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.amber.shade50,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.amber.shade200),
-            ),
-            child: Column(
-              children: [
-                Icon(
-                  Icons.hourglass_empty_rounded,
-                  size: 48,
-                  color: Colors.amber.shade600,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  "No recent activities yet!",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.amber.shade800,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  "Your activities will appear here once you start learning.",
-                  style: TextStyle(fontSize: 14, color: Colors.black54),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: _surfaceVariant.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: _surfaceVariant.withOpacity(0.3),
+            width: 1.5,
           ),
-        ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: _primaryColor.withOpacity(0.05),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.emoji_objects_outlined,
+                size: 48,
+                color: _primaryColor.withOpacity(0.6),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              "Learning Journey Awaits",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: _primaryColor,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              "Complete reading materials and quizzes to see your activities here.",
+              style: TextStyle(
+                fontSize: 14,
+                color: _primaryColor.withOpacity(0.7),
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const EnhancedReadingLevelPage(),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+                shadowColor: _primaryColor.withOpacity(0.3),
+              ),
+              child: const Text('Start Learning Now'),
+            ),
+          ],
+        ),
       );
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          "📚 Recent Activities",
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: Colors.indigo.shade800,
-          ),
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: _primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.history_rounded,
+                color: _primaryColor,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              "Recent Activities",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: _primaryColor,
+                letterSpacing: -0.5,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 16),
-        Column(
-          children: activities.map((activity) {
-            return StudentDashboardActivityTile(
-              title: activity.title,
-              subtitle: activity.subtitle,
-              icon: activity.icon,
-            );
-          }).toList(),
+        const SizedBox(height: 20),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: _surface,
+            boxShadow: [
+              BoxShadow(
+                color: _primaryColor.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            children:
+                activities.map((activity) {
+                  return StudentDashboardActivityTile(
+                    title: activity.title,
+                    subtitle: activity.subtitle,
+                    icon: activity.icon,
+                  );
+                }).toList(),
+          ),
         ),
       ],
     );

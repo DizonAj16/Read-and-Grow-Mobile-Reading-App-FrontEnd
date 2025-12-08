@@ -2,8 +2,10 @@ import 'package:deped_reading_app_laravel/api/classroom_service.dart';
 import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../main.dart';
+
 class StudentsManagementPage extends StatefulWidget {
   final String classId;
 
@@ -81,10 +83,13 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
       final allStudentsList = await ClassroomService.getAllStudents();
 
       // 2️⃣ Fetch assigned student IDs for this class only
-      final assignedIds = await ClassroomService.getAssignedStudentIdsForClass(widget.classId);
+      final assignedIds = await ClassroomService.getAssignedStudentIdsForClass(
+        widget.classId,
+      );
 
       // 3️⃣ Fetch ALL globally assigned student IDs (students enrolled in ANY class)
-      final globallyAssignedIds = await ClassroomService.getGloballyAssignedStudentIds();
+      final globallyAssignedIds =
+          await ClassroomService.getGloballyAssignedStudentIds();
 
       // 4️⃣ Separate assigned and unassigned students
       final assignedList = <Student>[];
@@ -118,8 +123,6 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
     }
   }
 
-
-
   Future<void> _handleRefresh() async {
     if (!mounted) return;
 
@@ -150,7 +153,8 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
 
     // Check if response contains an error
     if (res.containsKey('error')) {
-      final errorMessage = res['error'] as String? ?? 'Failed to assign student';
+      final errorMessage =
+          res['error'] as String? ?? 'Failed to assign student';
       _showSnackBar(errorMessage, isError: true);
       return;
     }
@@ -162,7 +166,6 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
     currentAssignedPage = 0;
     _showSnackBar("Student assigned successfully");
   }
-
 
   Future<void> _unassignStudent(Student student) async {
     final res = await ClassroomService.unassignStudent(
@@ -183,45 +186,31 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
     return supabaseUrl;
   }
 
-
-  Widget _buildStudentAvatar(Student student, bool isAssigned) {
-    return FutureBuilder<String>(
-      key: ValueKey('${student.id}-$_refreshCounter'),
-      future: _getBaseUrl(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return _buildAvatarFallback(student, isAssigned);
-        }
-
-        final String? profileUrl =
-            (student.profilePicture != null &&
-                    student.profilePicture!.isNotEmpty)
-                ? "${snapshot.data}/${student.profilePicture}"
-                : null;
-
-        if (profileUrl == null) {
-          return _buildAvatarFallback(student, isAssigned);
-        }
-
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(avatarSize / 2),
-          child: FadeInImage.assetNetwork(
-            placeholder: 'assets/placeholder/avatar_placeholder.jpg',
-            image: profileUrl,
-            fit: BoxFit.cover,
-            width: avatarSize,
-            height: avatarSize,
-            fadeInDuration: const Duration(milliseconds: 800),
-            fadeInCurve: Curves.easeInOut,
-            imageErrorBuilder:
-                (_, __, ___) => _buildAvatarFallback(student, isAssigned),
-            placeholderErrorBuilder:
-                (_, __, ___) => _buildAvatarFallback(student, isAssigned),
-          ),
-        );
-      },
-    );
+Widget _buildStudentAvatar(Student student, bool isAssigned) {
+  if (student.profilePicture == null || student.profilePicture!.isEmpty) {
+    return _buildAvatarFallback(student, isAssigned);
   }
+
+  final profileUrl = student.profilePicture!; // use full URL directly
+
+  debugPrint('Profile URL for ${student.studentName}: $profileUrl');
+
+  return ClipRRect(
+    borderRadius: BorderRadius.circular(avatarSize / 2),
+    child: FadeInImage.assetNetwork(
+      placeholder: 'assets/placeholder/avatar_placeholder.jpg',
+      image: profileUrl,
+      fit: BoxFit.cover,
+      width: avatarSize,
+      height: avatarSize,
+      fadeInDuration: const Duration(milliseconds: 800),
+      fadeInCurve: Curves.easeInOut,
+      imageErrorBuilder: (_, __, ___) => _buildAvatarFallback(student, isAssigned),
+      placeholderErrorBuilder: (_, __, ___) => _buildAvatarFallback(student, isAssigned),
+    ),
+  );
+}
+
 
   Widget _buildAvatarFallback(Student student, bool isAssigned) {
     return Container(
@@ -233,7 +222,7 @@ class _StudentsManagementPageState extends State<StudentsManagementPage> {
       ),
       child: Center(
         child: Text(
-          student.avatarLetter,
+          student.avatarLetter.toUpperCase(),
           style: TextStyle(
             color: isAssigned ? Colors.green.shade700 : Colors.blue.shade700,
             fontWeight: FontWeight.bold,

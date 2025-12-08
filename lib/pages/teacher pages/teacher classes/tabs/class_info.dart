@@ -37,17 +37,17 @@ class _ClassInfoPageState extends State<ClassInfoPage> {
             ),
             builder: (context) => Wrap(
               children: [
-                ListTile(
-                  leading: const Icon(Icons.book),
-                  title: const Text('Add Lesson'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _onAddLesson();
-                  },
-                ),
+                // ListTile(
+                //   leading: const Icon(Icons.book),
+                //   title: const Text('Add Lesson'),
+                //   onTap: () {
+                //     Navigator.pop(context);
+                //     _onAddLesson();
+                //   },
+                // ),
                 ListTile(
                   leading: const Icon(Icons.quiz),
-                  title: const Text('Add Quiz'),
+                  title: const Text('Add Lesson & Quiz'),
                   onTap: () {
                     Navigator.pop(context);
                     _onAddQuiz();

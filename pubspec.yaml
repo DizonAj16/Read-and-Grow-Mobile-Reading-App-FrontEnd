@@ -65,6 +65,8 @@ dependencies:
   just_audio: ^0.9.26
   percent_indicator: ^4.2.3
   dio: ^5.4.0
+  iconsax: ^0.0.8
+  cached_network_image: ^3.4.1
 
 
 dev_dependencies:

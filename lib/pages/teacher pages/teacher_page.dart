@@ -246,9 +246,9 @@ class _TeacherPageState extends State<TeacherPage> {
         ),
         backgroundColor: Theme.of(context).colorScheme.primary,
         iconTheme: const IconThemeData(color: Colors.white),
-        actions: [
-          IconButton(onPressed: () {}, icon: const Icon(Icons.search_rounded)),
-        ],
+        // actions: [
+        //   IconButton(onPressed: () {}, icon: const Icon(Icons.search_rounded)),
+        // ],
       ),
       drawer: _buildDrawer(context),
       body: Navigator(
@@ -316,27 +316,27 @@ class _TeacherPageState extends State<TeacherPage> {
                     route: '/submissions',
                     isSelected: _currentRoute == '/submissions',
                   ),
-                  _buildDrawerItem(
-                    context,
-                    icon: Icons.mic_rounded,
-                    title: 'Grade Reading Recordings',
-                    route: '/grade_recordings',
-                    isSelected: _currentRoute == '/grade_recordings',
-                  ),
-                  _buildDrawerItem(
-                    context,
-                    icon: Icons.check_circle_rounded,
-                    title: 'View Graded Recordings',
-                    route: '/view_graded_recordings',
-                    isSelected: _currentRoute == '/view_graded_recordings',
-                  ),
-                  _buildDrawerItem(
-                    context,
-                    icon: Icons.library_books_rounded,
-                    title: 'Reading Materials',
-                    route: '/reading_materials',
-                    isSelected: _currentRoute == '/reading_materials',
-                  ),
+                  // _buildDrawerItem(
+                  //   context,
+                  //   icon: Icons.mic_rounded,
+                  //   title: 'Grade Reading Recordings',
+                  //   route: '/grade_recordings',
+                  //   isSelected: _currentRoute == '/grade_recordings',
+                  // ),
+                  // _buildDrawerItem(
+                  //   context,
+                  //   icon: Icons.check_circle_rounded,
+                  //   title: 'View Graded Recordings',
+                  //   route: '/view_graded_recordings',
+                  //   isSelected: _currentRoute == '/view_graded_recordings',
+                  // ),
+                  // _buildDrawerItem(
+                  //   context,
+                  //   icon: Icons.library_books_rounded,
+                  //   title: 'Reading Materials',
+                  //   route: '/reading_materials',
+                  //   isSelected: _currentRoute == '/reading_materials',
+                  // ),
                 ],
               ),
             ),
@@ -525,15 +525,15 @@ class _TeacherPageState extends State<TeacherPage> {
       case '/submissions':
         page = const StudentSubmissionsPage();
         break;
-      case '/grade_recordings':
-        page = const ReadingRecordingsGradingPage();
-        break;
-      case '/view_graded_recordings':
-        page = const ViewGradedRecordingsPage();
-        break;
-      case '/reading_materials':
-        page = const TeacherReadingMaterialsPage();
-        break;
+      // case '/grade_recordings':
+      //   page = const ReadingRecordingsGradingPage();
+      //   break;
+      // case '/view_graded_recordings':
+      //   page = const ViewGradedRecordingsPage();
+      //   break;
+      // case '/reading_materials':
+      //   page = const TeacherReadingMaterialsPage();
+      //   break;
       case '/dashboard':
       default:
         page = const TeacherDashboardPage();

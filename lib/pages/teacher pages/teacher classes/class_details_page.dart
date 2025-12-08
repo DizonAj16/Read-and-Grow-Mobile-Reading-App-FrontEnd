@@ -4,10 +4,15 @@ import 'package:deped_reading_app_laravel/api/classroom_service.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/tabs/students_management_page.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/tabs/materials_page.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/tabs/tasks_page.dart';
+// Import the 3 pages you want to move inside classroom
+import 'package:deped_reading_app_laravel/pages/teacher%20pages/reading_recordings_grading_page.dart';
+import 'package:deped_reading_app_laravel/pages/teacher%20pages/view_graded_recordings_page.dart';
+import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher_reading_materials_page.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'tabs/class_info.dart';
+import 'tabs/student_reading_progress_page.dart'; // Import the new progress page
 
 class ClassDetailsPage extends StatefulWidget {
   final Map<String, dynamic> classDetails;
@@ -54,9 +59,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
     return '';
   }
 
-  // Replace the existing _pickAndUploadBackground method with this version
   Future<void> _pickAndUploadBackground() async {
-    // First show confirmation dialog before picking file
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
@@ -79,7 +82,6 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Title with icon
                 Icon(
                   Icons.image_rounded,
                   color: Theme.of(dialogContext).colorScheme.primary,
@@ -107,7 +109,6 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                // Buttons with icons
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
@@ -180,15 +181,13 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
     );
 
     if (confirmed != true) {
-      return; // User cancelled
+      return;
     }
 
-    // Now pick the image file
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     if (pickedFile == null) return;
 
-    // Show the image preview dialog
     setState(() => _previewBackground = pickedFile.path);
 
     final confirmUpdate = await showDialog<bool>(
@@ -213,7 +212,6 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Title with icon
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -232,7 +230,6 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  // Larger image preview
                   Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
@@ -261,7 +258,6 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  // Smaller and lighter text
                   Text(
                     "Do you want to set this as the new class background?",
                     textAlign: TextAlign.center,
@@ -274,7 +270,6 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  // Buttons with icons
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
@@ -355,12 +350,10 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
       return;
     }
 
-    // Continue with the upload process...
     setState(() => _isUploading = true);
 
     try {
-
-    final response = await ClassroomService.uploadClassBackground(
+      final response = await ClassroomService.uploadClassBackground(
         classId: (widget.classDetails['id'].toString()),
         filePath: pickedFile.path,
       );
@@ -375,7 +368,6 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
             _previewBackground = null;
           });
 
-          // Update SharedPreferences
           final prefs = await SharedPreferences.getInstance();
           final classId = widget.classDetails['id'].toString();
           await prefs.setString(
@@ -383,11 +375,8 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
             newBackgroundUrl,
           );
 
-          // Trigger rebuild by updating widget state through setState
-          // Since widget.classDetails is final, we'll rely on SharedPreferences
-          // which is already being read in _getBackgroundUrl()
           if (mounted) {
-            setState(() {}); // Force rebuild to show new image
+            setState(() {});
           }
 
           await Future.delayed(const Duration(seconds: 2));
@@ -577,9 +566,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
                           if (_isUploading)
                             Positioned.fill(
                               child: Container(
-                                color:
-                                    Colors
-                                        .white, // Slightly transparent for better overlay effect
+                                color: Colors.white,
                                 child: Center(
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
@@ -593,9 +580,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
                                           height: 100,
                                         ),
                                       ),
-                                      const SizedBox(
-                                        height: 16,
-                                      ), // Space between GIF and text
+                                      const SizedBox(height: 16),
                                       Text(
                                         "Uploading background image...",
                                         style: TextStyle(
@@ -647,41 +632,147 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
             ClassInfoPage(classDetails: widget.classDetails),
             StudentsManagementPage(classId: widget.classDetails['id'].toString()),
             MaterialsPage(classId: widget.classDetails['id'].toString()),
-            TasksPage(classId: widget.classDetails['id'].toString()), // Tasks
+            TasksPage(classId: widget.classDetails['id'].toString()),
+            // Add the 3 new pages here - pass classId to filter content by classroom
+            ReadingRecordingsGradingPage(classId: widget.classDetails['id'].toString()),
+            ViewGradedRecordingsPage(classId: widget.classDetails['id'].toString()),
+            TeacherReadingMaterialsPage(classId: widget.classDetails['id'].toString()),
+            // Add the new reading progress page
+            StudentReadingProgressPage(classId: widget.classDetails['id'].toString()),
           ],
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: _onTabTapped,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: colorScheme.primary,
-        unselectedItemColor: colorScheme.onSurface.withOpacity(0.6),
-        selectedLabelStyle: TextStyle(fontWeight: FontWeight.bold),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.info_outline),
-            activeIcon: Icon(Icons.info),
-            label: "Info",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.people_outline),
-            activeIcon: Icon(Icons.people),
-            label: "Students",
-          ),
+      bottomNavigationBar: _buildBottomNavigationBar(colorScheme),
+    );
+  }
 
-          BottomNavigationBarItem(
-            icon: Icon(Icons.assignment_outlined),
-            activeIcon: Icon(Icons.assignment),
-            label: "Materials",
+  // Custom bottom navigation bar to handle more than 5 items
+  Widget _buildBottomNavigationBar(ColorScheme colorScheme) {
+    // Create a list of all tab items
+    final tabItems = [
+      _buildTabItem(Icons.info_outline, Icons.info, "Info"),
+      _buildTabItem(Icons.people_outline, Icons.people, "Students"),
+      _buildTabItem(Icons.assignment_outlined, Icons.assignment, "Materials"),
+      _buildTabItem(Icons.task_outlined, Icons.task, "Tasks"),
+      _buildTabItem(Icons.mic_outlined, Icons.mic, "Grade"),
+      _buildTabItem(Icons.check_circle_outline, Icons.check_circle, "Graded"),
+      _buildTabItem(Icons.library_books_outlined, Icons.library_books, "Reading"),
+      _buildTabItem(Icons.trending_up_outlined, Icons.trending_up, "Progress"), // New progress tab
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        border: Border(
+          top: BorderSide(
+            color: colorScheme.outline.withOpacity(0.1),
+            width: 1,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.task_outlined),
-            activeIcon: Icon(Icons.task),
-            label: "Tasks",
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
           ),
         ],
       ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 70, // Slightly taller for scrolling
+          child: Row(
+            children: [
+              // Left scroll button
+              if (_currentIndex > 0)
+                IconButton(
+                  icon: Icon(
+                    Icons.chevron_left,
+                    color: colorScheme.primary,
+                  ),
+                  onPressed: () {
+                    if (_currentIndex > 0) {
+                      _onTabTapped(_currentIndex - 1);
+                    }
+                  },
+                ),
+              
+              // Main tab area
+              Expanded(
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: tabItems.length,
+                  itemBuilder: (context, index) {
+                    final isSelected = index == _currentIndex;
+                    return GestureDetector(
+                      onTap: () => _onTabTapped(index),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        margin: const EdgeInsets.symmetric(horizontal: 2),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              isSelected ? tabItems[index].activeIcon : tabItems[index].icon,
+                              color: isSelected 
+                                ? colorScheme.primary 
+                                : colorScheme.onSurface.withOpacity(0.6),
+                              size: 24,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              tabItems[index].label,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                color: isSelected 
+                                  ? colorScheme.primary 
+                                  : colorScheme.onSurface.withOpacity(0.6),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              
+              // Right scroll button
+              if (_currentIndex < tabItems.length - 1)
+                IconButton(
+                  icon: Icon(
+                    Icons.chevron_right,
+                    color: colorScheme.primary,
+                  ),
+                  onPressed: () {
+                    if (_currentIndex < tabItems.length - 1) {
+                      _onTabTapped(_currentIndex + 1);
+                    }
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
+
+  _TabItem _buildTabItem(IconData icon, IconData activeIcon, String label) {
+    return _TabItem(icon: icon, activeIcon: activeIcon, label: label);
+  }
+}
+
+class _TabItem {
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+
+  _TabItem({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+  });
 }

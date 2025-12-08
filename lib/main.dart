@@ -48,7 +48,7 @@ ThemeData buildLightTheme(BuildContext context) {
         bodyMedium: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w400,
-          color: kHeadlineSmallColor,
+          color: const Color.fromARGB(255, 0, 0, 0),
         ),
         bodySmall: TextStyle(
           fontSize: 14,

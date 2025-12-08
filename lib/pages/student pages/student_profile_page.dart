@@ -11,8 +11,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'edit_student_profile_page.dart';
 
-
-
 class StudentProfilePage extends StatefulWidget {
   const StudentProfilePage({super.key});
 
@@ -88,12 +86,12 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
           debugPrint('🖼️ Profile picture is already a full URL');
           return student;
         }
-        
+
         // Get public URL from Supabase storage 'materials' bucket (matches UserService.uploadProfilePicture)
         final bucketBaseUrl = supabase.storage
             .from('materials')
             .getPublicUrl(student.profilePicture!);
-        
+
         if (bucketBaseUrl.isNotEmpty) {
           student = student.copyWith(profilePicture: bucketBaseUrl);
           debugPrint('🖼️ Normalized profile picture URL: $bucketBaseUrl');
@@ -107,7 +105,6 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
     return student;
   }
 
-
   Future<void> _pickAndUploadImage(Student student) async {
     try {
       final picker = ImagePicker();
@@ -118,10 +115,11 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
 
       final confirmed = await showDialog<bool>(
         context: context,
-        builder: (context) => ConfirmationDialog(
-          imagePath: pickedFile.path,
-          title: "Confirm Upload",
-        ),
+        builder:
+            (context) => ConfirmationDialog(
+              imagePath: pickedFile.path,
+              title: "Confirm Upload",
+            ),
       );
 
       if (confirmed != true) {
@@ -155,14 +153,12 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
 
         ScaffoldMessenger.of(context).showSnackBar(UploadSuccessSnackBar());
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          UploadErrorSnackBar(500),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(UploadErrorSnackBar(500));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: ${e.toString()}")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: ${e.toString()}")));
     } finally {
       setState(() => _isUploading = false);
     }
@@ -192,9 +188,10 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
           IconButton(
             icon: const Icon(Icons.edit, color: Colors.white),
             tooltip: 'Edit Info',
-            onPressed: _currentStudent == null
-                ? null
-                : () => _handleEditStudent(_currentStudent!),
+            onPressed:
+                _currentStudent == null
+                    ? null
+                    : () => _handleEditStudent(_currentStudent!),
           ),
         ],
       ),
@@ -232,9 +229,7 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
   Future<void> _handleEditStudent(Student student) async {
     final updated = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(
-        builder: (context) => const EditStudentProfilePage(),
-      ),
+      MaterialPageRoute(builder: (context) => const EditStudentProfilePage()),
     );
 
     if (updated == true) {
@@ -273,24 +268,24 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.amber[700],
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    "Super Reader",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontFamily: 'ComicNeue',
-                    ),
-                  ),
-                ),
+                // Container(
+                //   padding: const EdgeInsets.symmetric(
+                //     horizontal: 12,
+                //     vertical: 6,
+                //   ),
+                //   decoration: BoxDecoration(
+                //     color: Colors.amber[700],
+                //     borderRadius: BorderRadius.circular(20),
+                //   ),
+                //   // child: const Text(
+                //   //   "Super Reader",
+                //   //   style: TextStyle(
+                //   //     color: Colors.white,
+                //   //     fontSize: 16,
+                //   //     fontFamily: 'ComicNeue',
+                //   //   ),
+                //   // ),
+                // ),
               ],
             ),
           ),
@@ -328,10 +323,7 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
               ],
             ),
           ),
-          const SizedBox(height: 30),
-          _TaskProgressIndicator(completedTasks: student.completedTasks),
           const SizedBox(height: 20),
-          Image.asset('assets/activity_images/reading_owl.jpg', width: 100),
         ],
       ),
     );
@@ -498,70 +490,6 @@ class _InfoTile extends StatelessWidget {
           fontSize: 18,
           fontFamily: 'ComicNeue',
         ),
-      ),
-    );
-  }
-}
-
-class _TaskProgressIndicator extends StatelessWidget {
-  final int completedTasks;
-
-  const _TaskProgressIndicator({required this.completedTasks});
-
-  @override
-  Widget build(BuildContext context) {
-    return _GlassCard(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.emoji_events_rounded, color: Colors.amber),
-              const SizedBox(width: 8),
-              Text(
-                'Reading Progress',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'ComicNeue',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Completed $completedTasks of 13 stories',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontFamily: 'ComicNeue',
-            ),
-          ),
-          const SizedBox(height: 12),
-          LinearProgressIndicator(
-            value: completedTasks / 13,
-            backgroundColor: Colors.grey[300],
-            color: Colors.amber,
-            minHeight: 16,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '0',
-                style: TextStyle(color: Colors.white, fontFamily: 'ComicNeue'),
-              ),
-              Text(
-                '13',
-                style: TextStyle(color: Colors.white, fontFamily: 'ComicNeue'),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }

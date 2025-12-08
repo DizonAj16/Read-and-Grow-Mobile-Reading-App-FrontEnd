@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:deped_reading_app_laravel/api/task_service.dart';
 import 'package:deped_reading_app_laravel/api/supabase_api_service.dart';
+import 'package:deped_reading_app_laravel/models/quiz_questions.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/add_quiz_screen.dart';
+import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/tabs/view_quiz_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -39,7 +41,9 @@ class _TasksPageState extends State<TasksPage> {
     try {
       // Subscribe to quiz deletions for real-time updates
       _quizChannel = supabase
-          .channel('quizzes_changes_${widget.classId}_${DateTime.now().millisecondsSinceEpoch}')
+          .channel(
+            'quizzes_changes_${widget.classId}_${DateTime.now().millisecondsSinceEpoch}',
+          )
           .onPostgresChanges(
             event: PostgresChangeEvent.delete,
             schema: 'public',
@@ -66,7 +70,9 @@ class _TasksPageState extends State<TasksPage> {
           )
           .subscribe((status, [error]) {
             if (status == RealtimeSubscribeStatus.subscribed) {
-              debugPrint('✅ [REALTIME] Subscribed to quiz changes for class ${widget.classId}');
+              debugPrint(
+                '✅ [REALTIME] Subscribed to quiz changes for class ${widget.classId}',
+              );
             } else {
               debugPrint('⚠️ [REALTIME] Quiz subscription status: $status');
               if (error != null) {
@@ -77,7 +83,9 @@ class _TasksPageState extends State<TasksPage> {
 
       // Subscribe to assignment changes for real-time updates
       _assignmentChannel = supabase
-          .channel('assignments_changes_${widget.classId}_${DateTime.now().millisecondsSinceEpoch}')
+          .channel(
+            'assignments_changes_${widget.classId}_${DateTime.now().millisecondsSinceEpoch}',
+          )
           .onPostgresChanges(
             event: PostgresChangeEvent.delete,
             schema: 'public',
@@ -88,7 +96,9 @@ class _TasksPageState extends State<TasksPage> {
               value: widget.classId,
             ),
             callback: (payload) {
-              debugPrint('📡 [REALTIME] Assignment deleted: ${payload.oldRecord}');
+              debugPrint(
+                '📡 [REALTIME] Assignment deleted: ${payload.oldRecord}',
+              );
               // Refresh tasks to reflect the deletion
               if (mounted) {
                 _refreshTasks();
@@ -105,7 +115,9 @@ class _TasksPageState extends State<TasksPage> {
               value: widget.classId,
             ),
             callback: (payload) {
-              debugPrint('📡 [REALTIME] Assignment added: ${payload.newRecord}');
+              debugPrint(
+                '📡 [REALTIME] Assignment added: ${payload.newRecord}',
+              );
               // Refresh tasks to show the new assignment
               if (mounted) {
                 _refreshTasks();
@@ -114,11 +126,17 @@ class _TasksPageState extends State<TasksPage> {
           )
           .subscribe((status, [error]) {
             if (status == RealtimeSubscribeStatus.subscribed) {
-              debugPrint('✅ [REALTIME] Subscribed to assignment changes for class ${widget.classId}');
+              debugPrint(
+                '✅ [REALTIME] Subscribed to assignment changes for class ${widget.classId}',
+              );
             } else {
-              debugPrint('⚠️ [REALTIME] Assignment subscription status: $status');
+              debugPrint(
+                '⚠️ [REALTIME] Assignment subscription status: $status',
+              );
               if (error != null) {
-                debugPrint('❌ [REALTIME] Assignment subscription error: $error');
+                debugPrint(
+                  '❌ [REALTIME] Assignment subscription error: $error',
+                );
               }
             }
           });
@@ -138,13 +156,24 @@ class _TasksPageState extends State<TasksPage> {
 
   @override
   Widget build(BuildContext context) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final primaryLight = Color.alphaBlend(primaryColor.withOpacity(0.1), Colors.white);
+    
     return Scaffold(
-      appBar: AppBar(title: const Text("Class Tasks")),
+      appBar: AppBar(
+        title: const Text(
+          "Class Tasks",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        automaticallyImplyLeading: false,
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
+      ),
       body: FutureBuilder(
         future: _tasksFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(child: CircularProgressIndicator(color: primaryColor));
           }
 
           if (snapshot.hasError) {
@@ -168,29 +197,50 @@ class _TasksPageState extends State<TasksPage> {
 
           return RefreshIndicator(
             onRefresh: _refreshTasks,
+            color: primaryColor,
+            backgroundColor: Colors.white,
             child: ListView.builder(
               itemCount: tasks.length,
               itemBuilder: (context, index) {
                 final item = tasks[index];
-                final taskTitle = item['tasks']?['title'] ?? 'Untitled Task';
-                final quizTitle = item['quizzes']?['title'];
-                final quizId = item['quizzes']?['id'];
-                final dueDate = item['due_date'];
-                final hasQuiz = quizId != null && quizTitle != null;
+                final quizTitle = item['title'];
+                final taskTitle = item['tasks']?['title'];
 
+                final quizId = item['id']; // from quizzes table
+                final dueDate = item['due_date'];
+                final hasQuiz = quizId != null; // only check if quizId exists
+                // DEBUG PRINTS
+                debugPrint("========== TASK ITEM #$index ==========");
+                debugPrint(
+                  "quizId: $quizId, quizTitle: $quizTitle, hasQuiz: $hasQuiz",
+                );
+                debugPrint("Raw Item: $item");
+                debugPrint("Task Title: $taskTitle");
+                debugPrint("Quiz Title: $quizTitle");
+                debugPrint("Quiz ID: $quizId");
+                debugPrint("Has Quiz?: $hasQuiz");
+                debugPrint("Due Date (raw): $dueDate");
+
+                debugPrint("========================================");
                 return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   elevation: 2,
                   child: ListTile(
                     leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: hasQuiz ? Colors.blue.shade50 : Colors.grey.shade100,
+                        color:
+                            hasQuiz
+                                ? primaryLight
+                                : Colors.grey.shade100,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
                         hasQuiz ? Icons.quiz : Icons.assignment,
-                        color: hasQuiz ? Colors.blue : Colors.grey,
+                        color: hasQuiz ? primaryColor : Colors.grey,
                         size: 24,
                       ),
                     ),
@@ -217,58 +267,121 @@ class _TasksPageState extends State<TasksPage> {
                         if (hasQuiz) ...[
                           const SizedBox(height: 4),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
-                              color: Colors.blue.shade100,
+                              color: primaryLight,
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Text(
+                            child: Text(
                               'Quiz',
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.blue,
+                                color: primaryColor,
                               ),
                             ),
                           ),
                         ],
                       ],
                     ),
-                    trailing: hasQuiz
-                        ? PopupMenuButton<String>(
-                            icon: const Icon(Icons.more_vert),
-                            onSelected: (value) {
-                              if (value == 'edit') {
-                                _editQuiz(quizId, quizTitle);
-                              } else if (value == 'delete') {
-                                _deleteQuiz(quizId, quizTitle);
-                              }
-                            },
-                            itemBuilder: (context) => [
-                              const PopupMenuItem(
-                                value: 'edit',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.edit, color: Colors.blue, size: 20),
-                                    SizedBox(width: 8),
-                                    Text('Edit Quiz'),
+                    trailing:
+                        hasQuiz
+                            ? PopupMenuButton<String>(
+                              icon: Icon(Icons.more_vert, color: primaryColor),
+                              onSelected: (value) {
+                                if (value == 'edit') {
+                                  _editQuiz(quizId, quizTitle);
+                                } else if (value == 'delete') {
+                                  _deleteQuiz(quizId, quizTitle);
+                                }
+                              },
+                              itemBuilder:
+                                  (context) => [
+                                    PopupMenuItem(
+                                      value: 'edit',
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.edit,
+                                            color: primaryColor,
+                                            size: 20,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text('Edit Quiz'),
+                                        ],
+                                      ),
+                                    ),
+                                    const PopupMenuItem(
+                                      value: 'delete',
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.delete,
+                                            color: Colors.red,
+                                            size: 20,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text('Delete Quiz'),
+                                        ],
+                                      ),
+                                    ),
                                   ],
-                                ),
-                              ),
-                              const PopupMenuItem(
-                                value: 'delete',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.delete, color: Colors.red, size: 20),
-                                    SizedBox(width: 8),
-                                    Text('Delete Quiz'),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          )
-                        : null,
+                            )
+                            : null,
                     isThreeLine: hasQuiz,
+                    onTap:
+                        hasQuiz
+                            ? () async {
+                              debugPrint(
+                                "➡️ onTap triggered for quizId: $quizId, quizTitle: $quizTitle",
+                              );
+
+                              try {
+                                // Fetch quiz + questions
+                                final quizData =
+                                    await TaskService.fetchQuizWithQuestions(
+                                      quizId!,
+                                    );
+
+                                if (quizData == null ||
+                                    quizData['questions'] == null ||
+                                    (quizData['questions'] as List).isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'No questions found for this quiz.',
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                final questions =
+                                    quizData['questions'] as List<QuizQuestion>;
+                                final quizTitle =
+                                    quizData['quiz']['title'] as String;
+
+                                // Navigate to preview
+                                if (mounted) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder:
+                                          (_) => QuizPreviewScreen(
+                                            title: quizTitle,
+                                            questions: questions,
+                                          ),
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                debugPrint("❌ Error in onTap: $e");
+                              }
+                            }
+                            : null,
                   ),
                 );
               },
@@ -281,20 +394,43 @@ class _TasksPageState extends State<TasksPage> {
 
   Future<void> _editQuiz(String quizId, String? quizTitle) async {
     if (!mounted) return;
+    
+    final primaryColor = Theme.of(context).colorScheme.primary;
 
     // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
+      builder: (context) => Center(child: CircularProgressIndicator(color: primaryColor)),
     );
 
     try {
       // Fetch quiz data for editing
       final quizData = await ApiService.fetchQuizForEdit(quizId);
-      
+      final questions = quizData?['questions'] as List<dynamic>? ?? [];
+
+      final multipleChoiceQuestions =
+          questions
+              .where((q) => q['question_type'] == 'multipleChoice')
+              .toList();
+
+      final trueFalseQuestions =
+          questions.where((q) => q['question_type'] == 'trueOrFalse').toList();
+
+      final fillInTheBlanksQuestions =
+          questions
+              .where((q) => q['question_type'] == 'fillInTheBlanks')
+              .toList();
+
+      final matchingQuestions =
+          questions.where((q) => q['question_type'] == 'matching').toList();
+      debugPrint('Total questions: ${questions.length}');
+      for (var q in questions) {
+        debugPrint(
+          'Question: ${q['question_text']}, type: ${q['question_type']}',
+        );
+      }
+
       if (mounted && Navigator.of(context).canPop()) {
         Navigator.of(context).pop(); // Close loading dialog
       }
@@ -317,11 +453,12 @@ class _TasksPageState extends State<TasksPage> {
         final result = await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => AddQuizScreen(
-              quizId: quizId,
-              initialQuizData: quizData,
-              classRoomId: widget.classId,
-            ),
+            builder:
+                (context) => AddQuizScreen(
+                  quizId: quizId,
+                  initialQuizData: quizData,
+                  classRoomId: widget.classId,
+                ),
           ),
         );
 
@@ -357,52 +494,55 @@ class _TasksPageState extends State<TasksPage> {
 
   Future<void> _deleteQuiz(String quizId, String? quizTitle) async {
     if (!mounted) return;
+    
+    final primaryColor = Theme.of(context).colorScheme.primary;
 
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.warning, color: Colors.orange.shade700),
-            const SizedBox(width: 8),
-            const Text('Delete Quiz'),
-          ],
-        ),
-        content: Text(
-          'Are you sure you want to delete "${quizTitle ?? 'this quiz'}"?\n\n'
-          'This will permanently delete:\n'
-          '• The quiz\n'
-          '• All questions\n'
-          '• All student submissions\n\n'
-          'This action cannot be undone.',
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              if (Navigator.of(context).canPop()) {
-                Navigator.pop(context, false);
-              }
-            },
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (Navigator.of(context).canPop()) {
-                Navigator.pop(context, true);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+      builder:
+          (context) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.warning, color: Colors.orange.shade700),
+                const SizedBox(width: 8),
+                const Text('Delete Quiz'),
+              ],
             ),
-            child: const Text('Delete'),
+            content: Text(
+              'Are you sure you want to delete "${quizTitle ?? 'this quiz'}"?\n\n'
+              'This will permanently delete:\n'
+              '• The quiz\n'
+              '• All questions\n'
+              '• All student submissions\n\n'
+              'This action cannot be undone.',
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.pop(context, false);
+                  }
+                },
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.pop(context, true);
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Delete'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
 
     if (confirmed != true || !mounted) return;
@@ -411,22 +551,19 @@ class _TasksPageState extends State<TasksPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
+      builder: (context) => Center(child: CircularProgressIndicator(color: primaryColor)),
     );
 
     try {
       // Add timeout to prevent hanging
-      final success = await ApiService.deleteQuiz(quizId)
-          .timeout(
-            const Duration(seconds: 30),
-            onTimeout: () {
-              debugPrint('⏱️ [DELETE_QUIZ] Deletion timeout after 30 seconds');
-              return false;
-            },
-          );
-      
+      final success = await ApiService.deleteQuiz(quizId).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          debugPrint('⏱️ [DELETE_QUIZ] Deletion timeout after 30 seconds');
+          return false;
+        },
+      );
+
       if (mounted && Navigator.of(context).canPop()) {
         Navigator.of(context).pop(); // Close loading dialog
       }
@@ -439,9 +576,7 @@ class _TasksPageState extends State<TasksPage> {
                 children: [
                   Icon(Icons.check_circle, color: Colors.white),
                   SizedBox(width: 8),
-                  Expanded(
-                    child: Text('Quiz deleted successfully'),
-                  ),
+                  Expanded(child: Text('Quiz deleted successfully')),
                 ],
               ),
               backgroundColor: Colors.green,
@@ -460,7 +595,9 @@ class _TasksPageState extends State<TasksPage> {
                   Icon(Icons.error, color: Colors.white),
                   SizedBox(width: 8),
                   Expanded(
-                    child: Text('Failed to delete quiz. The quiz may not exist or you may not have permission.'),
+                    child: Text(
+                      'Failed to delete quiz. The quiz may not exist or you may not have permission.',
+                    ),
                   ),
                 ],
               ),
@@ -484,7 +621,9 @@ class _TasksPageState extends State<TasksPage> {
                 Icon(Icons.timer_off, color: Colors.white),
                 SizedBox(width: 8),
                 Expanded(
-                  child: Text('Deletion timed out. Please check your connection and try again.'),
+                  child: Text(
+                    'Deletion timed out. Please check your connection and try again.',
+                  ),
                 ),
               ],
             ),
@@ -500,19 +639,19 @@ class _TasksPageState extends State<TasksPage> {
         Navigator.of(context).pop(); // Close loading dialog
       }
       if (mounted) {
-        final errorMessage = e.toString().contains('network') || e.toString().contains('connection')
-            ? 'Network error. Please check your internet connection and try again.'
-            : 'Error deleting quiz: ${e.toString()}';
-        
+        final errorMessage =
+            e.toString().contains('network') ||
+                    e.toString().contains('connection')
+                ? 'Network error. Please check your internet connection and try again.'
+                : 'Error deleting quiz: ${e.toString()}';
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
                 const Icon(Icons.error, color: Colors.white),
                 const SizedBox(width: 8),
-                Expanded(
-                  child: Text(errorMessage),
-                ),
+                Expanded(child: Text(errorMessage)),
               ],
             ),
             backgroundColor: Colors.red,

@@ -14,6 +14,9 @@ class QuizHelper {
   int timeRemaining = 0;
   final SupabaseClient supabase;
 
+  // Add this flag to track timer state
+  bool _isTimerRunning = false;
+
   QuizHelper({
     required this.studentId,
     required this.taskId,
@@ -24,29 +27,50 @@ class QuizHelper {
 
   /// Fetch time_limit_minutes from tasks table
   Future<int> fetchTaskTimeLimit() async {
-    final task = await supabase
-        .from('tasks')
-        .select('time_limit_minutes')
-        .eq('id', taskId)
-        .maybeSingle();
+    final task =
+        await supabase
+            .from('tasks')
+            .select('time_limit_minutes')
+            .eq('id', taskId)
+            .maybeSingle();
     return task?['time_limit_minutes'] ?? 0;
   }
 
   /// Start timer synced with database
   Future<void> startTimerFromDatabase(
-      VoidCallback onTimeUp, VoidCallback onTick) async {
+    VoidCallback onTimeUp,
+    VoidCallback onTick,
+  ) async {
     final minutes = await fetchTaskTimeLimit();
     timeRemaining = minutes * 60;
+    
+    // Cancel any existing timer
     timer?.cancel();
+    
+    _isTimerRunning = true;
     timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!_isTimerRunning) {
+        t.cancel();
+        return;
+      }
+      
       if (timeRemaining <= 0) {
         t.cancel();
+        _isTimerRunning = false;
         onTimeUp();
       } else {
         timeRemaining--;
         onTick();
       }
     });
+  }
+
+  /// Stop timer completely
+  void stopTimer() {
+    _isTimerRunning = false;
+    timer?.cancel();
+    timer = null;
+    debugPrint('⏹️ QuizHelper timer stopped');
   }
 
   /// Calculate score
@@ -83,8 +107,8 @@ class QuizHelper {
     currentAttempt++;
   }
 
-  /// Cancel timer
+  /// Cancel timer (alias for stopTimer for backward compatibility)
   void cancelTimer() {
-    timer?.cancel();
+    stopTimer();
   }
 }

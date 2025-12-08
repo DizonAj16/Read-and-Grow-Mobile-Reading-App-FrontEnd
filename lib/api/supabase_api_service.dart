@@ -5,20 +5,25 @@ import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/quiz_questions.dart';
 
-
 class ApiService {
-  static const String supabaseUrl = 'https://zrcynmiiduwrtlcyzvzi.supabase.co/rest/v1';
-  static const String supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpyY3lubWlpZHV3cnRsY3l6dnppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcyNDExMzIsImV4cCI6MjA3MjgxNzEzMn0.NPDpQKXC5h7qiSTPsIIty8qdNn1DnSHptIkagWlmTHM';
+  static const String supabaseUrl =
+      'https://zrcynmiiduwrtlcyzvzi.supabase.co/rest/v1';
+  static const String supabaseKey =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpyY3lubWlpZHV3cnRsY3l6dnppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcyNDExMzIsImV4cCI6MjA3MjgxNzEzMn0.NPDpQKXC5h7qiSTPsIIty8qdNn1DnSHptIkagWlmTHM';
 
-
-  static final SupabaseClient supabase = SupabaseClient('https://zrcynmiiduwrtlcyzvzi.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpyY3lubWlpZHV3cnRsY3l6dnppIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzI0MTEzMiwiZXhwIjoyMDcyODE3MTMyfQ.2Bm8PCz6NS4uH4dRRSbcY9Ad7VLmCY7BitWSZjAjaB8');
+  static final SupabaseClient supabase = SupabaseClient(
+    'https://zrcynmiiduwrtlcyzvzi.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpyY3lubWlpZHV3cnRsY3l6dnppIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzI0MTEzMiwiZXhwIjoyMDcyODE3MTMyfQ.2Bm8PCz6NS4uH4dRRSbcY9Ad7VLmCY7BitWSZjAjaB8',
+  );
   static Future<String?> uploadFile(File file) async {
     try {
       String fileName =
           'file_${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
       // Using 'materials' bucket as per user's Supabase storage setup
       try {
-        final response = await supabase.storage.from('materials').upload(fileName, file);
+        final response = await supabase.storage
+            .from('materials')
+            .upload(fileName, file);
         if (response.isEmpty) {
           print('❌ Failed to upload file: $fileName');
           return null;
@@ -37,7 +42,6 @@ class ApiService {
     }
   }
 
-
   /// Converts Dart enum to snake_case for Supabase enum
   static String questionTypeToSnakeCase(QuestionType type) {
     switch (type) {
@@ -53,16 +57,17 @@ class ApiService {
         return 'matching';
       case QuestionType.audio:
         return 'audio';
+      case QuestionType.multipleChoiceWithImages: // NEW
+        return 'multiple_choice_with_images';
+      case QuestionType.fillInTheBlankWithImage: // NEW
+        return 'fill_in_the_blank_with_image';
     }
   }
 
   static Future<List<Map<String, dynamic>>> getLessons() async {
     final response = await http.get(
       Uri.parse('$supabaseUrl/tasks?select=id,title'),
-      headers: {
-        'apikey': supabaseKey,
-        'Authorization': 'Bearer $supabaseKey',
-      },
+      headers: {'apikey': supabaseKey, 'Authorization': 'Bearer $supabaseKey'},
     );
 
     if (response.statusCode == 200) {
@@ -77,10 +82,7 @@ class ApiService {
   static Future<List<Map<String, dynamic>>?> getQuizzes() async {
     final response = await http.get(
       Uri.parse('$supabaseUrl/quizzes?select=*'),
-      headers: {
-        'apikey': supabaseKey,
-        'Authorization': 'Bearer $supabaseKey',
-      },
+      headers: {'apikey': supabaseKey, 'Authorization': 'Bearer $supabaseKey'},
     );
     if (response.statusCode == 200) {
       return List<Map<String, dynamic>>.from(jsonDecode(response.body));
@@ -93,11 +95,9 @@ class ApiService {
   static Future<List<QuizQuestion>?> getQuizQuestions(String quizId) async {
     final response = await http.get(
       Uri.parse(
-          '$supabaseUrl/quiz_questions?quiz_id=eq.$quizId&select=*,matching_pairs!fk_question(*)'),
-      headers: {
-        'apikey': supabaseKey,
-        'Authorization': 'Bearer $supabaseKey',
-      },
+        '$supabaseUrl/quiz_questions?quiz_id=eq.$quizId&select=*,matching_pairs!fk_question(*)',
+      ),
+      headers: {'apikey': supabaseKey, 'Authorization': 'Bearer $supabaseKey'},
     );
 
     if (response.statusCode != 200) {
@@ -125,24 +125,51 @@ class ApiService {
         case 'matching':
           type = QuestionType.matching;
           break;
+        case 'audio':
+          type = QuestionType.audio;
+          break;
+        case 'multiple_choice_with_images': // NEW
+          type = QuestionType.multipleChoiceWithImages;
+          break;
+        case 'fill_in_the_blank_with_image': // NEW
+          type = QuestionType.fillInTheBlankWithImage;
+          break;
         default:
           type = QuestionType.multipleChoice;
       }
 
       List<String>? options;
-      if ((type == QuestionType.multipleChoice || type == QuestionType.dragAndDrop) &&
+      if ((type == QuestionType.multipleChoice ||
+              type == QuestionType.dragAndDrop ||
+              type == QuestionType.multipleChoiceWithImages) && // NEW
           q['options'] != null) {
         options = List<String>.from(q['options']);
       }
 
       List<MatchingPair>? matchingPairs;
       if (type == QuestionType.matching && q['matching_pairs'] != null) {
-        matchingPairs = (q['matching_pairs'] as List)
-            .map((pair) => MatchingPair(
-          leftItem: pair['left_item'] ?? '',
-          rightItemUrl: pair['right_item_url'] ?? '',
-        ))
-            .toList();
+        matchingPairs =
+            (q['matching_pairs'] as List)
+                .map(
+                  (pair) => MatchingPair(
+                    leftItem: pair['left_item'] ?? '',
+                    rightItemUrl: pair['right_item_url'] ?? '',
+                  ),
+                )
+                .toList();
+      }
+
+      // Parse option images for multiple choice with images
+      Map<String, String> optionImages = {};
+      if (type == QuestionType.multipleChoiceWithImages &&
+          q['option_images'] != null &&
+          q['option_images'] is Map) {
+        final imagesMap = q['option_images'] as Map;
+        imagesMap.forEach((key, value) {
+          if (value is String) {
+            optionImages[key.toString()] = value;
+          }
+        });
       }
 
       return QuizQuestion(
@@ -151,16 +178,19 @@ class ApiService {
         options: options,
         matchingPairs: matchingPairs,
         correctAnswer: q['correct_answer'],
+        questionImageUrl: q['question_image_url']?.toString(), // NEW
+        optionImages: optionImages.isNotEmpty ? optionImages : null, // NEW
       );
     }).toList();
   }
-
 
   static Future<Map<String, dynamic>?> addQuiz({
     required String taskId,
     required String title,
     required List<QuizQuestion> questions,
     required String classRoomId,
+    Map<int, Map<int, String?>>? optionImages, // NEW: Option images from UI
+    Map<int, String?>? questionImages, // NEW: Question images from UI
   }) async {
     try {
       final quizResponse = await http.post(
@@ -179,7 +209,9 @@ class ApiService {
       );
 
       if (quizResponse.statusCode != 201) {
-        print('❌ Error creating quiz: ${quizResponse.statusCode} ${quizResponse.body}');
+        print(
+          '❌ Error creating quiz: ${quizResponse.statusCode} ${quizResponse.body}',
+        );
         return null;
       }
 
@@ -190,6 +222,36 @@ class ApiService {
       for (var i = 0; i < questions.length; i++) {
         final q = questions[i];
         try {
+          // Prepare question data with image fields
+          final questionData = {
+            'quiz_id': quizId,
+            'question_text': q.questionText,
+            'question_type': questionTypeToSnakeCase(q.type),
+            'sort_order': i,
+          };
+
+          // Add question image URL for appropriate question types
+          // NEW: Support question images for multiple choice with images
+          if (q.type == QuestionType.fillInTheBlankWithImage ||
+              q.type == QuestionType.multipleChoiceWithImages) {
+            String? imageUrlToSave;
+
+            // Check for uploaded question image
+            if (questionImages != null && questionImages.containsKey(i)) {
+              imageUrlToSave = questionImages[i];
+            }
+            // Also check if question already has image URL (from editing)
+            else if (q.questionImageUrl != null &&
+                q.questionImageUrl!.isNotEmpty) {
+              imageUrlToSave = q.questionImageUrl;
+            }
+
+            // Only add to questionData if we have a valid URL
+            if (imageUrlToSave != null && imageUrlToSave.isNotEmpty) {
+              questionData['question_image_url'] = imageUrlToSave;
+            }
+          }
+
           final questionResponse = await http.post(
             Uri.parse('$supabaseUrl/quiz_questions'),
             headers: {
@@ -198,12 +260,7 @@ class ApiService {
               'Content-Type': 'application/json',
               'Prefer': 'return=representation',
             },
-            body: jsonEncode({
-              'quiz_id': quizId,
-              'question_text': q.questionText,
-              'question_type': questionTypeToSnakeCase(q.type),
-              'sort_order': i,
-            }),
+            body: jsonEncode(questionData),
           );
 
           if (questionResponse.statusCode != 201) {
@@ -214,9 +271,44 @@ class ApiService {
           final questionId = jsonDecode(questionResponse.body)[0]['id'];
           print('✅ Question ${i + 1} added with ID: $questionId');
 
-          if ((q.type == QuestionType.multipleChoice || q.type == QuestionType.trueFalse) && q.options != null) {
+          // Handle option images for multiple choice with images
+          if (q.type == QuestionType.multipleChoiceWithImages &&
+              optionImages != null &&
+              optionImages.containsKey(i) &&
+              q.options != null) {
+            // Save option images as JSON in the question record
+            final optionImagesForQuestion = <String, String>{};
+            final questionOptionImages = optionImages[i]!;
+
+            for (int j = 0; j < q.options!.length; j++) {
+              final imageUrl = questionOptionImages[j];
+              if (imageUrl != null && imageUrl.isNotEmpty) {
+                optionImagesForQuestion[j.toString()] = imageUrl;
+              }
+            }
+
+            // Update the question with option images
+            if (optionImagesForQuestion.isNotEmpty) {
+              await http.patch(
+                Uri.parse('$supabaseUrl/quiz_questions?id=eq.$questionId'),
+                headers: {
+                  'apikey': supabaseKey,
+                  'Authorization': 'Bearer $supabaseKey',
+                  'Content-Type': 'application/json',
+                },
+                body: jsonEncode({'option_images': optionImagesForQuestion}),
+              );
+            }
+          }
+
+          // Handle regular multiple choice, true/false, and multiple choice with images
+          if ((q.type == QuestionType.multipleChoice ||
+                  q.type == QuestionType.trueFalse ||
+                  q.type == QuestionType.multipleChoiceWithImages) &&
+              q.options != null) {
             bool hasCorrect = false;
-            for (var option in q.options!) {
+            for (var j = 0; j < q.options!.length; j++) {
+              final option = q.options![j];
               final isCorrect = option == q.correctAnswer;
               if (isCorrect) hasCorrect = true;
 
@@ -236,10 +328,12 @@ class ApiService {
             }
 
             if (!hasCorrect) {
-              print('⚠️ Warning: Question ${i + 1} has no correct answer selected!');
+              print(
+                '⚠️ Warning: Question ${i + 1} has no correct answer selected!',
+              );
             }
           }
-          
+
           if (q.type == QuestionType.dragAndDrop && q.options != null) {
             // For drag and drop, save options in order (correct order is the original order)
             for (int idx = 0; idx < q.options!.length; idx++) {
@@ -253,14 +347,16 @@ class ApiService {
                 body: jsonEncode({
                   'question_id': questionId,
                   'option_text': q.options![idx],
-                  'is_correct': true, // All options are part of the correct sequence
+                  'is_correct':
+                      true, // All options are part of the correct sequence
                   'sort_order': idx, // Store the correct order
                 }),
               );
             }
           }
 
-          if ((q.type == QuestionType.dragAndDrop || q.type == QuestionType.matching) &&
+          if ((q.type == QuestionType.dragAndDrop ||
+                  q.type == QuestionType.matching) &&
               q.matchingPairs != null) {
             for (var pair in q.matchingPairs!) {
               await http.post(
@@ -279,7 +375,9 @@ class ApiService {
             }
           }
 
-          if (q.type == QuestionType.fillInTheBlank && q.correctAnswer != null) {
+          if ((q.type == QuestionType.fillInTheBlank ||
+                  q.type == QuestionType.fillInTheBlankWithImage) &&
+              q.correctAnswer != null) {
             // Save fill-in-the-blank answer to question_options for consistency
             await http.post(
               Uri.parse('$supabaseUrl/question_options'),
@@ -325,6 +423,8 @@ class ApiService {
     required String quizId,
     required String title,
     required List<QuizQuestion> questions,
+    Map<int, Map<int, String?>>? optionImages, // NEW: Option images from UI
+    Map<int, String?>? questionImages, // NEW: Question images from UI
   }) async {
     try {
       // Update quiz title
@@ -340,7 +440,9 @@ class ApiService {
       );
 
       if (quizResponse.statusCode != 200 && quizResponse.statusCode != 204) {
-        print('❌ Error updating quiz: ${quizResponse.statusCode} ${quizResponse.body}');
+        print(
+          '❌ Error updating quiz: ${quizResponse.statusCode} ${quizResponse.body}',
+        );
         return false;
       }
 
@@ -353,47 +455,157 @@ class ApiService {
       for (var q in existingQuestions) {
         final questionId = q['id'].toString();
         // Delete question options
-        await supabase.from('question_options').delete().eq('question_id', questionId);
+        await supabase
+            .from('question_options')
+            .delete()
+            .eq('question_id', questionId);
         // Delete matching pairs
-        await supabase.from('matching_pairs').delete().eq('question_id', questionId);
+        await supabase
+            .from('matching_pairs')
+            .delete()
+            .eq('question_id', questionId);
         // Delete question
         await supabase.from('quiz_questions').delete().eq('id', questionId);
       }
 
-      // Add new questions (same logic as addQuiz)
+      // Add new questions (enhanced logic to support new question types)
       for (var i = 0; i < questions.length; i++) {
         final q = questions[i];
         try {
-          final questionResponse = await http.post(
-            Uri.parse('$supabaseUrl/quiz_questions'),
-            headers: {
-              'apikey': supabaseKey,
-              'Authorization': 'Bearer $supabaseKey',
-              'Content-Type': 'application/json',
-              'Prefer': 'return=representation',
-            },
-            body: jsonEncode({
-              'quiz_id': quizId,
-              'question_text': q.questionText,
-              'question_type': questionTypeToSnakeCase(q.type),
-              'sort_order': i,
-            }),
-          );
+          // Prepare question data with image fields
+          final questionData = {
+            'quiz_id': quizId,
+            'question_text': q.questionText,
+            'question_type': questionTypeToSnakeCase(q.type),
+            'sort_order': i,
+          };
 
-          if (questionResponse.statusCode != 201) {
-            print('❌ Error adding question ${i + 1}: ${questionResponse.body}');
-            continue;
-          }
+          // Add question image URL for appropriate question types
+          // NEW: Support question images for multiple choice with images
+          // Add question image URL for appropriate question types
+          // NEW: Support question images for multiple choice with images
+          if (q.type == QuestionType.fillInTheBlankWithImage ||
+              q.type == QuestionType.multipleChoiceWithImages) {
+            String? imageUrlToSave;
 
-          final questionId = jsonDecode(questionResponse.body)[0]['id'];
-          print('✅ Question ${i + 1} added with ID: $questionId');
+            // Check for uploaded question image
+            if (questionImages != null && questionImages.containsKey(i)) {
+              imageUrlToSave = questionImages[i];
+            }
+            // Also check if question already has image URL (from editing)
+            else if (q.questionImageUrl != null &&
+                q.questionImageUrl!.isNotEmpty) {
+              imageUrlToSave = q.questionImageUrl;
+            }
 
-          if ((q.type == QuestionType.multipleChoice || q.type == QuestionType.trueFalse) && q.options != null) {
-            bool hasCorrect = false;
-            for (var option in q.options!) {
-              final isCorrect = option == q.correctAnswer;
-              if (isCorrect) hasCorrect = true;
+            // Only add to questionData if we have a valid URL
+            if (imageUrlToSave != null && imageUrlToSave.isNotEmpty) {
+              questionData['question_image_url'] = imageUrlToSave;
+            }
 
+            final questionResponse = await http.post(
+              Uri.parse('$supabaseUrl/quiz_questions'),
+              headers: {
+                'apikey': supabaseKey,
+                'Authorization': 'Bearer $supabaseKey',
+                'Content-Type': 'application/json',
+                'Prefer': 'return=representation',
+              },
+              body: jsonEncode(questionData),
+            );
+
+            if (questionResponse.statusCode != 201) {
+              print(
+                '❌ Error adding question ${i + 1}: ${questionResponse.body}',
+              );
+              continue;
+            }
+
+            final questionId = jsonDecode(questionResponse.body)[0]['id'];
+            print('✅ Question ${i + 1} added with ID: $questionId');
+
+            // Handle option images for multiple choice with images
+            if (q.type == QuestionType.multipleChoiceWithImages &&
+                optionImages != null &&
+                optionImages.containsKey(i) &&
+                q.options != null) {
+              // Save option images as JSON in the question record
+              final optionImagesForQuestion = <String, String>{};
+              final questionOptionImages = optionImages[i]!;
+
+              for (int j = 0; j < q.options!.length; j++) {
+                final imageUrl = questionOptionImages[j];
+                if (imageUrl != null && imageUrl.isNotEmpty) {
+                  optionImagesForQuestion[j.toString()] = imageUrl;
+                }
+              }
+
+              // Update the question with option images
+              if (optionImagesForQuestion.isNotEmpty) {
+                await http.patch(
+                  Uri.parse('$supabaseUrl/quiz_questions?id=eq.$questionId'),
+                  headers: {
+                    'apikey': supabaseKey,
+                    'Authorization': 'Bearer $supabaseKey',
+                    'Content-Type': 'application/json',
+                  },
+                  body: jsonEncode({'option_images': optionImagesForQuestion}),
+                );
+              }
+            }
+
+            if ((q.type == QuestionType.multipleChoice ||
+                    q.type == QuestionType.trueFalse ||
+                    q.type == QuestionType.multipleChoiceWithImages) &&
+                q.options != null) {
+              bool hasCorrect = false;
+              for (var option in q.options!) {
+                final isCorrect = option == q.correctAnswer;
+                if (isCorrect) hasCorrect = true;
+
+                await http.post(
+                  Uri.parse('$supabaseUrl/question_options'),
+                  headers: {
+                    'apikey': supabaseKey,
+                    'Authorization': 'Bearer $supabaseKey',
+                    'Content-Type': 'application/json',
+                  },
+                  body: jsonEncode({
+                    'question_id': questionId,
+                    'option_text': option,
+                    'is_correct': isCorrect,
+                  }),
+                );
+              }
+
+              if (!hasCorrect) {
+                print(
+                  '⚠️ Warning: Question ${i + 1} has no correct answer selected!',
+                );
+              }
+            }
+
+            if (q.type == QuestionType.dragAndDrop && q.options != null) {
+              for (int idx = 0; idx < q.options!.length; idx++) {
+                await http.post(
+                  Uri.parse('$supabaseUrl/question_options'),
+                  headers: {
+                    'apikey': supabaseKey,
+                    'Authorization': 'Bearer $supabaseKey',
+                    'Content-Type': 'application/json',
+                  },
+                  body: jsonEncode({
+                    'question_id': questionId,
+                    'option_text': q.options![idx],
+                    'sort_order': idx,
+                    'is_correct': false,
+                  }),
+                );
+              }
+            }
+
+            if (q.type == QuestionType.fillInTheBlank &&
+                q.correctAnswer != null) {
               await http.post(
                 Uri.parse('$supabaseUrl/question_options'),
                 headers: {
@@ -403,19 +615,31 @@ class ApiService {
                 },
                 body: jsonEncode({
                   'question_id': questionId,
-                  'option_text': option,
-                  'is_correct': isCorrect,
+                  'option_text': q.correctAnswer!.trim(),
+                  'is_correct': true,
                 }),
               );
             }
 
-            if (!hasCorrect) {
-              print('⚠️ Warning: Question ${i + 1} has no correct answer selected!');
+            if (q.type == QuestionType.matching && q.matchingPairs != null) {
+              for (var pair in q.matchingPairs!) {
+                await http.post(
+                  Uri.parse('$supabaseUrl/matching_pairs'),
+                  headers: {
+                    'apikey': supabaseKey,
+                    'Authorization': 'Bearer $supabaseKey',
+                    'Content-Type': 'application/json',
+                  },
+                  body: jsonEncode({
+                    'question_id': questionId,
+                    'left_item': pair.leftItem,
+                    'right_item_url': pair.rightItemUrl,
+                  }),
+                );
+              }
             }
-          }
-          
-          if (q.type == QuestionType.dragAndDrop && q.options != null) {
-            for (int idx = 0; idx < q.options!.length; idx++) {
+
+            if (q.type == QuestionType.trueFalse && q.correctAnswer != null) {
               await http.post(
                 Uri.parse('$supabaseUrl/question_options'),
                 headers: {
@@ -425,61 +649,10 @@ class ApiService {
                 },
                 body: jsonEncode({
                   'question_id': questionId,
-                  'option_text': q.options![idx],
-                  'sort_order': idx,
-                  'is_correct': false,
+                  'correct_answer': q.correctAnswer!.trim(),
                 }),
               );
             }
-          }
-
-          if (q.type == QuestionType.fillInTheBlank && q.correctAnswer != null) {
-            await http.post(
-              Uri.parse('$supabaseUrl/question_options'),
-              headers: {
-                'apikey': supabaseKey,
-                'Authorization': 'Bearer $supabaseKey',
-                'Content-Type': 'application/json',
-              },
-              body: jsonEncode({
-                'question_id': questionId,
-                'option_text': q.correctAnswer!.trim(),
-                'is_correct': true,
-              }),
-            );
-          }
-
-          if (q.type == QuestionType.matching && q.matchingPairs != null) {
-            for (var pair in q.matchingPairs!) {
-              await http.post(
-                Uri.parse('$supabaseUrl/matching_pairs'),
-                headers: {
-                  'apikey': supabaseKey,
-                  'Authorization': 'Bearer $supabaseKey',
-                  'Content-Type': 'application/json',
-                },
-                body: jsonEncode({
-                  'question_id': questionId,
-                  'left_item': pair.leftItem,
-                  'right_item_url': pair.rightItemUrl,
-                }),
-              );
-            }
-          }
-
-          if (q.type == QuestionType.trueFalse && q.correctAnswer != null) {
-            await http.post(
-              Uri.parse('$supabaseUrl/question_options'),
-              headers: {
-                'apikey': supabaseKey,
-                'Authorization': 'Bearer $supabaseKey',
-                'Content-Type': 'application/json',
-              },
-              body: jsonEncode({
-                'question_id': questionId,
-                'correct_answer': q.correctAnswer!.trim(),
-              }),
-            );
           }
         } catch (e) {
           print('⚠️ Failed to add question ${i + 1}: $e');
@@ -500,7 +673,7 @@ class ApiService {
   /// - Student submissions for those assignments
   /// - Student recordings related to quiz questions
   /// - The quiz itself
-  /// 
+  ///
   /// Returns true if deletion was successful, false otherwise
   static Future<bool> deleteQuiz(String quizId) async {
     // Validate quiz ID
@@ -513,11 +686,12 @@ class ApiService {
       debugPrint('🗑️ [DELETE_QUIZ] Starting deletion of quiz: $quizId');
 
       // 1. Verify quiz exists before attempting deletion
-      final quizExists = await supabase
-          .from('quizzes')
-          .select('id, title')
-          .eq('id', quizId)
-          .maybeSingle();
+      final quizExists =
+          await supabase
+              .from('quizzes')
+              .select('id, title')
+              .eq('id', quizId)
+              .maybeSingle();
 
       if (quizExists == null) {
         debugPrint('❌ [DELETE_QUIZ] Quiz not found: $quizId');
@@ -531,12 +705,11 @@ class ApiService {
       List<Map<String, dynamic>> assignments = [];
       try {
         assignments = List<Map<String, dynamic>>.from(
-          await supabase
-              .from('assignments')
-              .select('id')
-              .eq('quiz_id', quizId),
+          await supabase.from('assignments').select('id').eq('quiz_id', quizId),
         );
-        debugPrint('📋 [DELETE_QUIZ] Found ${assignments.length} assignments referencing this quiz');
+        debugPrint(
+          '📋 [DELETE_QUIZ] Found ${assignments.length} assignments referencing this quiz',
+        );
       } catch (e) {
         debugPrint('⚠️ [DELETE_QUIZ] Error fetching assignments: $e');
         // Continue with deletion even if we can't fetch assignments
@@ -553,29 +726,36 @@ class ApiService {
                 .from('student_submissions')
                 .delete()
                 .eq('assignment_id', assignmentId);
-            
-            debugPrint('✅ [DELETE_QUIZ] Deleted student submissions for assignment $assignmentId');
+
+            debugPrint(
+              '✅ [DELETE_QUIZ] Deleted student submissions for assignment $assignmentId',
+            );
             totalSubmissionsDeleted++;
           } catch (e) {
-            debugPrint('⚠️ [DELETE_QUIZ] Error deleting submissions for assignment $assignmentId: $e');
+            debugPrint(
+              '⚠️ [DELETE_QUIZ] Error deleting submissions for assignment $assignmentId: $e',
+            );
             // Continue with deletion even if submissions deletion fails
           }
         }
       }
-      
+
       if (totalSubmissionsDeleted > 0) {
-        debugPrint('📊 [DELETE_QUIZ] Processed $totalSubmissionsDeleted assignments with submissions');
+        debugPrint(
+          '📊 [DELETE_QUIZ] Processed $totalSubmissionsDeleted assignments with submissions',
+        );
       }
 
       // 4. Delete assignments that reference this quiz
       if (assignments.isNotEmpty) {
         try {
-          final deleteResult = await supabase
-              .from('assignments')
-              .delete()
-              .eq('quiz_id', quizId)
-              .select();
-          
+          final deleteResult =
+              await supabase
+                  .from('assignments')
+                  .delete()
+                  .eq('quiz_id', quizId)
+                  .select();
+
           final deletedCount = (deleteResult as List).length;
           debugPrint('✅ [DELETE_QUIZ] Deleted $deletedCount assignments');
         } catch (e) {
@@ -593,7 +773,9 @@ class ApiService {
               .select('id')
               .eq('quiz_id', quizId),
         );
-        debugPrint('❓ [DELETE_QUIZ] Found ${questions.length} questions to delete');
+        debugPrint(
+          '❓ [DELETE_QUIZ] Found ${questions.length} questions to delete',
+        );
       } catch (e) {
         debugPrint('⚠️ [DELETE_QUIZ] Error fetching questions: $e');
         // Continue - we'll try to delete quiz anyway
@@ -608,7 +790,7 @@ class ApiService {
         final questionId = question['id']?.toString();
         if (questionId != null && questionId.isNotEmpty) {
           questionIds.add(questionId);
-          
+
           try {
             // Delete question options
             await supabase
@@ -616,23 +798,29 @@ class ApiService {
                 .delete()
                 .eq('question_id', questionId);
             optionsDeleted++;
-            
+
             // Delete matching pairs
             await supabase
                 .from('matching_pairs')
                 .delete()
                 .eq('question_id', questionId);
             pairsDeleted++;
-            
-            debugPrint('✅ [DELETE_QUIZ] Deleted options and pairs for question $questionId');
+
+            debugPrint(
+              '✅ [DELETE_QUIZ] Deleted options and pairs for question $questionId',
+            );
           } catch (e) {
-            debugPrint('⚠️ [DELETE_QUIZ] Error deleting question data for $questionId: $e');
+            debugPrint(
+              '⚠️ [DELETE_QUIZ] Error deleting question data for $questionId: $e',
+            );
             // Continue with deletion even if question data deletion fails
           }
         }
       }
 
-      debugPrint('📊 [DELETE_QUIZ] Deleted $optionsDeleted question options and $pairsDeleted matching pairs');
+      debugPrint(
+        '📊 [DELETE_QUIZ] Deleted $optionsDeleted question options and $pairsDeleted matching pairs',
+      );
 
       // 7. Delete student recordings related to quiz questions (before deleting questions)
       // This must happen before deleting questions to avoid foreign key constraint issues
@@ -647,12 +835,16 @@ class ApiService {
                   .eq('quiz_question_id', questionId);
               recordingsDeleted++;
             } catch (e) {
-              debugPrint('⚠️ [DELETE_QUIZ] Error deleting recordings for question $questionId: $e');
+              debugPrint(
+                '⚠️ [DELETE_QUIZ] Error deleting recordings for question $questionId: $e',
+              );
               // Continue with other questions
             }
           }
           if (recordingsDeleted > 0) {
-            debugPrint('✅ [DELETE_QUIZ] Cleaned up $recordingsDeleted student recordings');
+            debugPrint(
+              '✅ [DELETE_QUIZ] Cleaned up $recordingsDeleted student recordings',
+            );
           }
         } catch (e) {
           debugPrint('⚠️ [DELETE_QUIZ] Error deleting student recordings: $e');
@@ -663,12 +855,13 @@ class ApiService {
       // 8. Delete all questions (CRITICAL STEP - must succeed)
       if (questions.isNotEmpty) {
         try {
-          final deleteResult = await supabase
-              .from('quiz_questions')
-              .delete()
-              .eq('quiz_id', quizId)
-              .select();
-          
+          final deleteResult =
+              await supabase
+                  .from('quiz_questions')
+                  .delete()
+                  .eq('quiz_id', quizId)
+                  .select();
+
           final deletedCount = (deleteResult as List).length;
           debugPrint('✅ [DELETE_QUIZ] Deleted $deletedCount questions');
         } catch (e) {
@@ -679,31 +872,33 @@ class ApiService {
 
       // 9. Delete the quiz itself (CRITICAL - must succeed)
       try {
-        final deleteResult = await supabase
-            .from('quizzes')
-            .delete()
-            .eq('id', quizId)
-            .select();
+        final deleteResult =
+            await supabase.from('quizzes').delete().eq('id', quizId).select();
 
         // Verify deletion was successful
         final deletedList = deleteResult as List;
         if (deletedList.isEmpty) {
           debugPrint('⚠️ [DELETE_QUIZ] Quiz deletion returned no rows');
           // Verify quiz is actually deleted
-          final verifyDeleted = await supabase
-              .from('quizzes')
-              .select('id')
-              .eq('id', quizId)
-              .maybeSingle();
-          
+          final verifyDeleted =
+              await supabase
+                  .from('quizzes')
+                  .select('id')
+                  .eq('id', quizId)
+                  .maybeSingle();
+
           if (verifyDeleted != null) {
-            debugPrint('❌ [DELETE_QUIZ] Quiz still exists after deletion attempt');
+            debugPrint(
+              '❌ [DELETE_QUIZ] Quiz still exists after deletion attempt',
+            );
             return false;
           }
         }
 
         debugPrint('✅ [DELETE_QUIZ] Quiz "$quizTitle" deleted successfully');
-        debugPrint('📊 [DELETE_QUIZ] Deletion completed: ${assignments.length} assignments, ${questions.length} questions');
+        debugPrint(
+          '📊 [DELETE_QUIZ] Deletion completed: ${assignments.length} assignments, ${questions.length} questions',
+        );
         return true;
       } catch (e) {
         debugPrint('❌ [DELETE_QUIZ] Error deleting quiz: $e');
@@ -719,11 +914,12 @@ class ApiService {
   /// Fetch quiz data for editing
   static Future<Map<String, dynamic>?> fetchQuizForEdit(String quizId) async {
     try {
-      final quiz = await supabase
-          .from('quizzes')
-          .select('id, title, task_id')
-          .eq('id', quizId)
-          .maybeSingle();
+      final quiz =
+          await supabase
+              .from('quizzes')
+              .select('id, title, task_id')
+              .eq('id', quizId)
+              .maybeSingle();
 
       if (quiz == null) return null;
 
@@ -734,18 +930,24 @@ class ApiService {
             question_text,
             question_type,
             sort_order,
+            question_image_url,
+            option_images,
             question_options(*),
             matching_pairs(*)
           ''')
           .eq('quiz_id', quizId)
           .order('sort_order', ascending: true);
 
-      return {
-        'quiz': quiz,
-        'questions': questions,
-      };
+      // Debug print to see what we're getting
+      for (var q in questions) {
+        debugPrint('Question type from DB: ${q['question_type']}');
+        debugPrint('Question image URL: ${q['question_image_url']}');
+        debugPrint('Option images: ${q['option_images']}');
+      }
+
+      return {'quiz': quiz, 'questions': questions};
     } catch (e) {
-        debugPrint('❌ Failed to fetch quiz: $e');
+      debugPrint('❌ Failed to fetch quiz: $e');
       return null;
     }
   }

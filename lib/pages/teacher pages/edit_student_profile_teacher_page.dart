@@ -342,19 +342,20 @@ class _EditStudentProfileTeacherPageState extends State<EditStudentProfileTeache
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Row(
               children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 10),
-                Text('Student profile updated successfully!'),
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 10),
+                const Text('Student profile updated successfully!'),
               ],
             ),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(12)),
+              borderRadius: BorderRadius.circular(12),
             ),
+            duration: const Duration(seconds: 2),
           ),
         );
         
@@ -402,202 +403,636 @@ class _EditStudentProfileTeacherPageState extends State<EditStudentProfileTeache
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Edit Student Profile'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        title: const Text(
+          'Edit Student Profile',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            letterSpacing: 0.5,
+          ),
+        ),
+        backgroundColor: colorScheme.primary,
         foregroundColor: Colors.white,
+        elevation: 4,
+        shadowColor: colorScheme.primary.withOpacity(0.3),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(16),
+          ),
+        ),
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: CircularProgressIndicator(
+                      color: colorScheme.primary,
+                      strokeWidth: 3,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Loading student data...',
+                    style: textTheme.titleMedium?.copyWith(
+                      color: colorScheme.onBackground.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
+            )
           : _errorMessage != null && _currentStudent == null
               ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text(
-                        _errorMessage!,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: _loadData,
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Form(
-                    key: _formKey,
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Profile Picture Section
-                        Center(
-                          child: Stack(
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.red.shade200,
+                              width: 2,
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.error_outline,
+                            size: 64,
+                            color: Colors.red.shade600,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          'Error Loading Data',
+                          style: textTheme.headlineSmall?.copyWith(
+                            color: colorScheme.error,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          _errorMessage!,
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onBackground.withOpacity(0.8),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 32),
+                        ElevatedButton(
+                          onPressed: _loadData,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: colorScheme.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 32,
+                              vertical: 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 2,
+                            shadowColor: colorScheme.primary.withOpacity(0.3),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              CircleAvatar(
-                                radius: 60,
-                                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                                backgroundImage: _pickedImageFile != null
-                                    ? FileImage(File(_pickedImageFile!.path))
-                                    : _currentStudent?.profilePicture != null
-                                        ? NetworkImage(_currentStudent!.profilePicture!)
-                                        : null,
-                                child: _pickedImageFile == null &&
-                                        (_currentStudent?.profilePicture == null ||
-                                            _currentStudent!.profilePicture!.isEmpty)
-                                    ? Icon(
-                                        Icons.person,
-                                        size: 60,
-                                        color: Theme.of(context).colorScheme.onPrimaryContainer,
-                                      )
-                                    : null,
-                              ),
-                              Positioned(
-                                bottom: 0,
-                                right: 0,
-                                child: GestureDetector(
-                                  onTap: _pickImage,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context).colorScheme.primary,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.white,
-                                        width: 2,
-                                      ),
-                                    ),
-                                    child: const Icon(
-                                      Icons.camera_alt,
-                                      color: Colors.white,
-                                      size: 20,
-                                    ),
-                                  ),
+                              const Icon(Icons.refresh),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Retry',
+                                style: textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 32),
-
-                        // Name Field
-                        _buildTextField(
-                          controller: _nameController,
-                          label: 'Full Name *',
-                          icon: Icons.person,
-                          validator: _validateName,
-                        ),
-                        const SizedBox(height: 16),
-
-                        // LRN Field
-                        _buildTextField(
-                          controller: _lrnController,
-                          label: 'LRN (Learner Reference Number) *',
-                          icon: Icons.numbers,
-                          keyboardType: TextInputType.number,
-                          validator: _validateLRN,
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Username Field
-                        _buildTextField(
-                          controller: _usernameController,
-                          label: 'Username *',
-                          icon: Icons.alternate_email,
-                          validator: _validateUsername,
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Grade Field
-                        _buildTextField(
-                          controller: _gradeController,
-                          label: 'Grade (Optional)',
-                          icon: Icons.school,
-                          validator: _validateGrade,
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Section Field
-                        _buildTextField(
-                          controller: _sectionController,
-                          label: 'Section (Optional)',
-                          icon: Icons.class_,
-                          validator: _validateSection,
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Reading Level Dropdown
-                        _buildReadingLevelDropdown(),
-                        const SizedBox(height: 32),
-
-                        // Error Message Display
-                        if (_errorMessage != null && _isSaving == false)
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            margin: const EdgeInsets.only(bottom: 16),
-                            decoration: BoxDecoration(
-                              color: Colors.red.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.red.shade300),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.error_outline, color: Colors.red.shade700),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    _errorMessage!,
-                                    style: TextStyle(color: Colors.red.shade700),
-                                  ),
-                                ),
-                              ],
+                      ],
+                    ),
+                  ),
+                )
+              : Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        colorScheme.primary.withOpacity(0.03),
+                        colorScheme.primary.withOpacity(0.01),
+                        colorScheme.background,
+                      ],
+                      stops: const [0, 0.3, 0.7],
+                    ),
+                  ),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Header Card
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 24),
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: colorScheme.primary.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: colorScheme.primary.withOpacity(0.2),
                             ),
                           ),
-
-                        // Save Button
-                        ElevatedButton(
-                          onPressed: _isSaving ? null : _saveProfile,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Theme.of(context).colorScheme.primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: _isSaving
-                              ? const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.school,
+                                size: 32,
+                                color: colorScheme.primary,
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    Text(
+                                      'Edit Student Profile',
+                                      style: textTheme.titleLarge?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: colorScheme.primary,
                                       ),
                                     ),
-                                    SizedBox(width: 12),
-                                    Text('Saving...'),
-                                  ],
-                                )
-                              : const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.save),
-                                    SizedBox(width: 8),
-                                    Text('Save Changes', style: TextStyle(fontSize: 16)),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Update student information and assign reading level',
+                                      style: textTheme.bodyMedium?.copyWith(
+                                        color: colorScheme.onSurface.withOpacity(0.7),
+                                      ),
+                                    ),
                                   ],
                                 ),
+                              ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 16),
+
+                        Form(
+                          key: _formKey,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Profile Picture Card
+                              Card(
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(24),
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        'Profile Picture',
+                                        style: textTheme.titleMedium?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                          color: colorScheme.onSurface,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 20),
+                                      Stack(
+                                        children: [
+                                          Container(
+                                            width: 120,
+                                            height: 120,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: colorScheme.primary.withOpacity(0.3),
+                                                width: 3,
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: colorScheme.primary.withOpacity(0.1),
+                                                  blurRadius: 10,
+                                                  spreadRadius: 2,
+                                                  offset: const Offset(0, 4),
+                                                ),
+                                              ],
+                                            ),
+                                            child: ClipOval(
+                                              child: _pickedImageFile != null
+                                                  ? Image.file(
+                                                      File(_pickedImageFile!.path),
+                                                      fit: BoxFit.cover,
+                                                    )
+                                                  : _currentStudent?.profilePicture != null &&
+                                                          _currentStudent!.profilePicture!.isNotEmpty
+                                                      ? Image.network(
+                                                          _currentStudent!.profilePicture!,
+                                                          fit: BoxFit.cover,
+                                                          loadingBuilder: (context, child, loadingProgress) {
+                                                            if (loadingProgress == null) return child;
+                                                            return Center(
+                                                              child: CircularProgressIndicator(
+                                                                value: loadingProgress.expectedTotalBytes != null
+                                                                    ? loadingProgress.cumulativeBytesLoaded /
+                                                                        loadingProgress.expectedTotalBytes!
+                                                                    : null,
+                                                                color: colorScheme.primary,
+                                                              ),
+                                                            );
+                                                          },
+                                                          errorBuilder: (context, error, stackTrace) {
+                                                            return Icon(
+                                                              Icons.person,
+                                                              size: 60,
+                                                              color: colorScheme.onPrimaryContainer,
+                                                            );
+                                                          },
+                                                        )
+                                                      : Container(
+                                                          decoration: BoxDecoration(
+                                                            gradient: LinearGradient(
+                                                              begin: Alignment.topLeft,
+                                                              end: Alignment.bottomRight,
+                                                              colors: [
+                                                                colorScheme.primary.withOpacity(0.1),
+                                                                colorScheme.primary.withOpacity(0.3),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                          child: Icon(
+                                                            Icons.person,
+                                                            size: 60,
+                                                            color: colorScheme.primary,
+                                                          ),
+                                                        ),
+                                            ),
+                                          ),
+                                          Positioned(
+                                            bottom: 0,
+                                            right: 0,
+                                            child: GestureDetector(
+                                              onTap: _pickImage,
+                                              child: Container(
+                                                width: 40,
+                                                height: 40,
+                                                decoration: BoxDecoration(
+                                                  gradient: LinearGradient(
+                                                    begin: Alignment.topLeft,
+                                                    end: Alignment.bottomRight,
+                                                    colors: [
+                                                      colorScheme.primary,
+                                                      colorScheme.primary.withOpacity(0.8),
+                                                    ],
+                                                  ),
+                                                  shape: BoxShape.circle,
+                                                  border: Border.all(
+                                                    color: Colors.white,
+                                                    width: 3,
+                                                  ),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.black.withOpacity(0.2),
+                                                      blurRadius: 6,
+                                                      offset: const Offset(0, 3),
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: const Icon(
+                                                  Icons.camera_alt,
+                                                  color: Colors.white,
+                                                  size: 20,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        'Tap to upload new photo',
+                                        style: textTheme.bodySmall?.copyWith(
+                                          color: colorScheme.onSurface.withOpacity(0.6),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 32),
+
+                              // Personal Information Card
+                              Card(
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(24),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.person_outline,
+                                            color: colorScheme.primary,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Text(
+                                            'Personal Information',
+                                            style: textTheme.titleMedium?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                              color: colorScheme.onSurface,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 24),
+
+                                      // Name Field
+                                      _buildEnhancedTextField(
+                                        controller: _nameController,
+                                        label: 'Full Name',
+                                        icon: Icons.person,
+                                        validator: _validateName,
+                                        isRequired: true,
+                                      ),
+                                      const SizedBox(height: 20),
+
+                                      // LRN Field
+                                      _buildEnhancedTextField(
+                                        controller: _lrnController,
+                                        label: 'Learner Reference Number (LRN)',
+                                        icon: Icons.badge,
+                                        validator: _validateLRN,
+                                        isRequired: true,
+                                        keyboardType: TextInputType.number,
+                                      ),
+                                      const SizedBox(height: 20),
+
+                                      // Username Field
+                                      _buildEnhancedTextField(
+                                        controller: _usernameController,
+                                        label: 'Username',
+                                        icon: Icons.alternate_email,
+                                        validator: _validateUsername,
+                                        isRequired: true,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+
+                              // Academic Information Card
+                              Card(
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(24),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.school_outlined,
+                                            color: colorScheme.primary,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Text(
+                                            'Academic Information',
+                                            style: textTheme.titleMedium?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                              color: colorScheme.onSurface,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 24),
+
+                                      // Grade Field
+                                      _buildEnhancedTextField(
+                                        controller: _gradeController,
+                                        label: 'Grade Level',
+                                        icon: Icons.grade,
+                                        validator: _validateGrade,
+                                        isRequired: false,
+                                        hintText: 'e.g., Grade 6',
+                                      ),
+                                      const SizedBox(height: 20),
+
+                                      // Section Field
+                                      _buildEnhancedTextField(
+                                        controller: _sectionController,
+                                        label: 'Section',
+                                        icon: Icons.groups,
+                                        validator: _validateSection,
+                                        isRequired: false,
+                                        hintText: 'e.g., Section A',
+                                      ),
+                                      const SizedBox(height: 20),
+
+                                      // Reading Level Dropdown
+                                      _buildEnhancedReadingLevelDropdown(),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 32),
+
+                              // Error Message Display
+                              if (_errorMessage != null && _isSaving == false)
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.shade50,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.red.shade200),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.red.shade100,
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Icon(
+                                        Icons.error_outline_rounded,
+                                        color: Colors.red.shade700,
+                                        size: 24,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Update Failed',
+                                              style: textTheme.bodyMedium?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.red.shade700,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              _errorMessage!,
+                                              style: textTheme.bodySmall?.copyWith(
+                                                color: Colors.red.shade600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                              // Action Buttons
+                              const SizedBox(height: 32),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(vertical: 18),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        side: BorderSide(
+                                          color: colorScheme.outline.withOpacity(0.3),
+                                          width: 1.5,
+                                        ),
+                                        backgroundColor: colorScheme.surface,
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          const Icon(Icons.arrow_back),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Cancel',
+                                            style: textTheme.titleMedium?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                              color: colorScheme.onSurface.withOpacity(0.8),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      onPressed: _isSaving ? null : _saveProfile,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: colorScheme.primary,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(vertical: 18),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        elevation: 3,
+                                        shadowColor: colorScheme.primary.withOpacity(0.4),
+                                        disabledBackgroundColor: colorScheme.primary.withOpacity(0.5),
+                                      ),
+                                      child: _isSaving
+                                          ? Row(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                SizedBox(
+                                                  width: 20,
+                                                  height: 20,
+                                                  child: CircularProgressIndicator(
+                                                    strokeWidth: 2,
+                                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Text(
+                                                  'Saving...',
+                                                  style: textTheme.titleMedium?.copyWith(
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ],
+                                            )
+                                          : Row(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                const Icon(Icons.save_alt),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  'Save Changes',
+                                                  style: textTheme.titleMedium?.copyWith(
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+                              
+                              // Help Text
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.surfaceVariant.withOpacity(0.3),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: colorScheme.surfaceVariant.withOpacity(0.5),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.info_outline,
+                                      color: colorScheme.primary,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        'Fields marked with * are required. Make sure all information is accurate before saving.',
+                                        style: textTheme.bodySmall?.copyWith(
+                                          color: colorScheme.onSurface.withOpacity(0.7),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -605,64 +1040,262 @@ class _EditStudentProfileTeacherPageState extends State<EditStudentProfileTeache
     );
   }
 
-  Widget _buildTextField({
+  Widget _buildEnhancedTextField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
     required String? Function(String?) validator,
+    required bool isRequired,
     TextInputType keyboardType = TextInputType.text,
+    String? hintText,
   }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      validator: validator,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                icon,
+                size: 18,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                '$label${isRequired ? ' *' : ''}',
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
         ),
-        filled: true,
-        fillColor: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
-      ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: TextFormField(
+            controller: controller,
+            keyboardType: keyboardType,
+            validator: validator,
+            style: TextStyle(
+              fontSize: 15,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+            decoration: InputDecoration(
+              hintText: hintText,
+              filled: true,
+              fillColor: Theme.of(context).colorScheme.surface,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                  width: 1,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: Theme.of(context).colorScheme.primary,
+                  width: 2,
+                ),
+              ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(
+                  color: Colors.red,
+                  width: 1,
+                ),
+              ),
+              focusedErrorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(
+                  color: Colors.red,
+                  width: 2,
+                ),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildReadingLevelDropdown() {
-    return DropdownButtonFormField<String>(
-      value: _selectedLevelId,
-      decoration: InputDecoration(
-        labelText: 'Reading Level *',
-        prefixIcon: const Icon(Icons.book),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+  Widget _buildEnhancedReadingLevelDropdown() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.book_outlined,
+                size: 18,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Reading Level *',
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Theme.of(context).colorScheme.onSurface,
+                fontSize: 14,
+              ),
+            ),
+          ],
         ),
-        filled: true,
-        fillColor: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
-      ),
-      items: _readingLevels.map((level) {
-        final levelNumber = level['level_number'] as int?;
-        final title = level['title'] as String?;
-        final id = level['id'] as String?;
-        
-        return DropdownMenuItem<String>(
-          value: id,
-          child: Text(
-            'Level ${levelNumber ?? 'N/A'}${title != null ? ': $title' : ''}',
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        );
-      }).toList(),
-      onChanged: (value) {
-        setState(() {
-          _selectedLevelId = value;
-        });
-      },
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Please select a reading level';
-        }
-        return null;
-      },
+          child: DropdownButtonFormField<String>(
+            value: _selectedLevelId,
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: Theme.of(context).colorScheme.surface,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                  width: 1,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: Theme.of(context).colorScheme.primary,
+                  width: 2,
+                ),
+              ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(
+                  color: Colors.red,
+                  width: 1,
+                ),
+              ),
+              focusedErrorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(
+                  color: Colors.red,
+                  width: 2,
+                ),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 4,
+              ),
+              prefixIcon: Icon(
+                Icons.arrow_drop_down_circle_outlined,
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
+              ),
+            ),
+            items: _readingLevels.map((level) {
+              final levelNumber = level['level_number'] as int?;
+              final title = level['title'] as String?;
+              final id = level['id'] as String?;
+              
+              return DropdownMenuItem<String>(
+                value: id,
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'L${levelNumber ?? '?'}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        title ?? 'Unknown Level',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+            onChanged: (value) {
+              setState(() {
+                _selectedLevelId = value;
+              });
+            },
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please select a reading level';
+              }
+              return null;
+            },
+            style: TextStyle(
+              fontSize: 15,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+            isExpanded: true,
+            icon: Icon(
+              Icons.arrow_drop_down,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+            ),
+            dropdownColor: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(12),
+            elevation: 4,
+            menuMaxHeight: 300,
+          ),
+        ),
+      ],
     );
   }
 
@@ -696,8 +1329,8 @@ class _EditStudentProfileTeacherPageState extends State<EditStudentProfileTeache
       return 'Please enter username';
     }
     final trimmed = value.trim();
-    if (trimmed.length < 4) {
-      return 'Username must be at least 4 characters';
+    if (trimmed.length < 2) {
+      return 'Username must be at least 2 characters';
     }
     if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(trimmed)) {
       return 'Username can only contain letters, numbers, and underscores';
@@ -715,4 +1348,3 @@ class _EditStudentProfileTeacherPageState extends State<EditStudentProfileTeache
     return null;
   }
 }
-
