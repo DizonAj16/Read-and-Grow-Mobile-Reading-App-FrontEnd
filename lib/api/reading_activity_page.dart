@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/student_model.dart';
+import '../utils/file_validator.dart';
 
 class ReadingActivityPage extends StatefulWidget {
   final String taskId;
@@ -111,16 +112,35 @@ class _ReadingActivityPageState extends State<ReadingActivityPage> {
     try {
       final user = supabase.auth.currentUser;
       if (user == null) {
-        Text('You must be logged in to upload');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('You must be logged in to upload')),
+          );
+        }
         return;
       }
       print('hello ${user.id}');
 
       final file = File(_recordedPath!);
+      
+      // Backend validation: Check file size
+      final sizeValidation = await validateFileSize(file);
+      if (!sizeValidation.isValid) {
+        debugPrint('❌ [UPLOAD_RECORDING] File size validation failed: ${sizeValidation.getDetailedInfo()}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(sizeValidation.getUserMessage()),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
       final fileName = 'reading_${user.id}_${DateTime.now().millisecondsSinceEpoch}.m4a';
       final storagePath = 'student_voice/$fileName';
       await supabase.storage.from('student_voice').upload(storagePath, file);
-      final taskId = widget.taskId;
       final publicUrl = supabase.storage.from('student_voice').getPublicUrl(storagePath);
       print('hellooo ${publicUrl}');
       await supabase.from('student_recordings').insert({
@@ -135,8 +155,15 @@ class _ReadingActivityPageState extends State<ReadingActivityPage> {
     } catch (e) {
       debugPrint('Error uploading recording: $e');
       if (mounted) {
+        String errorMessage = 'Upload failed: $e';
+        if (e is FileSizeLimitException) {
+          errorMessage = e.message;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload failed: $e')),
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {

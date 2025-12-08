@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../api/supabase_api_service.dart';
 import '../../../../models/quiz_questions.dart';
 import '../../quiz_preview_screen.dart';
+import '../../../../utils/file_validator.dart';
 
 class AddLessonWithQuizScreen extends StatefulWidget {
   final String? readingLevelId;
@@ -252,10 +253,35 @@ class _AddLessonWithQuizScreenState extends State<AddLessonWithQuizScreen> {
 
     if (result != null && result.files.single.path != null) {
       final file = File(result.files.single.path!);
+      
+      // Front-end validation: Immediately check file size
+      final validation = await validateFileSize(file);
+      if (!validation.isValid) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(validation.getUserMessage()),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return; // Prevent upload button from triggering
+      }
+
       final fileExtension = file.path.split('.').last.toLowerCase();
 
       final uploadedUrl = await ApiService.uploadFile(file);
-      if (uploadedUrl == null) return;
+      if (uploadedUrl == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to upload file. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
 
       setState(() {
         _uploadedFileUrl = uploadedUrl;
@@ -283,7 +309,30 @@ class _AddLessonWithQuizScreenState extends State<AddLessonWithQuizScreen> {
 
     if (pickedFile != null) {
       File file = File(pickedFile.path);
+      
+      // Front-end validation: Immediately check file size
+      final validation = await validateFileSize(file);
+      if (!validation.isValid) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(validation.getUserMessage()),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return null; // Prevent upload button from triggering
+      }
+
       String? uploadedUrl = await ApiService.uploadFile(file);
+      if (uploadedUrl == null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to upload image. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       return uploadedUrl;
     }
     return null;

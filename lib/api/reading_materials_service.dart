@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/validators.dart';
 import '../utils/database_helpers.dart';
+import '../utils/file_validator.dart';
 
 class ReadingMaterial {
   final String id;
@@ -166,10 +167,11 @@ class ReadingMaterialsService {
         return {'error': 'File does not exist'};
       }
 
-      final fileSize = await file.length();
-      const maxSize = 50 * 1024 * 1024; // 50MB
-      if (fileSize > maxSize) {
-        return {'error': 'File size exceeds 50MB limit'};
+      // Backend validation: Check file size using standard validator
+      final sizeValidation = await validateFileSize(file);
+      if (!sizeValidation.isValid) {
+        debugPrint('❌ [UPLOAD_READING_MATERIAL] File size validation failed: ${sizeValidation.getDetailedInfo()}');
+        return FileValidator.backendErrorResponse();
       }
 
       final fileExtension = file.path.split('.').last.toLowerCase();
@@ -195,9 +197,7 @@ class ReadingMaterialsService {
         }
       }
 
-      debugPrint(
-        '✅ [READING_MATERIAL] File validation passed - Type: $fileType, Size: ${fileSize / 1024 / 1024}MB',
-      );
+
 
       // 6️⃣ Upload to Supabase Storage
       final timestamp = DateTime.now().millisecondsSinceEpoch;

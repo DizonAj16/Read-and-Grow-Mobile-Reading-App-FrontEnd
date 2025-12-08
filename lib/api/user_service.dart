@@ -9,6 +9,7 @@ import '../models/teacher_model.dart';
 import '../utils/validators.dart';
 import '../utils/data_validators.dart';
 import '../utils/database_helpers.dart';
+import '../utils/file_validator.dart';
 
 class UserService {
 
@@ -441,11 +442,19 @@ class UserService {
       }
 
       // 3️⃣ Validate file size (max 5MB for profile pictures)
-      final fileSize = await originalFile.length();
-      const maxSize = 5 * 1024 * 1024; // 5MB
-      if (fileSize > maxSize) {
-        debugPrint('❌ [UPLOAD_PROFILE] File too large: ${fileSize / 1024 / 1024}MB');
-        return null;
+      final sizeValidation = await validateFileSize(
+        originalFile,
+        limitMB: FileValidator.defaultMaxSizeMB,
+      );
+      if (!sizeValidation.isValid) {
+        debugPrint(
+          '❌ [UPLOAD_PROFILE] File too large: ${sizeValidation.getDetailedInfo()}',
+        );
+        throw FileSizeLimitException(
+          FileValidator.backendLimitMessage(FileValidator.defaultMaxSizeMB),
+          actualSizeMB: sizeValidation.actualSizeMB,
+          limitMB: sizeValidation.limitMB,
+        );
       }
 
       // 4️⃣ Determine bucket and file extension
@@ -455,7 +464,6 @@ class UserService {
           ? fileExtension
           : 'png'; // Default to png if invalid
 
-      debugPrint('📸 [UPLOAD_PROFILE] Using bucket: $bucket, extension: $validExtension, size: ${fileSize / 1024}KB');
 
       // 5️⃣ Create unique filename with proper extension
       final timestamp = DateTime.now().millisecondsSinceEpoch;
@@ -513,6 +521,8 @@ class UserService {
 
       debugPrint("✅ [UPLOAD_PROFILE] Profile picture uploaded successfully: $publicUrl");
       return publicUrl;
+    } on FileSizeLimitException {
+      rethrow;
     } catch (e, stackTrace) {
       debugPrint("❌ [UPLOAD_PROFILE] Error uploading profile picture: $e");
       debugPrint('Stack trace: $stackTrace');

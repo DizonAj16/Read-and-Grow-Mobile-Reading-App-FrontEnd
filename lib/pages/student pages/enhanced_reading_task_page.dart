@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:dio/dio.dart';
+import '../../../utils/file_validator.dart';
 
 class EnhancedReadingTaskPage extends StatefulWidget {
   final Map<String, dynamic> task;
@@ -231,6 +232,23 @@ class _EnhancedReadingTaskPageState extends State<EnhancedReadingTaskPage> {
       if (recordingPath != null && File(recordingPath!).existsSync()) {
         try {
           final file = File(recordingPath!);
+          
+          // Backend validation: Check file size
+          final sizeValidation = await validateFileSize(file);
+          if (!sizeValidation.isValid) {
+            debugPrint('❌ [UPLOAD_RECORDING] File size validation failed: ${sizeValidation.getDetailedInfo()}');
+            setState(() => isLoading = false);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(sizeValidation.getUserMessage()),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+            return;
+          }
+
           final fileName = 'reading_task_${user.id}_${widget.task['id']}_${DateTime.now().millisecondsSinceEpoch}.m4a';
           final storagePath = 'student_voice/$fileName';
 
@@ -256,8 +274,15 @@ class _EnhancedReadingTaskPageState extends State<EnhancedReadingTaskPage> {
           debugPrint('⚠️ Failed to upload recording: $e');
           setState(() => isLoading = false);
           if (mounted) {
+            String errorMessage = 'Upload failed: $e';
+            if (e is FileSizeLimitException) {
+              errorMessage = e.message;
+            }
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Upload failed: $e')),
+              SnackBar(
+                content: Text(errorMessage),
+                backgroundColor: Colors.red,
+              ),
             );
           }
           return;

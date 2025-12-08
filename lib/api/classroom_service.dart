@@ -7,6 +7,7 @@ import '../models/student_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/validators.dart';
 import '../utils/database_helpers.dart';
+import '../utils/file_validator.dart';
 
 class ClassroomService {
 
@@ -718,16 +719,30 @@ class ClassroomService {
   static Future<http.Response?> uploadClassBackground({
     required String classId,
     required String filePath,
+    double sizeLimitMB = FileValidator.defaultMaxSizeMB,
   }) async {
     try {
       final supabase = Supabase.instance.client;
+
+      final file = File(filePath);
+      final sizeValidation = await validateFileSize(
+        file,
+        limitMB: sizeLimitMB,
+      );
+      if (!sizeValidation.isValid) {
+        throw FileSizeLimitException(
+          FileValidator.backendLimitMessage(sizeLimitMB),
+          actualSizeMB: sizeValidation.actualSizeMB,
+          limitMB: sizeLimitMB,
+        );
+      }
 
       final fileName =
           'class_backgrounds/$classId-${DateTime
           .now()
           .millisecondsSinceEpoch}.jpg';
 
-      final fileBytes = await File(filePath).readAsBytes();
+      final fileBytes = await file.readAsBytes();
       
       // Upload file to Supabase storage
       try {
@@ -768,6 +783,8 @@ class ClassroomService {
         200,
         headers: {'content-type': 'application/json'},
       );
+    } on FileSizeLimitException {
+      rethrow;
     } catch (e) {
       print('❌ Error uploading class background: $e');
       return null;

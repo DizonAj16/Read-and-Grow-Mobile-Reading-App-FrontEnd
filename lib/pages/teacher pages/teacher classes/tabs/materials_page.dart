@@ -6,6 +6,7 @@ import 'package:deped_reading_app_laravel/models/material_model.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:lottie/lottie.dart';
+import 'package:deped_reading_app_laravel/utils/file_validator.dart';
 import 'package:shimmer/shimmer.dart';
 import '../pdf helper/pdf_viewer.dart';
 import 'package:chewie/chewie.dart';
@@ -36,6 +37,7 @@ class _MaterialsPageState extends State<MaterialsPage> {
   File? _selectedFile;
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
+  static const double _maxUploadSizeMB = FileValidator.defaultMaxSizeMB;
 
   @override
   void initState() {
@@ -97,20 +99,44 @@ class _MaterialsPageState extends State<MaterialsPage> {
     );
   }
 
-  Future<void> _pickFile() async {
+  Future<String?> _pickFile() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.any,
       allowMultiple: false,
     );
 
     if (result != null && result.files.single.path != null) {
+      final file = File(result.files.single.path!);
+      final validation = await validateFileSize(
+        file,
+        limitMB: _maxUploadSizeMB,
+      );
+
+      if (!validation.isValid) {
+        setState(() => _selectedFile = null);
+        return FileValidator.tooLargeMessage(_maxUploadSizeMB);
+      }
+
       setState(() {
-        _selectedFile = File(result.files.single.path!);
+        _selectedFile = file;
       });
     }
+    return null;
   }
 
   Future<void> _uploadMaterial() async {
+    if (_selectedFile == null) return;
+
+    final validation = await validateFileSize(
+      _selectedFile!,
+      limitMB: _maxUploadSizeMB,
+    );
+
+    if (!validation.isValid) {
+      _showErrorSnackbar(FileValidator.tooLargeMessage(_maxUploadSizeMB));
+      return;
+    }
+
     // Show file size before uploading
     final fileSize = await _selectedFile!.length();
     final fileName = _selectedFile!.path.split('/').last;
@@ -135,7 +161,7 @@ class _MaterialsPageState extends State<MaterialsPage> {
       final success = await MaterialService.uploadMaterialFile(
         file: _selectedFile!,
         materialTitle: _titleController.text,
-        classroomId: widget.classId,
+        classroomId: widget.classId.toString(),
         materialType: materialType,
         description:
             _descriptionController.text.isNotEmpty
@@ -157,6 +183,11 @@ class _MaterialsPageState extends State<MaterialsPage> {
         if (mounted) {
           _showErrorSnackbar("Failed to upload $materialType.");
         }
+      }
+    } on FileSizeLimitException catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        _showErrorSnackbar(e.message);
       }
     } catch (e) {
       if (mounted) {
@@ -534,11 +565,13 @@ class _MaterialsPageState extends State<MaterialsPage> {
                   // File selection area
                   InkWell(
                     onTap: () async {
-                      await _pickFile();
+                      final validationMessage = await _pickFile();
                       setDialogState(() {
-                        errorMessage =
-                            null; // Clear error when file is selected
+                        errorMessage = validationMessage;
                       });
+                      if (validationMessage != null) {
+                        _showErrorSnackbar(validationMessage);
+                      }
                     },
                     borderRadius: BorderRadius.circular(12),
                     child: Container(

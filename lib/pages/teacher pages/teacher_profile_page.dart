@@ -10,6 +10,7 @@ import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:deped_reading_app_laravel/utils/file_validator.dart';
 import '../../models/teacher_model.dart';
 import 'edit_teacher_profile_page.dart';
 
@@ -101,6 +102,44 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(source: ImageSource.gallery);
       if (pickedFile == null) return;
+
+      final sizeValidation = await validateFileSize(
+        File(pickedFile.path),
+        limitMB: FileValidator.defaultMaxSizeMB,
+      );
+      if (!sizeValidation.isValid) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.error_outline, color: Colors.red.shade100, size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      sizeValidation.getUserMessage(),
+                      style: TextStyle(
+                        color: Colors.red.shade100,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.red.shade800,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              duration: const Duration(seconds: 4),
+              elevation: 6,
+            ),
+          );
+        }
+        return; // Prevent upload button from triggering
+      }
 
       setState(() {
         _pickedImageFile = pickedFile;

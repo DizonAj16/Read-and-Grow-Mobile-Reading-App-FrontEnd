@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../api/reading_materials_service.dart';
+import '../../utils/file_validator.dart';
 
 class TeacherReadingMaterialsPage extends StatefulWidget {
   final String? classId;
@@ -567,10 +568,26 @@ class _TeacherReadingMaterialsPageState
                                                 if (result != null &&
                                                     result.files.single.path !=
                                                         null) {
+                                                  final file = File(
+                                                    result.files.single.path!,
+                                                  );
+                                                  
+                                                  // Front-end validation: Immediately check file size
+                                                  final validation = await validateFileSize(file);
+                                                  if (!validation.isValid) {
+                                                    if (mounted) {
+                                                      ScaffoldMessenger.of(context).showSnackBar(
+                                                        SnackBar(
+                                                          content: Text(validation.getUserMessage()),
+                                                          backgroundColor: Colors.red,
+                                                        ),
+                                                      );
+                                                    }
+                                                    return; // Prevent upload button from triggering
+                                                  }
+                                                  
                                                   setDialogState(() {
-                                                    selectedFile = File(
-                                                      result.files.single.path!,
-                                                    );
+                                                    selectedFile = file;
                                                     fileType = 'pdf';
                                                   });
                                                 }
@@ -614,10 +631,26 @@ class _TeacherReadingMaterialsPageState
                                                 if (result != null &&
                                                     result.files.single.path !=
                                                         null) {
+                                                  final file = File(
+                                                    result.files.single.path!,
+                                                  );
+                                                  
+                                                  // Front-end validation: Immediately check file size
+                                                  final validation = await validateFileSize(file);
+                                                  if (!validation.isValid) {
+                                                    if (mounted) {
+                                                      ScaffoldMessenger.of(context).showSnackBar(
+                                                        SnackBar(
+                                                          content: Text(validation.getUserMessage()),
+                                                          backgroundColor: Colors.red,
+                                                        ),
+                                                      );
+                                                    }
+                                                    return; // Prevent upload button from triggering
+                                                  }
+                                                  
                                                   setDialogState(() {
-                                                    selectedFile = File(
-                                                      result.files.single.path!,
-                                                    );
+                                                    selectedFile = file;
                                                     fileType = 'image';
                                                   });
                                                 }

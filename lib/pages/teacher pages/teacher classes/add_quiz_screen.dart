@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../api/supabase_api_service.dart';
 import '../../../../models/quiz_questions.dart';
+import '../../../../utils/file_validator.dart';
 
 class AddQuizScreen extends StatefulWidget {
   final String? lessonId;
@@ -249,7 +250,30 @@ void _deleteQuestion(int index) {
     
     if (pickedFile != null) {
       File file = File(pickedFile.path);
+      
+      // Front-end validation: Immediately check file size
+      final validation = await validateFileSize(file);
+      if (!validation.isValid) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(validation.getUserMessage()),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return null; // Prevent upload button from triggering
+      }
+
       String? uploadedUrl = await ApiService.uploadFile(file);
+      if (uploadedUrl == null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to upload image. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       return uploadedUrl;
     }
     return null;

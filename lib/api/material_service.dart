@@ -5,6 +5,7 @@ import '../models/material_model.dart';
 import '../utils/validators.dart';
 import '../utils/data_validators.dart';
 import '../utils/database_helpers.dart';
+import '../utils/file_validator.dart';
 
 class MaterialService {
   static final supabase = Supabase.instance.client;
@@ -15,6 +16,7 @@ class MaterialService {
     required String classroomId,
     String? materialType,
     String? description,
+    double sizeLimitMB = FileValidator.defaultMaxSizeMB,
   }) async {
     try {
       debugPrint('📦 [UPLOAD_MATERIAL] Starting material upload');
@@ -40,21 +42,27 @@ class MaterialService {
         throw Exception("Invalid classroom ID");
       }
 
-      // 3️⃣ Validate file exists and check size (max 50MB)
+      // 3️⃣ Validate file exists and check size
       if (!await file.exists()) {
         debugPrint('❌ [UPLOAD_MATERIAL] File does not exist: ${file.path}');
         throw Exception("File does not exist");
       }
 
-      final fileSize = await file.length();
-      final maxSize = 50 * 1024 * 1024; // 50MB
-      debugPrint('📦 [UPLOAD_MATERIAL] File size: ${(fileSize / 1024 / 1024).toStringAsFixed(2)}MB');
-      
-      final sizeError = Validators.validateFileSize(fileSize, maxSize);
-      if (sizeError != null) {
-        debugPrint('❌ [UPLOAD_MATERIAL] File size validation failed: $sizeError');
-        throw Exception(sizeError);
+      final sizeValidation =
+          await validateFileSize(file, limitMB: sizeLimitMB);
+      if (!sizeValidation.isValid) {
+        debugPrint(
+          '❌ [UPLOAD_MATERIAL] File size validation failed: ${sizeValidation.getDetailedInfo()}',
+        );
+        throw FileSizeLimitException(
+          FileValidator.backendLimitMessage(sizeLimitMB),
+          actualSizeMB: sizeValidation.actualSizeMB,
+          limitMB: sizeLimitMB,
+        );
       }
+
+      final fileSize = await file.length();
+      debugPrint('📦 [UPLOAD_MATERIAL] File size: ${(fileSize / 1024 / 1024).toStringAsFixed(2)}MB');
 
       // Build material data (without file_url initially - will be added after upload)
       final materialData = <String, dynamic>{
@@ -209,6 +217,8 @@ class MaterialService {
 
       debugPrint('✅ [UPLOAD_MATERIAL] Material uploaded successfully - ID: ${insertResult['id']}');
       return true;
+    } on FileSizeLimitException {
+      rethrow;
     } catch (e, stackTrace) {
       debugPrint("❌ [UPLOAD_MATERIAL] Error uploading material: $e");
       debugPrint('Stack trace: $stackTrace');

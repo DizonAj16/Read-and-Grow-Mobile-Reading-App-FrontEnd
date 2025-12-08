@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/quiz_questions.dart';
+import '../utils/file_validator.dart';
 
 class ApiService {
   static const String supabaseUrl =
@@ -17,6 +18,17 @@ class ApiService {
   );
   static Future<String?> uploadFile(File file) async {
     try {
+      // Backend validation: Check file size
+      final sizeValidation = await validateFileSize(file);
+      if (!sizeValidation.isValid) {
+        debugPrint('❌ [UPLOAD_FILE] File size validation failed: ${sizeValidation.getDetailedInfo()}');
+        throw FileSizeLimitException(
+          FileValidator.backendLimitMessage(FileValidator.defaultMaxSizeMB),
+          actualSizeMB: sizeValidation.actualSizeMB,
+          limitMB: sizeValidation.limitMB,
+        );
+      }
+
       String fileName =
           'file_${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
       // Using 'materials' bucket as per user's Supabase storage setup
@@ -37,6 +49,9 @@ class ApiService {
       print('✅ Uploaded: $fileUrl');
       return fileUrl;
     } catch (e) {
+      if (e is FileSizeLimitException) {
+        rethrow;
+      }
       print('⚠️ Error uploading file: $e');
       return null;
     }

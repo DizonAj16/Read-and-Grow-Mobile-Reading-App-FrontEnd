@@ -4,6 +4,7 @@ import '../../../../api/supabase_api_service.dart';
 import 'add_quiz_screen.dart';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
+import '../../../../utils/file_validator.dart';
 
 class AddLessonScreen extends StatefulWidget {
   final String? readingLevelId;
@@ -38,9 +39,36 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
 
     if (result != null && result.files.single.path != null) {
       File file = File(result.files.single.path!);
+      
+      // Front-end validation: Immediately check file size
+      final validation = await validateFileSize(file);
+      if (!validation.isValid) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(validation.getUserMessage()),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return; // Prevent upload button from triggering
+      }
+
       String fileExtension = file.path.split('.').last.toLowerCase();
 
       String? uploadedUrl = await ApiService.uploadFile(file);
+      
+      if (uploadedUrl == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to upload file. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
 
       setState(() {
         _uploadedFileUrl = uploadedUrl;

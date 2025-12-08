@@ -8,6 +8,7 @@ import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../utils/validators.dart';
 import '../../../utils/database_helpers.dart';
+import '../../../utils/file_validator.dart';
 
 class ReadingTaskPage extends StatefulWidget {
   final Map<String, dynamic> task;
@@ -469,12 +470,15 @@ class _ReadingTaskPageState extends State<ReadingTaskPage> {
         });
       }
 
-      // Validate file size (max 10MB)
-      final fileSize = await recordingFile.length();
-      final maxSize = 10 * 1024 * 1024; // 10MB
-      final sizeError = Validators.validateFileSize(fileSize, maxSize);
-      if (sizeError != null) {
-        throw Exception(sizeError);
+      // Backend validation: Check file size (using standard 5MB limit)
+      final sizeValidation = await validateFileSize(recordingFile);
+      if (!sizeValidation.isValid) {
+        debugPrint('❌ [UPLOAD_RECORDING] File size validation failed: ${sizeValidation.getDetailedInfo()}');
+        throw FileSizeLimitException(
+          sizeValidation.getUserMessage(),
+          actualSizeMB: sizeValidation.actualSizeMB,
+          limitMB: sizeValidation.limitMB,
+        );
       }
 
       // Upload recording to Supabase Storage

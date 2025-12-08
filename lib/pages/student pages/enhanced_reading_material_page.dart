@@ -10,6 +10,7 @@ import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:dio/dio.dart';
 import 'package:iconsax/iconsax.dart';
 import '../../api/reading_materials_service.dart';
+import '../../utils/file_validator.dart';
 
 class EnhancedReadingMaterialPage extends StatefulWidget {
   final Map<String, dynamic> material;
@@ -545,6 +546,22 @@ class _EnhancedReadingMaterialPageState
     try {
       setState(() => isSubmitting = true);
 
+      // Backend validation: Check file size
+      final sizeValidation = await validateFileSize(recordingFile);
+      if (!sizeValidation.isValid) {
+        debugPrint('❌ [UPLOAD_RECORDING] File size validation failed: ${sizeValidation.getDetailedInfo()}');
+        setState(() => isSubmitting = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(sizeValidation.getUserMessage()),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
       // Check if this is a retake or first submission
       final isRetakeSubmission = (_isRetakeRequested || _isRetakeApproved) && _hasExistingRecording;
 
@@ -635,9 +652,13 @@ class _EnhancedReadingMaterialPageState
       debugPrint('Error submitting recording: $e');
       setState(() => isSubmitting = false);
       if (mounted) {
+        String errorMessage = 'Error submitting: ${e.toString()}';
+        if (e is FileSizeLimitException) {
+          errorMessage = e.message;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error submitting: ${e.toString()}'),
+            content: Text(errorMessage),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
