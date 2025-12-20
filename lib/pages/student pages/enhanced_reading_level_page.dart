@@ -18,7 +18,8 @@ class _EnhancedReadingLevelPageState extends State<EnhancedReadingLevelPage>
   final supabase = Supabase.instance.client;
   Map<String, dynamic>? currentLevel;
   List<Map<String, dynamic>> materials = [];
-  List<Map<String, dynamic>> filteredMaterials = []; // Materials with prerequisite status
+  List<Map<String, dynamic>> filteredMaterials =
+      []; // Materials with prerequisite status
   Map<String, dynamic> submissionMap =
       {}; // Maps material_id to submission record
   bool isLoading = true;
@@ -72,13 +73,15 @@ class _EnhancedReadingLevelPageState extends State<EnhancedReadingLevelPage>
       if (user == null) return;
 
       // 🔹 Fetch student's record
-      final studentRes = await supabase
-          .from('students')
-          .select('id, current_reading_level_id')
-          .eq('id', user.id)
-          .maybeSingle();
+      final studentRes =
+          await supabase
+              .from('students')
+              .select('id, current_reading_level_id')
+              .eq('id', user.id)
+              .maybeSingle();
 
-      if (studentRes == null || studentRes['current_reading_level_id'] == null) {
+      if (studentRes == null ||
+          studentRes['current_reading_level_id'] == null) {
         if (mounted) {
           setState(() => isLoading = false);
         }
@@ -89,56 +92,68 @@ class _EnhancedReadingLevelPageState extends State<EnhancedReadingLevelPage>
       final levelId = studentRes['current_reading_level_id'];
 
       // 🔹 Get level details
-      final levelRes = await supabase
-          .from('reading_levels')
-          .select('*')
-          .eq('id', levelId)
-          .maybeSingle();
+      final levelRes =
+          await supabase
+              .from('reading_levels')
+              .select('*')
+              .eq('id', levelId)
+              .maybeSingle();
 
       // 🔹 Get reading materials with prerequisite status
-final materialsData = await ReadingMaterialsService.getReadingMaterialsByLevelForStudent(
-  levelId,
-  studentId,
-  classRoomId: widget.classId,
-);
-// Sort the materialsData by material.createdAt before mapping
-materialsData.sort((a, b) {
-  final materialA = a['material'] as ReadingMaterial;
-  final materialB = b['material'] as ReadingMaterial;
-  return materialA.createdAt.compareTo(materialB.createdAt); // Ascending order
-});
+      final materialsData =
+          await ReadingMaterialsService.getReadingMaterialsByLevelForStudent(
+            levelId,
+            studentId,
+            classRoomId: widget.classId,
+          );
+      // Sort the materialsData by material.createdAt before mapping
+      materialsData.sort((a, b) {
+        final materialA = a['material'] as ReadingMaterial;
+        final materialB = b['material'] as ReadingMaterial;
+        return materialA.createdAt.compareTo(
+          materialB.createdAt,
+        ); // Ascending order
+      });
       // Convert to our format
-      final materialsList = materialsData.map((data) {
-        final material = data['material'] as ReadingMaterial;
-        final isAccessible = data['is_accessible'] as bool;
-        final hasCompletedPrerequisite = data['has_completed_prerequisite'] as bool;
-        final hasCompletedMaterial = data['has_completed_material'] as bool;
-        final prerequisiteTitle = data['prerequisite_title'] as String?;
-        
-        return {
-          'material': material,
-          'is_accessible': isAccessible,
-          'has_completed_prerequisite': hasCompletedPrerequisite,
-          'has_completed_material': hasCompletedMaterial,
-          'prerequisite_title': prerequisiteTitle,
-          'id': material.id,
-          'title': material.title,
-          'description': material.description,
-          'file_url': material.fileUrl,
-          'created_at': material.createdAt.toIso8601String(),
-          'class_room_id': material.classRoomId,
-          'level_id': material.levelId,
-          'level_number': material.levelNumber,
-          'level_title': material.levelTitle,
-          'has_prerequisite': material.hasPrerequisite,
-          'prerequisite_id': material.prerequisiteId,
-          'prerequisite_title': material.prerequisiteTitle,
-        };
-      }).toList();
+      final materialsList =
+          materialsData.map((data) {
+            final material = data['material'] as ReadingMaterial;
+            final isAccessible = data['is_accessible'] as bool;
+            final hasCompletedPrerequisite =
+                data['has_completed_prerequisite'] as bool;
+            final hasCompletedMaterial = data['has_completed_material'] as bool;
+            final prerequisiteTitle = data['prerequisite_title'] as String?;
+
+            return {
+              'material': material,
+              'is_accessible': isAccessible,
+              'has_completed_prerequisite': hasCompletedPrerequisite,
+              'has_completed_material': hasCompletedMaterial,
+              'prerequisite_title': prerequisiteTitle,
+              'id': material.id,
+              'title': material.title,
+              'description': material.description,
+              'file_url': material.fileUrl,
+              'audio_url': material.audioUrl, 
+
+              'created_at': material.createdAt.toIso8601String(),
+              'class_room_id': material.classRoomId,
+              'level_id': material.levelId,
+              'level_number': material.levelNumber,
+              'level_title': material.levelTitle,
+              'has_prerequisite': material.hasPrerequisite,
+              'prerequisite_id': material.prerequisiteId,
+              'prerequisite_title': material.prerequisiteTitle,
+            };
+          }).toList();
 
       // 🔹 Get student's submission records for these materials
-      final materialIds = materialsList.map((m) => m['id'].toString()).whereType<String>().toList();
-      
+      final materialIds =
+          materialsList
+              .map((m) => m['id'].toString())
+              .whereType<String>()
+              .toList();
+
       if (materialIds.isNotEmpty) {
         final submissionsRes = await supabase
             .from('student_recordings')
@@ -221,7 +236,7 @@ materialsData.sort((a, b) {
   /// Get filtered materials based on current tab
   List<Map<String, dynamic>> _getFilteredMaterials() {
     final allMaterials = materials;
-    
+
     if (_currentTabIndex == 0) {
       // All materials
       return allMaterials;
@@ -254,7 +269,7 @@ materialsData.sort((a, b) {
               CircularProgressIndicator(color: primaryColor),
               const SizedBox(height: 16),
               Text(
-                isClassContext 
+                isClassContext
                     ? 'Loading Class Reading Materials...'
                     : 'Loading Reading Level...',
                 style: TextStyle(fontSize: 16, color: Colors.grey[600]),
@@ -339,13 +354,17 @@ materialsData.sort((a, b) {
       );
     }
 
-    final accessibleMaterials = materials.where((m) => _isMaterialAccessible(m)).toList();
-    final inaccessibleMaterials = materials.where((m) => !_isMaterialAccessible(m)).toList();
+    final accessibleMaterials =
+        materials.where((m) => _isMaterialAccessible(m)).toList();
+    final inaccessibleMaterials =
+        materials.where((m) => !_isMaterialAccessible(m)).toList();
     final submittedCount = submissionMap.length;
-    final progressPercent = materials.isNotEmpty ? submittedCount / materials.length : 0.0;
+    final progressPercent =
+        materials.isNotEmpty ? submittedCount / materials.length : 0.0;
 
     // Determine if we're in class context to show appropriate title
-    final pageTitle = isClassContext ? 'Class Reading Level' : 'My Reading Level';
+    final pageTitle =
+        isClassContext ? 'Class Reading Level' : 'My Reading Level';
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -617,8 +636,8 @@ materialsData.sort((a, b) {
                                           ? 'No Reading Materials in this Class'
                                           : 'No Reading Materials Available'
                                       : isClassContext
-                                          ? 'No Class Materials Submitted'
-                                          : 'No Materials Submitted',
+                                      ? 'No Class Materials Submitted'
+                                      : 'No Materials Submitted',
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w600,
@@ -633,8 +652,8 @@ materialsData.sort((a, b) {
                                           ? 'Your teacher will add reading materials for this class soon.'
                                           : 'Check back later for new reading materials'
                                       : isClassContext
-                                          ? 'Submit recordings for this class to see them here'
-                                          : 'Submit recordings to see them here',
+                                      ? 'Submit recordings for this class to see them here'
+                                      : 'Submit recordings to see them here',
                                   style: TextStyle(
                                     fontSize: 14,
                                     color: Colors.grey[600],
@@ -681,9 +700,10 @@ materialsData.sort((a, b) {
 
                       // Check if material belongs to current class (when in class context)
                       final materialClassId = material['class_room_id'];
-                      final isClassMaterial = isClassContext
-                          ? materialClassId == widget.classId
-                          : true;
+                      final isClassMaterial =
+                          isClassContext
+                              ? materialClassId == widget.classId
+                              : true;
 
                       return _buildMaterialCard(
                         material: material,
@@ -783,7 +803,10 @@ materialsData.sort((a, b) {
       actionText = 'Record Retake';
     } else if (isSubmitted) {
       statusColor = isGraded ? Colors.green : Colors.blue;
-      statusLightColor = isGraded ? Colors.green.withOpacity(0.1) : Colors.blue.withOpacity(0.1);
+      statusLightColor =
+          isGraded
+              ? Colors.green.withOpacity(0.1)
+              : Colors.blue.withOpacity(0.1);
       statusIcon = isGraded ? Icons.check_circle : Icons.hourglass_top;
       statusText = isGraded ? 'Graded' : 'Submitted';
       actionText = 'View';
@@ -803,23 +826,25 @@ materialsData.sort((a, b) {
         color: Colors.white,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: isDisabled
-              ? null
-              : () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => EnhancedReadingMaterialPage(
-                        material: material,
-                        classId: widget.classId,
+          onTap:
+              isDisabled
+                  ? null
+                  : () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (_) => EnhancedReadingMaterialPage(
+                              material: material,
+                              classId: widget.classId,
+                            ),
                       ),
-                    ),
-                  ).then((_) {
-                    if (mounted) {
-                      _refreshData();
-                    }
-                  });
-                },
+                    ).then((_) {
+                      if (mounted) {
+                        _refreshData();
+                      }
+                    });
+                  },
           child: Container(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -842,7 +867,9 @@ materialsData.sort((a, b) {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            isClassMaterial ? Icons.class_ : Icons.library_books,
+                            isClassMaterial
+                                ? Icons.class_
+                                : Icons.library_books,
                             size: 14,
                             color: statusColor,
                           ),
@@ -1005,26 +1032,28 @@ materialsData.sort((a, b) {
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: isDisabled
-                            ? Colors.grey.withOpacity(0.1)
-                            : isRetakeRequested
+                        color:
+                            isDisabled
+                                ? Colors.grey.withOpacity(0.1)
+                                : isRetakeRequested
                                 ? Colors.orange.withOpacity(0.1)
                                 : isSubmitted
-                                    ? (isGraded 
-                                        ? Colors.green.withOpacity(0.1)
-                                        : Colors.blue.withOpacity(0.1))
-                                    : primaryLight,
+                                ? (isGraded
+                                    ? Colors.green.withOpacity(0.1)
+                                    : Colors.blue.withOpacity(0.1))
+                                : primaryLight,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: isDisabled
-                              ? Colors.grey.withOpacity(0.3)
-                              : isRetakeRequested
+                          color:
+                              isDisabled
+                                  ? Colors.grey.withOpacity(0.3)
+                                  : isRetakeRequested
                                   ? Colors.orange.withOpacity(0.3)
                                   : isSubmitted
-                                      ? (isGraded 
-                                          ? Colors.green.withOpacity(0.3)
-                                          : Colors.blue.withOpacity(0.3))
-                                      : primaryColor.withOpacity(0.3),
+                                  ? (isGraded
+                                      ? Colors.green.withOpacity(0.3)
+                                      : Colors.blue.withOpacity(0.3))
+                                  : primaryColor.withOpacity(0.3),
                         ),
                       ),
                       child: Row(
@@ -1034,18 +1063,19 @@ materialsData.sort((a, b) {
                             isDisabled
                                 ? Icons.lock
                                 : isRetakeRequested
-                                    ? Icons.replay
-                                    : isSubmitted
-                                        ? Icons.visibility
-                                        : Icons.play_arrow,
+                                ? Icons.replay
+                                : isSubmitted
+                                ? Icons.visibility
+                                : Icons.play_arrow,
                             size: 16,
-                            color: isDisabled
-                                ? Colors.grey
-                                : isRetakeRequested
+                            color:
+                                isDisabled
+                                    ? Colors.grey
+                                    : isRetakeRequested
                                     ? Colors.orange
                                     : isSubmitted
-                                        ? (isGraded ? Colors.green : Colors.blue)
-                                        : primaryColor,
+                                    ? (isGraded ? Colors.green : Colors.blue)
+                                    : primaryColor,
                           ),
                           const SizedBox(width: 6),
                           Text(
@@ -1053,13 +1083,14 @@ materialsData.sort((a, b) {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: isDisabled
-                                  ? Colors.grey
-                                  : isRetakeRequested
+                              color:
+                                  isDisabled
+                                      ? Colors.grey
+                                      : isRetakeRequested
                                       ? Colors.orange
                                       : isSubmitted
-                                          ? (isGraded ? Colors.green : Colors.blue)
-                                          : primaryColor,
+                                      ? (isGraded ? Colors.green : Colors.blue)
+                                      : primaryColor,
                             ),
                           ),
                         ],
@@ -1071,7 +1102,11 @@ materialsData.sort((a, b) {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.warning_amber, size: 18, color: Colors.orange),
+                          Icon(
+                            Icons.warning_amber,
+                            size: 18,
+                            color: Colors.orange,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             'Retake Needed',

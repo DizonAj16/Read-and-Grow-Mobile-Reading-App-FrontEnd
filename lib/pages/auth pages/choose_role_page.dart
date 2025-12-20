@@ -1,8 +1,9 @@
 import 'package:deped_reading_app_laravel/pages/auth%20pages/parent_login_page.dart';
 import 'package:deped_reading_app_laravel/pages/auth%20pages/student_signup_page.dart';
+import 'package:deped_reading_app_laravel/pages/auth%20pages/teacher_login_page.dart';
 import 'package:deped_reading_app_laravel/pages/auth%20pages/teacher_signup_page.dart';
 import 'package:flutter/material.dart';
-import 'login_page.dart';
+import 'student_login_page.dart';
 import 'admin_login_page.dart';
 import '../../widgets/navigation/page_transition.dart';
 
@@ -17,13 +18,13 @@ class ChooseRolePage extends StatelessWidget {
           icon: Icons.school_outlined,
           label: 'Student',
           color: Colors.blue,
-          onTap: () => Navigator.of(context).push(PageTransition(page: LoginPage())),
+          onTap: () => Navigator.of(context).push(PageTransition(page: StudentLoginPage())),
         ),
         _roleOption(
           icon: Icons.person_2_outlined,
           label: 'Teacher',
           color: Colors.orange,
-          onTap: () => Navigator.of(context).push(PageTransition(page: LoginPage())),
+          onTap: () => Navigator.of(context).push(PageTransition(page: TeacherLoginPage())),
         ),
         _roleOption(
           icon: Icons.admin_panel_settings_outlined,

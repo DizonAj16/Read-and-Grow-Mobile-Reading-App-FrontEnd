@@ -69,56 +69,115 @@ class _CreateClassOrStudentDialogState
     super.dispose();
   }
 
-  Future<void> _addStudent() async {
-    if (!_formKey.currentState!.validate()) {
-      setState(() => _autoValidate = true);
-      return;
+Future<void> _addStudent() async {
+  if (!_formKey.currentState!.validate()) {
+    setState(() => _autoValidate = true);
+    return;
+  }
+
+  setState(() => _isLoading = true);
+  DialogUtils.showLoadingDialog(context, "Creating student account...");
+
+  try {
+    final response = await UserService.registerStudent({
+      'student_username': studentUsernameController.text.trim(),
+      'student_password': studentPasswordController.text,
+      'student_name': studentNameController.text.trim(),
+      'student_lrn': studentLrnController.text.trim(),
+      'student_grade': studentGradeController.text.trim().isNotEmpty 
+          ? studentGradeController.text.trim() 
+          : null,
+      'student_section': studentSectionController.text.trim().isNotEmpty
+          ? studentSectionController.text.trim()
+          : null,
+    });
+
+    if (response != null && !response.containsKey('error')) {
+      // Close loading dialog
+      if (Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+      await Future.delayed(const Duration(milliseconds: 100));
+      await _handleSuccess("Student account created successfully!");
+    } else {
+      // Close loading dialog
+      if (Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+      
+      // Show error message
+      setState(() => _isLoading = false);
+      final errorMsg = response?['error'] ?? 'Student registration failed. Please try again.';
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMsg),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  } catch (e) {
+    // Close loading dialog
+    if (Navigator.of(context, rootNavigator: true).canPop()) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+    
+    setState(() => _isLoading = false);
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+}
+
+
+  String _generateClassCode() {
+    final random = DateTime.now().millisecondsSinceEpoch.remainder(1000000);
+    return random.toString().padLeft(6, '0'); // ensures always 6 digits
+  }
+
+Future<void> _addClass() async {
+  if (!_formKey.currentState!.validate()) {
+    setState(() => _autoValidate = true);
+    return;
+  }
+
+  setState(() => _isLoading = true);
+  DialogUtils.showLoadingDialog(context, "Creating class...");
+  final startTime = DateTime.now();
+
+  try {
+    final response = await ClassroomService.createClassV2(
+      className: classNameController.text,
+      gradeLevel: gradeLevelController.text,
+      section: classSectionController.text,
+      schoolYear: schoolYearController.text,
+      classroomCode: _generateClassCode(),
+    );
+
+    final elapsed = DateTime.now().difference(startTime).inMilliseconds;
+    if (elapsed < 2000) {
+      await Future.delayed(Duration(milliseconds: 2000 - elapsed));
     }
 
-    setState(() => _isLoading = true);
-    DialogUtils.showLoadingDialog(context, "Creating student account...");
-
-    try {
-      final response = await UserService.registerStudent({
-        'student_username': studentUsernameController.text.trim(),
-        'student_password': studentPasswordController.text,
-        'student_name': studentNameController.text.trim(),
-        'student_lrn': studentLrnController.text.trim(),
-        'student_grade': studentGradeController.text.trim().isNotEmpty 
-            ? studentGradeController.text.trim() 
-            : null,
-        'student_section': studentSectionController.text.trim().isNotEmpty
-            ? studentSectionController.text.trim()
-            : null,
-      });
-
-      if (response != null && !response.containsKey('error')) {
-        // Close loading dialog
-        if (Navigator.of(context, rootNavigator: true).canPop()) {
-          Navigator.of(context, rootNavigator: true).pop();
-        }
-        await Future.delayed(const Duration(milliseconds: 100));
-        await _handleSuccess("Student account created successfully!");
-      } else {
-        // Close loading dialog
-        if (Navigator.of(context, rootNavigator: true).canPop()) {
-          Navigator.of(context, rootNavigator: true).pop();
-        }
-        // Show error message
-        setState(() => _isLoading = false);
-        final errorMsg = response?['error'] ?? 'Student registration failed. Please try again.';
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(errorMsg),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
+    if (response != null) {
+      // First close the loading dialog
+      if (Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
       }
-    } catch (e) {
+      
+      await Future.delayed(const Duration(milliseconds: 100));
+      await _handleSuccess("Class created successfully!");
+    } else {
       // Close loading dialog
       if (Navigator.of(context, rootNavigator: true).canPop()) {
         Navigator.of(context, rootNavigator: true).pop();
@@ -129,116 +188,98 @@ class _CreateClassOrStudentDialogState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: const Text('Failed to create class'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),
         );
       }
     }
-  }
-
-
-  String _generateClassCode() {
-    final random = DateTime.now().millisecondsSinceEpoch.remainder(1000000);
-    return random.toString().padLeft(6, '0'); // ensures always 6 digits
-  }
-
-  Future<void> _addClass() async {
-    if (!_formKey.currentState!.validate()) {
-      setState(() => _autoValidate = true);
-      return;
+  } catch (e) {
+    // Close loading dialog
+    if (Navigator.of(context, rootNavigator: true).canPop()) {
+      Navigator.of(context, rootNavigator: true).pop();
     }
-
-    setState(() => _isLoading = true);
-    DialogUtils.showLoadingDialog(context, "Creating class...");
-    final startTime = DateTime.now();
-
-    try {
-      final response = await ClassroomService.createClassV2(
-        className: classNameController.text,
-        gradeLevel: gradeLevelController.text,
-        section: classSectionController.text,
-        schoolYear: schoolYearController.text,
-        classroomCode: _generateClassCode(),
-      );
-
-      final elapsed = DateTime.now().difference(startTime).inMilliseconds;
-      if (elapsed < 2000) {
-        await Future.delayed(Duration(milliseconds: 2000 - elapsed));
-      }
-
-      if (response != null) {
-        await Future.delayed(const Duration(milliseconds: 100));
-
-        await _handleSuccess("Class created successfully!");
-      } else {
-        await Future.delayed(const Duration(milliseconds: 100));
-
-
-      }
-    } catch (e) {
-      await Future.delayed(const Duration(milliseconds: 100));
-
-
-    }
-  }
-
-
-  Future<void> _handleSuccess(String message) async {
-    if (!mounted) return;
     
-    // Hide keyboard just in case
-    FocusScope.of(context).unfocus();
-
-    // 🕐 Small delay to let animation settle
-    await Future.delayed(const Duration(milliseconds: 150));
-
-    // ✅ Show success modal
-    await DialogUtils.showSuccessDialog(context, message);
-
-    if (!mounted) return;
-
-    // 🔄 Trigger refresh callback before closing
-    if (selectedTab == 0) {
-      widget.onClassAdded?.call();
-    } else {
-      widget.onStudentAdded?.call();
-    }
-
-    // Reset form state
+    setState(() => _isLoading = false);
+    
     if (mounted) {
-      setState(() {
-        _isLoading = false;
-        _autoValidate = false;
-        // Clear form fields
-        if (selectedTab == 1) {
-          studentNameController.clear();
-          studentLrnController.clear();
-          studentSectionController.clear();
-          studentGradeController.clear();
-          studentUsernameController.clear();
-          studentPasswordController.clear();
-          confirmStudentPasswordController.clear();
-        } else {
-          classNameController.clear();
-          classSectionController.clear();
-          gradeLevelController.clear();
-          schoolYearController.clear();
-        }
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
     }
+  }
+}
 
-    // Close the main dialog
-    if (mounted && Navigator.of(context).canPop()) {
-      Navigator.of(context).pop();
+
+Future<void> _handleSuccess(String message) async {
+  if (!mounted) return;
+  
+  // Hide keyboard just in case
+  FocusScope.of(context).unfocus();
+
+  // 🕐 Small delay to let animation settle
+  await Future.delayed(const Duration(milliseconds: 150));
+
+  // ✅ Show success modal
+  await DialogUtils.showSuccessDialog(context, message);
+
+  if (!mounted) return;
+
+  // 🔄 Trigger refresh callback before closing
+  if (selectedTab == 0) {
+    widget.onClassAdded?.call();
+  } else {
+    widget.onStudentAdded?.call();
+  }
+
+  // Reset form state
+  if (mounted) {
+    setState(() {
+      _isLoading = false;
+      _autoValidate = false;
+      // Clear form fields
+      if (selectedTab == 1) {
+        studentNameController.clear();
+        studentLrnController.clear();
+        studentSectionController.clear();
+        studentGradeController.clear();
+        studentUsernameController.clear();
+        studentPasswordController.clear();
+        confirmStudentPasswordController.clear();
+      } else {
+        classNameController.clear();
+        classSectionController.clear();
+        gradeLevelController.clear();
+        schoolYearController.clear();
+      }
+    });
+  }
+
+  // ✅ IMPORTANT: Use rootNavigator to close the main dialog
+  // Wait a tiny bit for success dialog to close completely
+  await Future.delayed(const Duration(milliseconds: 50));
+  
+  if (mounted) {
+    // Check if we can pop from the root navigator
+    if (Navigator.of(context, rootNavigator: true).canPop()) {
+      Navigator.of(context, rootNavigator: true).pop(true);
+    } else if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop(true);
     }
+  }
 
-    // ✅ Optional snackbar
+  // ✅ Optional snackbar - show after dialog closes
+  WidgetsBinding.instance.addPostFrameCallback((_) {
     if (mounted) {
       _showSuccessSnackbar(message);
     }
-  }
+  });
+}
 
 
   // void _handleError({required String title, required String message}) {

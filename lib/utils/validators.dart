@@ -7,7 +7,9 @@ class Validators {
     if (value == null || value.trim().isEmpty) {
       return 'Email is required';
     }
-    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    final emailRegex = RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    );
     if (!emailRegex.hasMatch(value.trim())) {
       return 'Please enter a valid email address';
     }
@@ -15,7 +17,11 @@ class Validators {
   }
 
   // Username validation
-  static String? validateUsername(String? value, {int minLength = 2, int maxLength = 30}) {
+  static String? validateUsername(
+    String? value, {
+    int minLength = 2,
+    int maxLength = 30,
+  }) {
     if (value == null || value.trim().isEmpty) {
       return 'Username is required';
     }
@@ -55,7 +61,11 @@ class Validators {
   }
 
   // Name validation
-  static String? validateName(String? value, {String fieldName = 'Name', int minLength = 2}) {
+  static String? validateName(
+    String? value, {
+    String fieldName = 'Name',
+    int minLength = 2,
+  }) {
     if (value == null || value.trim().isEmpty) {
       return '$fieldName is required';
     }
@@ -65,9 +75,9 @@ class Validators {
     if (value.trim().length > 100) {
       return '$fieldName must be at most 100 characters';
     }
-    // Allow letters, spaces, hyphens, apostrophes
-    if (!RegExp(r"^[a-zA-Z\s'-]+$").hasMatch(value.trim())) {
-      return '$fieldName can only contain letters, spaces, hyphens, and apostrophes';
+    // Allow letters, spaces, hyphens, apostrophes, and periods
+    if (!RegExp(r"^[a-zA-Z\s'.-]+$").hasMatch(value.trim())) {
+      return '$fieldName can only contain letters, spaces, hyphens, apostrophes, and periods';
     }
     return null;
   }
@@ -94,7 +104,10 @@ class Validators {
     }
     final trimmed = value.trim();
     // Allow common grade formats: "1", "Grade 1", "G1", etc.
-    if (!RegExp(r'^(Grade\s?)?\d{1,2}$', caseSensitive: false).hasMatch(trimmed) &&
+    if (!RegExp(
+          r'^(Grade\s?)?\d{1,2}$',
+          caseSensitive: false,
+        ).hasMatch(trimmed) &&
         !RegExp(r'^G\d{1,2}$', caseSensitive: false).hasMatch(trimmed)) {
       return 'Please enter a valid grade (e.g., "1", "Grade 1", "G1")';
     }
@@ -131,7 +144,11 @@ class Validators {
   }
 
   // Text field validation (generic)
-  static String? validateRequiredText(String? value, {String fieldName = 'Field', int? maxLength}) {
+  static String? validateRequiredText(
+    String? value, {
+    String fieldName = 'Field',
+    int? maxLength,
+  }) {
     if (value == null || value.trim().isEmpty) {
       return '$fieldName is required';
     }
@@ -153,7 +170,12 @@ class Validators {
   }
 
   // Number validation
-  static String? validateNumber(String? value, {num? min, num? max, bool required = true}) {
+  static String? validateNumber(
+    String? value, {
+    num? min,
+    num? max,
+    bool required = true,
+  }) {
     if (value == null || value.trim().isEmpty) {
       return required ? 'This field is required' : null;
     }
@@ -171,7 +193,12 @@ class Validators {
   }
 
   // Integer validation
-  static String? validateInteger(String? value, {int? min, int? max, bool required = true}) {
+  static String? validateInteger(
+    String? value, {
+    int? min,
+    int? max,
+    bool required = true,
+  }) {
     if (value == null || value.trim().isEmpty) {
       return required ? 'This field is required' : null;
     }
@@ -232,7 +259,11 @@ class Validators {
   }
 
   // Title validation
-  static String? validateTitle(String? value, {String fieldName = 'Title', int maxLength = 200}) {
+  static String? validateTitle(
+    String? value, {
+    String fieldName = 'Title',
+    int maxLength = 200,
+  }) {
     if (value == null || value.trim().isEmpty) {
       return '$fieldName is required';
     }
@@ -247,7 +278,11 @@ class Validators {
   }
 
   // Content/Description validation
-  static String? validateContent(String? value, {String fieldName = 'Content', int? maxLength}) {
+  static String? validateContent(
+    String? value, {
+    String fieldName = 'Content',
+    int? maxLength,
+  }) {
     if (value == null || value.trim().isEmpty) {
       return '$fieldName is required';
     }
@@ -261,7 +296,14 @@ class Validators {
   static String sanitizeInput(String input) {
     return input
         .trim()
-        .replaceAll(RegExp(r'<script[^>]*>.*?</script>', caseSensitive: false, multiLine: true), '')
+        .replaceAll(
+          RegExp(
+            r'<script[^>]*>.*?</script>',
+            caseSensitive: false,
+            multiLine: true,
+          ),
+          '',
+        )
         .replaceAll(RegExp(r'javascript:', caseSensitive: false), '')
         .replaceAll(RegExp(r'on\w+\s*=', caseSensitive: false), '');
   }
@@ -277,7 +319,10 @@ class Validators {
   }
 
   // Validate file extension
-  static String? validateFileExtension(String? fileName, List<String> allowedExtensions) {
+  static String? validateFileExtension(
+    String? fileName,
+    List<String> allowedExtensions,
+  ) {
     if (fileName == null || fileName.isEmpty) {
       return 'File name is required';
     }
@@ -297,4 +342,3 @@ class Validators {
     return null;
   }
 }
-

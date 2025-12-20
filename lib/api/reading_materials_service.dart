@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/validators.dart';
 import '../utils/database_helpers.dart';
@@ -10,6 +11,7 @@ class ReadingMaterial {
   final String title;
   final String? description;
   final String fileUrl;
+  final String? audioUrl; // NEW: Add audio URL field
   final String? levelId;
   final int? levelNumber;
   final String? levelTitle;
@@ -17,7 +19,6 @@ class ReadingMaterial {
   final String? uploadedBy;
   final String? className;
   final String? classRoomId;
-  // New fields for prerequisite
   final bool? hasPrerequisite;
   final String? prerequisiteId;
   final String? prerequisiteTitle;
@@ -28,6 +29,7 @@ class ReadingMaterial {
     required this.title,
     this.description,
     required this.fileUrl,
+    this.audioUrl, // NEW
     this.levelId,
     this.levelNumber,
     this.levelTitle,
@@ -47,6 +49,7 @@ class ReadingMaterial {
       title: json['title'] as String,
       description: json['description'] as String?,
       fileUrl: json['file_url'] as String,
+      audioUrl: json['audio_url'] as String?, // NEW
       levelId: json['level_id'] as String?,
       levelNumber: json['level_number'] as int?,
       levelTitle: json['level_title'] as String?,
@@ -54,7 +57,8 @@ class ReadingMaterial {
       uploadedBy: json['uploaded_by'] as String?,
       className: json['class_name'] as String?,
       classRoomId: json['class_room_id'] as String?,
-      hasPrerequisite: json['has_prerequisite'] as bool? ?? json['prerequisite_id'] != null,
+      hasPrerequisite:
+          json['has_prerequisite'] as bool? ?? json['prerequisite_id'] != null,
       prerequisiteId: json['prerequisite_id'] as String?,
       prerequisiteTitle: json['prerequisite_title'] as String?,
       updatedAt: DateTime.parse(json['updated_at'] as String),
@@ -68,6 +72,7 @@ class ReadingMaterial {
       'title': title,
       'description': description,
       'file_url': fileUrl,
+      'audio_url': audioUrl, // NEW
       'uploaded_by': uploadedBy,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
@@ -83,237 +88,385 @@ class ReadingMaterial {
 class ReadingMaterialsService {
   static final supabase = Supabase.instance.client;
 
-  /// Upload a new reading material (Teacher only) - optionally assign to classroom
-  static Future<Map<String, dynamic>?> uploadReadingMaterial({
-    required File file,
-    required String title,
-    required String levelId,
-    String? description,
-    String? classroomId,
-    String? prerequisiteId, // NEW: prerequisite material ID
-  }) async {
+/// Upload a new reading material (Teacher only) - optionally assign to classroom
+static Future<Map<String, dynamic>?> uploadReadingMaterial({
+  required File file,
+  required String title,
+  required String levelId,
+  String? description,
+  String? classroomId,
+  String? prerequisiteId,
+  File? audioFile,
+}) async {
+  Uint8List? fileBytes;
+  Uint8List? audioFileBytes;
+  File? tempAudioFile;
+  String? audioTempPath;
+
+  try {
+    debugPrint('=== START OF UPLOAD FUNCTION ===');
+    debugPrint(
+      '📚 [READING_MATERIAL] Starting upload - Title: $title, Level: $levelId, Classroom: $classroomId, Prerequisite: $prerequisiteId, Has Audio: ${audioFile != null}',
+    );
+
+    // 1️⃣ Read main file bytes with retry logic
+    debugPrint('📚 [READING_MATERIAL] Reading main file from: ${file.path}');
+    
     try {
-      debugPrint(
-        '📚 [READING_MATERIAL] Starting upload - Title: $title, Level: $levelId, Classroom: $classroomId, Prerequisite: $prerequisiteId',
-      );
-
-      final user = supabase.auth.currentUser;
-      if (user == null) {
-        debugPrint('❌ [READING_MATERIAL] No authenticated user');
-        return {'error': 'User not authenticated'};
+      // Check if file exists
+      final fileExists = await file.exists();
+      debugPrint('📚 [READING_MATERIAL] Main file exists: $fileExists');
+      
+      if (!fileExists) {
+        return {'error': 'Main file not found. Please select the file again.'};
       }
+      
+      fileBytes = await file.readAsBytes();
+      debugPrint('📚 [READING_MATERIAL] Main file bytes loaded: ${fileBytes.length}');
+    } catch (e) {
+      debugPrint('❌ [READING_MATERIAL] Error reading main file: $e');
+      return {'error': 'Failed to read main file. Please select the file again.'};
+    }
 
-      // 1️⃣ Validate inputs
-      if (title.trim().isEmpty) {
-        return {'error': 'Material title is required'};
-      }
-
-      if (levelId.isEmpty || !Validators.isValidUUID(levelId)) {
-        return {'error': 'Invalid reading level ID'};
-      }
-
-      // 2️⃣ Verify reading level exists
-      final levelExists =
-          await supabase
-              .from('reading_levels')
-              .select('id, level_number')
-              .eq('id', levelId)
-              .maybeSingle();
-
-      if (levelExists == null) {
-        debugPrint('❌ [READING_MATERIAL] Reading level not found: $levelId');
-        return {'error': 'Reading level not found'};
-      }
-
-      // 3️⃣ Validate prerequisite exists if provided
-      if (prerequisiteId != null && prerequisiteId.isNotEmpty) {
-        final prerequisiteExists =
-            await supabase
-                .from('reading_materials')
-                .select('id, title, level_id')
-                .eq('id', prerequisiteId)
-                .maybeSingle();
-
-        if (prerequisiteExists == null) {
-          debugPrint('❌ [READING_MATERIAL] Prerequisite material not found: $prerequisiteId');
-          return {'error': 'Prerequisite reading material not found'};
+    // 2️⃣ Read audio file bytes if provided
+    if (audioFile != null) {
+      debugPrint('📚 [READING_MATERIAL] Reading audio file from: ${audioFile.path}');
+      
+      try {
+        final audioExists = await audioFile.exists();
+        debugPrint('📚 [READING_MATERIAL] Audio file exists: $audioExists');
+        
+        if (audioExists) {
+          audioFileBytes = await audioFile.readAsBytes();
+          debugPrint('📚 [READING_MATERIAL] Audio bytes loaded: ${audioFileBytes.length}');
+          
+          // Create a temporary copy of the audio file to ensure it stays available
+          final tempDir = await getTemporaryDirectory();
+          final timestamp = DateTime.now().millisecondsSinceEpoch;
+          audioTempPath = '${tempDir.path}/audio_temp_${timestamp}.m4a';
+          tempAudioFile = File(audioTempPath);
+          await tempAudioFile!.writeAsBytes(audioFileBytes!);
+          debugPrint('📚 [READING_MATERIAL] Audio temp file created: $audioTempPath');
+        } else {
+          debugPrint('⚠️ [READING_MATERIAL] Audio file does not exist, continuing without audio');
         }
-
-        // Optional: Check that prerequisite is at same or lower level
-        final prerequisiteLevelId = prerequisiteExists['level_id'] as String?;
-        if (prerequisiteLevelId != levelId) {
-          debugPrint('⚠️ [READING_MATERIAL] Prerequisite is from different level: $prerequisiteLevelId');
-          // You might want to add a warning or validation logic here
-        }
+      } catch (e) {
+        debugPrint('❌ [READING_MATERIAL] Error reading audio file: $e');
+        // Don't fail the entire upload if audio reading fails
       }
+    }
 
-      // 4️⃣ Validate classroom exists if classroomId is provided
-      if (classroomId != null && classroomId.isNotEmpty) {
-        final classroomExists =
-            await supabase
-                .from('class_rooms')
-                .select('id, class_name')
-                .eq('id', classroomId)
-                .maybeSingle();
+    final user = supabase.auth.currentUser;
+    if (user == null) {
+      debugPrint('❌ [READING_MATERIAL] No authenticated user');
+      return {'error': 'User not authenticated'};
+    }
 
-        if (classroomExists == null) {
-          debugPrint('❌ [READING_MATERIAL] Classroom not found: $classroomId');
-          return {'error': 'Classroom not found'};
-        }
+    // 3️⃣ Validate inputs
+    debugPrint('📚 [READING_MATERIAL] Step 1: Validating inputs');
+    if (title.trim().isEmpty) {
+      return {'error': 'Material title is required'};
+    }
+
+    if (levelId.isEmpty || !Validators.isValidUUID(levelId)) {
+      return {'error': 'Invalid reading level ID'};
+    }
+
+    // 4️⃣ Verify reading level exists
+    debugPrint('📚 [READING_MATERIAL] Step 2: Verifying reading level');
+    final levelExists = await supabase
+        .from('reading_levels')
+        .select('id, level_number')
+        .eq('id', levelId)
+        .maybeSingle();
+
+    if (levelExists == null) {
+      debugPrint('❌ [READING_MATERIAL] Reading level not found: $levelId');
+      return {'error': 'Reading level not found'};
+    }
+    debugPrint('✅ [READING_MATERIAL] Reading level verified');
+
+    // 5️⃣ Validate prerequisite exists if provided
+    if (prerequisiteId != null && prerequisiteId.isNotEmpty) {
+      debugPrint('📚 [READING_MATERIAL] Step 3: Validating prerequisite');
+      final prerequisiteExists = await supabase
+          .from('reading_materials')
+          .select('id, title, level_id')
+          .eq('id', prerequisiteId)
+          .maybeSingle();
+
+      if (prerequisiteExists == null) {
+        debugPrint(
+          '❌ [READING_MATERIAL] Prerequisite material not found: $prerequisiteId',
+        );
+        return {'error': 'Prerequisite reading material not found'};
       }
+      debugPrint('✅ [READING_MATERIAL] Prerequisite verified');
+    }
 
-      // 5️⃣ Validate file
-      if (!await file.exists()) {
-        return {'error': 'File does not exist'};
+    // 6️⃣ Validate classroom exists if classroomId is provided
+    if (classroomId != null && classroomId.isNotEmpty) {
+      debugPrint('📚 [READING_MATERIAL] Step 4: Validating classroom');
+      final classroomExists = await supabase
+          .from('class_rooms')
+          .select('id, class_name')
+          .eq('id', classroomId)
+          .maybeSingle();
+
+      if (classroomExists == null) {
+        debugPrint('❌ [READING_MATERIAL] Classroom not found: $classroomId');
+        return {'error': 'Classroom not found'};
       }
+      debugPrint('✅ [READING_MATERIAL] Classroom verified');
+    }
 
-      // Backend validation: Check file size using standard validator
-      final sizeValidation = await validateFileSize(file);
-      if (!sizeValidation.isValid) {
-        debugPrint('❌ [UPLOAD_READING_MATERIAL] File size validation failed: ${sizeValidation.getDetailedInfo()}');
-        return FileValidator.backendErrorResponse();
+    // 7️⃣ Validate main file using the bytes
+    debugPrint('📚 [READING_MATERIAL] Step 5: Validating main file');
+    
+    final fileExtension = file.path.split('.').last.toLowerCase();
+    debugPrint('📚 [READING_MATERIAL] File extension: $fileExtension');
+    final allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png'];
+
+    if (!allowedExtensions.contains(fileExtension)) {
+      debugPrint('❌ [READING_MATERIAL] Invalid file extension');
+      return {
+        'error':
+            'Only PDF and image files (JPG, JPEG, PNG) are allowed for reading materials',
+      };
+    }
+
+    // Validate file size
+    debugPrint('📚 [READING_MATERIAL] Checking file size...');
+    final fileSize = fileBytes.length;
+    debugPrint('📚 [READING_MATERIAL] File size: $fileSize bytes');
+    
+    if (fileSize == 0) {
+      debugPrint('❌ [READING_MATERIAL] File is empty');
+      return {'error': 'Selected file is empty'};
+    }
+    
+    if (fileSize > 10 * 1024 * 1024) { // 10MB limit
+      debugPrint('❌ [READING_MATERIAL] File is too large: ${fileSize / (1024 * 1024)} MB');
+      return {'error': 'File size must be less than 10MB'};
+    }
+
+    // Determine file type and content type
+    String fileType = 'pdf';
+    String contentType = 'application/pdf';
+
+    if (['jpg', 'jpeg', 'png'].contains(fileExtension)) {
+      fileType = 'image';
+      if (fileExtension == 'jpg' || fileExtension == 'jpeg') {
+        contentType = 'image/jpeg';
+      } else if (fileExtension == 'png') {
+        contentType = 'image/png';
       }
+    }
+    debugPrint('📚 [READING_MATERIAL] File type: $fileType, Content type: $contentType');
 
-      final fileExtension = file.path.split('.').last.toLowerCase();
-      final allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png'];
+    // 8️⃣ Validate audio file if provided
+    debugPrint('📚 [READING_MATERIAL] Step 6: Validating audio file');
+    String? audioUrl;
+    
+    if (audioFileBytes != null && audioFileBytes.isNotEmpty) {
+      final audioExtension = audioFile!.path.split('.').last.toLowerCase();
+      debugPrint('📚 [READING_MATERIAL] Audio extension: $audioExtension');
+      final allowedAudioExtensions = ['m4a', 'mp3', 'wav', 'aac'];
 
-      if (!allowedExtensions.contains(fileExtension)) {
+      if (!allowedAudioExtensions.contains(audioExtension)) {
         return {
-          'error':
-              'Only PDF and image files (JPG, JPEG, PNG) are allowed for reading materials',
+          'error': 'Only M4A, MP3, WAV, and AAC audio files are allowed',
         };
       }
-
-      // Determine file type and content type
-      String fileType = 'pdf';
-      String contentType = 'application/pdf';
-
-      if (['jpg', 'jpeg', 'png'].contains(fileExtension)) {
-        fileType = 'image';
-        if (fileExtension == 'jpg' || fileExtension == 'jpeg') {
-          contentType = 'image/jpeg';
-        } else if (fileExtension == 'png') {
-          contentType = 'image/png';
-        }
+      
+      // Validate audio file size
+      final audioSize = audioFileBytes.length;
+      debugPrint('📚 [READING_MATERIAL] Audio file size: $audioSize bytes');
+      
+      if (audioSize == 0) {
+        debugPrint('⚠️ [READING_MATERIAL] Audio file is empty, skipping');
+      } else if (audioSize > 5 * 1024 * 1024) { // 5MB limit for audio
+        debugPrint('⚠️ [READING_MATERIAL] Audio file is too large: ${audioSize / (1024 * 1024)} MB, skipping');
+      } else {
+        debugPrint('✅ [READING_MATERIAL] Audio file type and size valid');
       }
+    }
 
+    // 9️⃣ Upload to Supabase Storage using bytes
+    debugPrint('📚 [READING_MATERIAL] Step 7: Uploading to storage');
+    final sanitizedTitle = title.trim().replaceAll(
+      RegExp(r'[^a-zA-Z0-9._-]'),
+      '_',
+    );
 
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final storagePath =
+        classroomId != null
+            ? "reading_materials/class_$classroomId/$levelId/${timestamp}_$sanitizedTitle.$fileExtension"
+            : "reading_materials/$levelId/${timestamp}_$sanitizedTitle.$fileExtension";
 
-      // 6️⃣ Upload to Supabase Storage
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final sanitizedTitle = title.trim().replaceAll(
-        RegExp(r'[^a-zA-Z0-9._-]'),
-        '_',
-      );
+    debugPrint('📚 [READING_MATERIAL] Storage path: $storagePath');
 
-      // Include classroom ID in file path if provided for better organization
-      final storagePath =
-          classroomId != null
-              ? "reading_materials/class_$classroomId/$levelId/${timestamp}_$sanitizedTitle.$fileExtension"
-              : "reading_materials/$levelId/${timestamp}_$sanitizedTitle.$fileExtension";
-
-      debugPrint('📚 [READING_MATERIAL] Uploading to storage: $storagePath');
-
-      final fileBytes = await file.readAsBytes();
+    try {
+      debugPrint('📚 [READING_MATERIAL] Uploading main file to Supabase storage...');
+      
       await supabase.storage
           .from('materials')
           .uploadBinary(
             storagePath,
-            fileBytes,
+            fileBytes!,
             fileOptions: FileOptions(upsert: true, contentType: contentType),
           );
-
-      debugPrint('✅ [READING_MATERIAL] File uploaded to storage');
-
-      // 7️⃣ Get public URL
-      final publicUrl = supabase.storage
-          .from('materials')
-          .getPublicUrl(storagePath);
-
-      // 8️⃣ Insert into reading_materials table with optional class_room_id and prerequisite_id
-      final materialData = {
-        'level_id': levelId,
-        'title': title.trim(),
-        'file_url': publicUrl,
-        'uploaded_by': user.id,
-        'prerequisite_id': prerequisiteId, // NEW: Store prerequisite ID
-        if (description != null && description.trim().isNotEmpty)
-          'description': description.trim(),
-        if (classroomId != null)
-          'class_room_id': classroomId, // Store class_room_id directly
-      };
-
-      debugPrint('📚 [READING_MATERIAL] Saving material to database...');
-      final insertResult = await DatabaseHelpers.safeInsert(
-        supabase: supabase,
-        table: 'reading_materials',
-        data: materialData,
-      );
-
-      if (insertResult == null || insertResult.containsKey('error')) {
-        debugPrint(
-          '❌ [READING_MATERIAL] Database insert failed: ${insertResult?['error']}',
-        );
-
-        // Cleanup uploaded file
-        try {
-          await supabase.storage.from('materials').remove([storagePath]);
-        } catch (e) {
-          debugPrint('⚠️ [READING_MATERIAL] Failed to cleanup file: $e');
-        }
-
-        return insertResult ?? {'error': 'Failed to save material record'};
-      }
-
-      final materialId = insertResult['id'] as String?;
-      debugPrint(
-        '✅ [READING_MATERIAL] Material saved successfully - ID: $materialId',
-      );
-
-      // 9️⃣ Link material to classroom if classroomId is provided (for backward compatibility)
-      if (classroomId != null && classroomId.isNotEmpty && materialId != null) {
-        try {
-          await _linkMaterialToClassroom(
-            classroomId: classroomId,
-            materialId: materialId,
-            assignedBy: user.id,
-          );
-          debugPrint(
-            '✅ [READING_MATERIAL] Material linked to classroom: $classroomId',
-          );
-        } catch (linkError) {
-          debugPrint(
-            '⚠️ [READING_MATERIAL] Failed to link material to classroom: $linkError',
-          );
-          // Don't fail the upload if linking fails - material is already saved
-        }
-      }
-
-      // 🔟 Sync to task_materials for all tasks in this reading level
-      try {
-        await _syncMaterialToTasks(
-          materialId: materialId!,
-          title: title.trim(),
-          description: description,
-          filePath: storagePath,
-          fileType: fileType,
-          levelId: levelId,
-          classRoomId: classroomId,
-          prerequisiteId: prerequisiteId, // NEW: Pass prerequisite ID
-        );
-      } catch (syncError) {
-        debugPrint(
-          '⚠️ [READING_MATERIAL] Error syncing to tasks (non-critical): $syncError',
-        );
-      }
-
-      return insertResult;
+      debugPrint('✅ [READING_MATERIAL] Main file uploaded to storage');
     } catch (e, stackTrace) {
-      debugPrint('❌ [READING_MATERIAL] Error uploading material: $e');
+      debugPrint('❌ [READING_MATERIAL] Error uploading main file: $e');
       debugPrint('Stack trace: $stackTrace');
-      return {'error': 'Failed to upload material: ${e.toString()}'};
+      return {'error': 'Failed to upload file to storage: ${e.toString()}'};
+    }
+
+    // 🔟 Get public URL
+    debugPrint('📚 [READING_MATERIAL] Step 8: Getting public URL');
+    final publicUrl = supabase.storage
+        .from('materials')
+        .getPublicUrl(storagePath);
+    debugPrint('📚 [READING_MATERIAL] Public URL: $publicUrl');
+
+    // 1️⃣1️⃣ Upload audio file if provided
+    if (audioFileBytes != null && audioFileBytes.isNotEmpty && audioFileBytes.length > 0 && audioFileBytes.length <= 5 * 1024 * 1024) {
+      debugPrint('📚 [READING_MATERIAL] Step 9: Uploading audio file');
+      try {
+        final audioExtension = audioFile!.path.split('.').last.toLowerCase();
+        final audioStoragePath =
+            classroomId != null
+                ? "teacher_instructions/class_$classroomId/$levelId/${timestamp}_${sanitizedTitle}_instruction.$audioExtension"
+                : "teacher_instructions/$levelId/${timestamp}_${sanitizedTitle}_instruction.$audioExtension";
+
+        debugPrint('📚 [READING_MATERIAL] Audio storage path: $audioStoragePath');
+        
+        await supabase.storage
+            .from('materials')
+            .uploadBinary(
+              audioStoragePath,
+              audioFileBytes,
+              fileOptions: FileOptions(
+                upsert: true,
+                contentType: 'audio/m4a',
+              ),
+            );
+
+        // Get public URL for audio
+        audioUrl = supabase.storage
+            .from('materials')
+            .getPublicUrl(audioStoragePath);
+
+        debugPrint('✅ [READING_MATERIAL] Audio uploaded: $audioUrl');
+      } catch (e) {
+        debugPrint('❌ [READING_MATERIAL] Error uploading audio: $e');
+        // Don't fail the entire upload if audio fails
+      }
+    }
+
+    // 1️⃣2️⃣ Insert into reading_materials table
+    debugPrint('📚 [READING_MATERIAL] Step 10: Inserting into database');
+    final materialData = {
+      'level_id': levelId,
+      'title': title.trim(),
+      'file_url': publicUrl,
+      'uploaded_by': user.id,
+      'prerequisite_id': prerequisiteId,
+      if (audioUrl != null) 'audio_url': audioUrl,
+      if (description != null && description.trim().isNotEmpty)
+        'description': description.trim(),
+      if (classroomId != null) 'class_room_id': classroomId,
+    };
+
+    debugPrint('📚 [READING_MATERIAL] Material data: $materialData');
+    
+    final insertResult = await DatabaseHelpers.safeInsert(
+      supabase: supabase,
+      table: 'reading_materials',
+      data: materialData,
+    );
+
+    debugPrint('📚 [READING_MATERIAL] Insert result: $insertResult');
+
+    if (insertResult == null || insertResult.containsKey('error')) {
+      debugPrint(
+        '❌ [READING_MATERIAL] Database insert failed: ${insertResult?['error']}',
+      );
+
+      // Cleanup uploaded files
+      try {
+        await supabase.storage.from('materials').remove([storagePath]);
+        if (audioUrl != null) {
+          final audioPath = audioUrl!.split('materials/').last;
+          await supabase.storage.from('materials').remove([audioPath]);
+        }
+      } catch (e) {
+        debugPrint('⚠️ [READING_MATERIAL] Failed to cleanup files: $e');
+      }
+
+      return insertResult ?? {'error': 'Failed to save material record'};
+    }
+
+    final materialId = insertResult['id'] as String?;
+    debugPrint('✅ [READING_MATERIAL] Material saved successfully - ID: $materialId');
+
+    // 1️⃣3️⃣ Link material to classroom if classroomId is provided
+    if (classroomId != null && classroomId.isNotEmpty && materialId != null) {
+      try {
+        await _linkMaterialToClassroom(
+          classroomId: classroomId,
+          materialId: materialId,
+          assignedBy: user.id,
+        );
+        debugPrint(
+          '✅ [READING_MATERIAL] Material linked to classroom: $classroomId',
+        );
+      } catch (linkError) {
+        debugPrint(
+          '⚠️ [READING_MATERIAL] Failed to link material to classroom: $linkError',
+        );
+      }
+    }
+
+    // 1️⃣4️⃣ Sync to task_materials for all tasks in this reading level
+    try {
+      await _syncMaterialToTasks(
+        materialId: materialId!,
+        title: title.trim(),
+        description: description,
+        filePath: storagePath,
+        fileType: fileType,
+        levelId: levelId,
+        classRoomId: classroomId,
+        prerequisiteId: prerequisiteId,
+        audioUrl: audioUrl,
+      );
+    } catch (syncError) {
+      debugPrint(
+        '⚠️ [READING_MATERIAL] Error syncing to tasks (non-critical): $syncError',
+      );
+    }
+
+    debugPrint('=== END OF UPLOAD FUNCTION - SUCCESS ===');
+    return insertResult;
+  } catch (e, stackTrace) {
+    debugPrint('❌ [READING_MATERIAL] Unhandled error in uploadReadingMaterial: $e');
+    debugPrint('Stack trace: $stackTrace');
+    return {'error': 'Unexpected error occurred: ${e.toString()}'};
+  } finally {
+    // Clean up temporary audio file
+    if (tempAudioFile != null && await tempAudioFile!.exists()) {
+      try {
+        await tempAudioFile!.delete();
+        debugPrint('🗑️ [READING_MATERIAL] Cleaned up temp audio file');
+      } catch (e) {
+        debugPrint('⚠️ [READING_MATERIAL] Error cleaning up temp audio file: $e');
+      }
     }
   }
+}
 
   /// Link a reading material to a classroom
   static Future<bool> _linkMaterialToClassroom({
@@ -344,6 +497,7 @@ class ReadingMaterialsService {
   }
 
   /// Sync material to tasks (modified to include prerequisite)
+  /// Sync material to tasks (modified to include prerequisite and audio)
   static Future<void> _syncMaterialToTasks({
     required String materialId,
     required String title,
@@ -352,7 +506,8 @@ class ReadingMaterialsService {
     required String fileType,
     required String levelId,
     String? classRoomId,
-    String? prerequisiteId, // NEW: Include prerequisite ID
+    String? prerequisiteId,
+    String? audioUrl, // NEW: Include audio URL
   }) async {
     try {
       debugPrint('📚 [READING_MATERIAL] Syncing to reading tasks...');
@@ -394,7 +549,9 @@ class ReadingMaterialsService {
                 'material_file_path': filePath,
                 'material_type': fileType,
                 if (prerequisiteId != null && prerequisiteId.isNotEmpty)
-                  'prerequisite_material_id': prerequisiteId, // NEW: Store prerequisite
+                  'prerequisite_material_id': prerequisiteId,
+                if (audioUrl != null && audioUrl.isNotEmpty)
+                  'audio_url': audioUrl, // NEW: Store audio URL
               },
             );
             debugPrint('✅ [READING_MATERIAL] Synced to task: $taskId');
@@ -443,11 +600,11 @@ class ReadingMaterialsService {
       final response = await supabase
           .from('reading_materials')
           .select('''
-            *,
-            reading_levels(level_number, title),
-            class_rooms(class_name),
-            prerequisite:prerequisite_id(id, title)
-          ''')
+          *,
+          reading_levels(level_number, title),
+          class_rooms(class_name),
+          prerequisite:prerequisite_id(id, title)
+        ''')
           .eq('uploaded_by', user.id)
           .order('created_at', ascending: false);
 
@@ -456,7 +613,7 @@ class ReadingMaterialsService {
         final levelData = data['reading_levels'] as Map<String, dynamic>?;
         final classData = data['class_rooms'] as Map<String, dynamic>?;
         final prerequisiteData = data['prerequisite'] as Map<String, dynamic>?;
-        
+
         return ReadingMaterial.fromJson({
           ...data,
           'level_number': levelData?['level_number'],
@@ -484,11 +641,11 @@ class ReadingMaterialsService {
       final directResponse = await supabase
           .from('reading_materials')
           .select('''
-            *,
-            reading_levels(level_number, title),
-            class_rooms(class_name),
-            prerequisite:prerequisite_id(id, title)
-          ''')
+          *,
+          reading_levels(level_number, title),
+          class_rooms(class_name),
+          prerequisite:prerequisite_id(id, title)
+        ''')
           .eq('class_room_id', classroomId)
           .order('created_at', ascending: false);
 
@@ -496,15 +653,15 @@ class ReadingMaterialsService {
       final junctionResponse = await supabase
           .from('classroom_reading_materials')
           .select('''
-            reading_material_id,
-            reading_materials (
-              *,
-              reading_levels(level_number, title),
-              class_rooms(class_name),
-              prerequisite:prerequisite_id(id, title)
-            ),
-            class_rooms(class_name)
-          ''')
+          reading_material_id,
+          reading_materials (
+            *,
+            reading_levels(level_number, title),
+            class_rooms(class_name),
+            prerequisite:prerequisite_id(id, title)
+          ),
+          class_rooms(class_name)
+        ''')
           .eq('classroom_id', classroomId)
           .order('assigned_at', ascending: false);
 
@@ -514,8 +671,9 @@ class ReadingMaterialsService {
             final data = Map<String, dynamic>.from(json);
             final levelData = data['reading_levels'] as Map<String, dynamic>?;
             final classData = data['class_rooms'] as Map<String, dynamic>?;
-            final prerequisiteData = data['prerequisite'] as Map<String, dynamic>?;
-            
+            final prerequisiteData =
+                data['prerequisite'] as Map<String, dynamic>?;
+
             return ReadingMaterial.fromJson({
               ...data,
               'level_number': levelData?['level_number'],
@@ -537,8 +695,9 @@ class ReadingMaterialsService {
 
                 final levelData =
                     materialData['reading_levels'] as Map<String, dynamic>?;
-                final prerequisiteData = materialData['prerequisite'] as Map<String, dynamic>?;
-                    
+                final prerequisiteData =
+                    materialData['prerequisite'] as Map<String, dynamic>?;
+
                 return ReadingMaterial.fromJson({
                   ...materialData,
                   'level_number': levelData?['level_number'],
@@ -567,7 +726,8 @@ class ReadingMaterialsService {
 
   /// Get reading materials for a specific level (Student view) - with optional class filter
   /// Updated to include prerequisite info and check for student completion
-  static Future<List<Map<String, dynamic>>> getReadingMaterialsByLevelForStudent(
+  static Future<List<Map<String, dynamic>>>
+  getReadingMaterialsByLevelForStudent(
     String levelId,
     String studentId, {
     String? classRoomId,
@@ -580,11 +740,11 @@ class ReadingMaterialsService {
       var query = supabase
           .from('reading_materials')
           .select('''
-            *,
-            reading_levels(level_number, title),
-            class_rooms(class_name),
-            prerequisite:prerequisite_id(id, title)
-          ''')
+          *,
+          reading_levels(level_number, title),
+          class_rooms(class_name),
+          prerequisite:prerequisite_id(id, title)
+        ''')
           .eq('level_id', levelId);
 
       // Filter by class_room_id if provided
@@ -597,35 +757,37 @@ class ReadingMaterialsService {
 
       final response = await query.order('created_at', ascending: false);
 
-      final materials = (response as List).map((json) {
-        final data = Map<String, dynamic>.from(json);
-        final levelData = data['reading_levels'] as Map<String, dynamic>?;
-        final classData = data['class_rooms'] as Map<String, dynamic>?;
-        final prerequisiteData = data['prerequisite'] as Map<String, dynamic>?;
-        
-        return {
-          'material': ReadingMaterial.fromJson({
-            ...data,
-            'level_number': levelData?['level_number'],
-            'level_title': levelData?['title'],
-            'class_name': classData?['class_name'],
-            'prerequisite_title': prerequisiteData?['title'],
-          }),
-          'prerequisite_id': data['prerequisite_id'] as String?,
-        };
-      }).toList();
+      final materials =
+          (response as List).map((json) {
+            final data = Map<String, dynamic>.from(json);
+            final levelData = data['reading_levels'] as Map<String, dynamic>?;
+            final classData = data['class_rooms'] as Map<String, dynamic>?;
+            final prerequisiteData =
+                data['prerequisite'] as Map<String, dynamic>?;
+
+            return {
+              'material': ReadingMaterial.fromJson({
+                ...data,
+                'level_number': levelData?['level_number'],
+                'level_title': levelData?['title'],
+                'class_name': classData?['class_name'],
+                'prerequisite_title': prerequisiteData?['title'],
+              }),
+              'prerequisite_id': data['prerequisite_id'] as String?,
+            };
+          }).toList();
 
       // Check completion status for each material with prerequisite
       final result = <Map<String, dynamic>>[];
-      
+
       for (final item in materials) {
         final material = item['material'] as ReadingMaterial;
         final prerequisiteId = item['prerequisite_id'] as String?;
-        
+
         bool isAccessible = true;
         bool hasCompletedPrerequisite = true;
         String? prerequisiteTitle = material.prerequisiteTitle;
-        
+
         if (prerequisiteId != null && prerequisiteId.isNotEmpty) {
           // Check if student has completed the prerequisite
           hasCompletedPrerequisite = await hasStudentCompletedPrerequisite(
@@ -635,13 +797,15 @@ class ReadingMaterialsService {
           );
           isAccessible = hasCompletedPrerequisite;
         }
-        
+
         // Check if student has already completed this material
-        final hasCompletedMaterial = await getStudentSubmission(
-          studentId: studentId,
-          materialId: material.id,
-          classId: classRoomId,
-        ) != null;
+        final hasCompletedMaterial =
+            await getStudentSubmission(
+              studentId: studentId,
+              materialId: material.id,
+              classId: classRoomId,
+            ) !=
+            null;
 
         result.add({
           'material': material,
@@ -685,7 +849,9 @@ class ReadingMaterialsService {
 
       return response != null;
     } catch (e) {
-      debugPrint('❌ [READING_MATERIAL] Error checking prerequisite completion: $e');
+      debugPrint(
+        '❌ [READING_MATERIAL] Error checking prerequisite completion: $e',
+      );
       return false;
     }
   }
@@ -730,13 +896,15 @@ class ReadingMaterialsService {
   }
 
   /// Update reading material (Teacher only) - updated to include prerequisite
+  /// Update reading material (Teacher only) - updated to include prerequisite and audio
   static Future<bool> updateReadingMaterial({
     required String materialId,
     String? title,
     String? description,
     String? levelId,
     String? classRoomId,
-    String? prerequisiteId, // NEW: Update prerequisite
+    String? prerequisiteId,
+    String? audioUrl, // NEW: Update audio URL
   }) async {
     try {
       debugPrint('📚 [READING_MATERIAL] Updating material: $materialId');
@@ -756,7 +924,11 @@ class ReadingMaterialsService {
         updateData['class_room_id'] = classRoomId.isEmpty ? null : classRoomId;
       }
       if (prerequisiteId != null) {
-        updateData['prerequisite_id'] = prerequisiteId.isEmpty ? null : prerequisiteId;
+        updateData['prerequisite_id'] =
+            prerequisiteId.isEmpty ? null : prerequisiteId;
+      }
+      if (audioUrl != null) {
+        updateData['audio_url'] = audioUrl.isEmpty ? null : audioUrl; // NEW
       }
 
       if (updateData.isEmpty) {
@@ -778,7 +950,6 @@ class ReadingMaterialsService {
     }
   }
 
-  /// Delete reading material (Teacher only) - updated to handle prerequisite cleanup
   static Future<bool> deleteReadingMaterial(String materialId) async {
     try {
       debugPrint('📚 [READING_MATERIAL] Deleting material: $materialId');
@@ -787,11 +958,14 @@ class ReadingMaterialsService {
       final material =
           await supabase
               .from('reading_materials')
-              .select('file_url, title, level_id, class_room_id, prerequisite_id')
+              .select(
+                'file_url, audio_url, title, level_id, class_room_id, prerequisite_id',
+              )
               .eq('id', materialId)
               .maybeSingle();
 
       String? filePath;
+      String? audioPath;
       String? materialTitle;
       String? levelId;
       String? classRoomId;
@@ -799,14 +973,14 @@ class ReadingMaterialsService {
 
       if (material != null) {
         final fileUrl = material['file_url'] as String?;
+        final audioUrl = material['audio_url'] as String?; // NEW
         materialTitle = material['title'] as String?;
         levelId = material['level_id'] as String?;
         classRoomId = material['class_room_id'] as String?;
         prerequisiteId = material['prerequisite_id'] as String?;
 
-        if (fileUrl != null &&
-            fileUrl.contains('materials/reading_materials/')) {
-          // Extract file path from URL
+        // Delete main file
+        if (fileUrl != null && fileUrl.contains('materials/')) {
           try {
             final uri = Uri.parse(fileUrl);
             final pathSegments = uri.pathSegments;
@@ -822,6 +996,31 @@ class ReadingMaterialsService {
             );
           }
         }
+
+        // NEW: Delete audio file if exists
+        if (audioUrl != null &&
+            audioUrl.isNotEmpty &&
+            audioUrl.contains('materials/')) {
+          try {
+            final audioUri = Uri.parse(audioUrl);
+            final audioPathSegments = audioUri.pathSegments;
+            final audioMaterialIndex = audioPathSegments.indexOf('materials');
+            if (audioMaterialIndex >= 0 &&
+                audioMaterialIndex < audioPathSegments.length - 1) {
+              audioPath = audioPathSegments
+                  .sublist(audioMaterialIndex + 1)
+                  .join('/');
+              await supabase.storage.from('materials').remove([audioPath]);
+              debugPrint(
+                '✅ [READING_MATERIAL] Audio file deleted from storage',
+              );
+            }
+          } catch (e) {
+            debugPrint(
+              '⚠️ [READING_MATERIAL] Failed to delete audio file from storage: $e',
+            );
+          }
+        }
       }
 
       // NEW: Find and update any materials that have this material as their prerequisite
@@ -834,9 +1033,13 @@ class ReadingMaterialsService {
                 'updated_at': DateTime.now().toIso8601String(),
               })
               .eq('prerequisite_id', materialId);
-          debugPrint('✅ [READING_MATERIAL] Removed as prerequisite from other materials');
+          debugPrint(
+            '✅ [READING_MATERIAL] Removed as prerequisite from other materials',
+          );
         } catch (e) {
-          debugPrint('⚠️ [READING_MATERIAL] Failed to update dependent materials: $e');
+          debugPrint(
+            '⚠️ [READING_MATERIAL] Failed to update dependent materials: $e',
+          );
         }
       }
 
@@ -853,122 +1056,6 @@ class ReadingMaterialsService {
         debugPrint(
           '⚠️ [READING_MATERIAL] Failed to remove from classrooms (junction): $e',
         );
-      }
-
-      // Delete from task_materials (sync deletion to reading tasks)
-      try {
-        debugPrint('📚 [READING_MATERIAL] Removing from reading tasks...');
-
-        if (filePath != null || materialTitle != null) {
-          // Find and delete matching task_materials
-          // Match by file_path if available, otherwise by material_title
-          var taskMaterialsQuery = supabase
-              .from('task_materials')
-              .select('id')
-              .eq('material_type', 'pdf');
-
-          // Filter by class_room_id if the material was class-specific
-          if (classRoomId != null && classRoomId.isNotEmpty) {
-            // Get tasks for this specific class
-            final tasksRes = await supabase
-                .from('tasks')
-                .select('id')
-                .eq('class_room_id', classRoomId);
-
-            if (tasksRes.isNotEmpty) {
-              final taskIds =
-                  (tasksRes as List)
-                      .map((t) => t['id'] as String?)
-                      .whereType<String>()
-                      .toList();
-
-              if (taskIds.isNotEmpty) {
-                await supabase
-                    .from('task_materials')
-                    .delete()
-                    .inFilter('task_id', taskIds)
-                    .eq('material_type', 'pdf');
-                debugPrint(
-                  '✅ [READING_MATERIAL] Removed materials from ${taskIds.length} class tasks',
-                );
-              }
-            }
-          }
-
-          if (filePath != null) {
-            // Try matching by file path first (global)
-            final matchingByPath = await taskMaterialsQuery
-                .eq('material_file_path', filePath)
-                .limit(100); // Get all matches
-
-            if (matchingByPath.isNotEmpty) {
-              final ids =
-                  (matchingByPath as List)
-                      .map((tm) => tm['id'] as String?)
-                      .whereType<String>()
-                      .toList();
-
-              if (ids.isNotEmpty) {
-                await supabase
-                    .from('task_materials')
-                    .delete()
-                    .inFilter('id', ids);
-                debugPrint(
-                  '✅ [READING_MATERIAL] Removed ${ids.length} materials from tasks (by path)',
-                );
-              }
-            }
-          }
-
-          // Also try matching by title if file path didn't work or as additional check
-          if (materialTitle != null && levelId != null) {
-            // Get all tasks for this level
-            var tasksQuery = supabase
-                .from('tasks')
-                .select('id')
-                .eq('reading_level_id', levelId);
-
-            // Filter by class if the material was class-specific
-            if (classRoomId != null && classRoomId.isNotEmpty) {
-              tasksQuery = tasksQuery.eq('class_room_id', classRoomId);
-            }
-
-            final tasksRes = await tasksQuery;
-
-            if (tasksRes.isNotEmpty) {
-              final taskIds =
-                  (tasksRes as List)
-                      .map((t) => t['id'] as String?)
-                      .whereType<String>()
-                      .where((id) => Validators.isValidUUID(id))
-                      .toList();
-
-              // Delete task_materials with matching title for these tasks
-              for (final taskId in taskIds) {
-                try {
-                  await supabase
-                      .from('task_materials')
-                      .delete()
-                      .eq('task_id', taskId)
-                      .eq('material_title', materialTitle)
-                      .eq('material_type', 'pdf');
-                } catch (e) {
-                  debugPrint(
-                    '⚠️ [READING_MATERIAL] Failed to delete from task $taskId: $e',
-                  );
-                }
-              }
-              debugPrint(
-                '✅ [READING_MATERIAL] Removed materials from ${taskIds.length} tasks (by title)',
-              );
-            }
-          }
-        }
-      } catch (syncError) {
-        debugPrint(
-          '⚠️ [READING_MATERIAL] Error syncing deletion to tasks (non-critical): $syncError',
-        );
-        // Continue with deletion even if sync fails
       }
 
       // Delete database record
@@ -1054,24 +1141,29 @@ class ReadingMaterialsService {
 
         // If material has prerequisite, check if student has completed it
         if (prerequisiteId != null && prerequisiteId.isNotEmpty) {
-          final hasCompletedPrerequisite = await hasStudentCompletedPrerequisite(
-            studentId: studentId,
-            prerequisiteId: prerequisiteId,
-            classId: classId ?? materialClassId,
-          );
+          final hasCompletedPrerequisite =
+              await hasStudentCompletedPrerequisite(
+                studentId: studentId,
+                prerequisiteId: prerequisiteId,
+                classId: classId ?? materialClassId,
+              );
 
           if (!hasCompletedPrerequisite) {
             // Get prerequisite material title for error message
-            final prerequisiteMaterial = await supabase
-                .from('reading_materials')
-                .select('title')
-                .eq('id', prerequisiteId)
-                .maybeSingle();
+            final prerequisiteMaterial =
+                await supabase
+                    .from('reading_materials')
+                    .select('title')
+                    .eq('id', prerequisiteId)
+                    .maybeSingle();
 
-            final prerequisiteTitle = prerequisiteMaterial?['title'] as String? ?? 'prerequisite material';
-            
+            final prerequisiteTitle =
+                prerequisiteMaterial?['title'] as String? ??
+                'prerequisite material';
+
             return {
-              'error': 'You must complete "$prerequisiteTitle" before attempting this reading material',
+              'error':
+                  'You must complete "$prerequisiteTitle" before attempting this reading material',
               'requires_prerequisite': true,
               'prerequisite_id': prerequisiteId,
               'prerequisite_title': prerequisiteTitle,
@@ -1349,8 +1441,9 @@ class ReadingMaterialsService {
 
             final levelData = data['reading_levels'] as Map<String, dynamic>?;
             final classData = data['class_rooms'] as Map<String, dynamic>?;
-            final prerequisiteData = data['prerequisite'] as Map<String, dynamic>?;
-            
+            final prerequisiteData =
+                data['prerequisite'] as Map<String, dynamic>?;
+
             return ReadingMaterial.fromJson({
               ...data,
               'level_number': levelData?['level_number'],
@@ -1472,11 +1565,11 @@ class ReadingMaterialsService {
       PostgrestFilterBuilder<dynamic> query = supabase
           .from('reading_materials')
           .select('''
-          *,
-          reading_levels(level_number, title),
-          class_rooms(class_name),
-          prerequisite:prerequisite_id(id, title)
-        ''')
+        *,
+        reading_levels(level_number, title),
+        class_rooms(class_name),
+        prerequisite:prerequisite_id(id, title)
+      ''')
           .eq('uploaded_by', user.id);
 
       if (levelId != null && levelId.isNotEmpty) {
@@ -1521,7 +1614,7 @@ class ReadingMaterialsService {
         final levelData = data['reading_levels'] as Map<String, dynamic>?;
         final classData = data['class_rooms'] as Map<String, dynamic>?;
         final prerequisiteData = data['prerequisite'] as Map<String, dynamic>?;
-        
+
         return ReadingMaterial.fromJson({
           ...data,
           'level_number': levelData?['level_number'],
@@ -1567,7 +1660,9 @@ class ReadingMaterialsService {
 
       // If classroomId is provided, include materials for that classroom
       if (classroomId != null && classroomId.isNotEmpty) {
-        query = query.or('class_room_id.eq.${classroomId},class_room_id.is.null');
+        query = query.or(
+          'class_room_id.eq.${classroomId},class_room_id.is.null',
+        );
       }
 
       // Exclude current material if provided
@@ -1589,7 +1684,9 @@ class ReadingMaterialsService {
         };
       }).toList();
     } catch (e) {
-      debugPrint('❌ [READING_MATERIAL] Error fetching available prerequisites: $e');
+      debugPrint(
+        '❌ [READING_MATERIAL] Error fetching available prerequisites: $e',
+      );
       return [];
     }
   }
@@ -1606,7 +1703,9 @@ class ReadingMaterialsService {
 
       // Start with the potential prerequisite
       String currentId = prerequisiteId;
-      Set<String> visited = {materialId}; // Start with current material to prevent self-reference
+      Set<String> visited = {
+        materialId,
+      }; // Start with current material to prevent self-reference
 
       // Follow the chain to check for circular dependencies
       while (currentId.isNotEmpty) {
@@ -1619,11 +1718,12 @@ class ReadingMaterialsService {
         visited.add(currentId);
 
         // Get the prerequisite of the current material
-        final material = await supabase
-            .from('reading_materials')
-            .select('prerequisite_id')
-            .eq('id', currentId)
-            .maybeSingle();
+        final material =
+            await supabase
+                .from('reading_materials')
+                .select('prerequisite_id')
+                .eq('id', currentId)
+                .maybeSingle();
 
         if (material == null) {
           break;
@@ -1639,7 +1739,9 @@ class ReadingMaterialsService {
 
       return true;
     } catch (e) {
-      debugPrint('❌ [READING_MATERIAL] Error validating prerequisite chain: $e');
+      debugPrint(
+        '❌ [READING_MATERIAL] Error validating prerequisite chain: $e',
+      );
       return false;
     }
   }

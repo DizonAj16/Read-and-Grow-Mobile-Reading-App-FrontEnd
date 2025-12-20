@@ -1,3 +1,5 @@
+import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/tabs/announcement_list_screen.dart';
+import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/tabs/create_announcement_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shimmer/shimmer.dart';
@@ -25,9 +27,10 @@ class _ClassInfoPageState extends State<ClassInfoPage> {
     final isLoading = widget.classDetails.isEmpty;
 
     return Scaffold(
-      body: isLoading
-          ? _buildShimmerLoading()
-          : _buildContent(theme, colorScheme),
+      body:
+          isLoading
+              ? _buildShimmerLoading()
+              : _buildContent(theme, colorScheme),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           showModalBottomSheet(
@@ -35,26 +38,174 @@ class _ClassInfoPageState extends State<ClassInfoPage> {
             shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
             ),
-            builder: (context) => Wrap(
-              children: [
-                // ListTile(
-                //   leading: const Icon(Icons.book),
-                //   title: const Text('Add Lesson'),
-                //   onTap: () {
-                //     Navigator.pop(context);
-                //     _onAddLesson();
-                //   },
-                // ),
-                ListTile(
-                  leading: const Icon(Icons.quiz),
-                  title: const Text('Add Lesson & Quiz'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _onAddQuiz();
-                  },
+            builder:
+                (context) => SafeArea(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Header with close button
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                              color: Theme.of(context).dividerColor,
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Options',
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w600),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: () => Navigator.pop(context),
+                              iconSize: 20,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Options list
+                      // Announcement Option
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.secondary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.announcement_outlined,
+                            color: Theme.of(context).colorScheme.secondary,
+                          ),
+                        ),
+                        title: Text(
+                          'Create Announcement',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Share updates or important information',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withOpacity(0.7),
+                          ),
+                        ),
+                        trailing: Icon(
+                          Icons.chevron_right,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withOpacity(0.5),
+                        ),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _onCreateAnnouncement();
+                        },
+                      ),
+                      // View Announcements Option
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.list_alt_outlined,
+                            color: Colors.blue,
+                          ),
+                        ),
+                        title: Text(
+                          'View Announcements',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'See all class announcements',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withOpacity(0.7),
+                          ),
+                        ),
+                        trailing: Icon(
+                          Icons.chevron_right,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withOpacity(0.5),
+                        ),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _onViewAnnouncements();
+                        },
+                      ),
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.quiz,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        title: Text(
+                          'Add Lesson & Quiz',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Create an interactive lesson with assessment',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withOpacity(0.7),
+                          ),
+                        ),
+                        trailing: Icon(
+                          Icons.chevron_right,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withOpacity(0.5),
+                        ),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _onAddQuiz();
+                        },
+                      ),
+                      // Add spacing at the bottom for iOS safe area
+                      SizedBox(
+                        height: MediaQuery.of(context).viewInsets.bottom,
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
           );
         },
         child: const Icon(Icons.add),
@@ -66,10 +217,11 @@ class _ClassInfoPageState extends State<ClassInfoPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AddLessonScreen(
-          readingLevelId: null,
-          classRoomId: widget.classDetails['id'],
-        ),
+        builder:
+            (context) => AddLessonScreen(
+              readingLevelId: null,
+              classRoomId: widget.classDetails['id'],
+            ),
       ),
     );
   }
@@ -78,10 +230,11 @@ class _ClassInfoPageState extends State<ClassInfoPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AddLessonWithQuizScreen(
-          readingLevelId: widget.classDetails['reading_level_id'],
-          classDetails: widget.classDetails,
-        ),
+        builder:
+            (context) => AddLessonWithQuizScreen(
+              readingLevelId: widget.classDetails['reading_level_id'],
+              classDetails: widget.classDetails,
+            ),
       ),
     );
   }
@@ -146,7 +299,7 @@ class _ClassInfoPageState extends State<ClassInfoPage> {
               mainAxisExtent: 160,
             ),
             delegate: SliverChildBuilderDelegate(
-                  (context, index) => _InfoCard(item: infoItems[index]),
+              (context, index) => _InfoCard(item: infoItems[index]),
               childCount: infoItems.length,
             ),
           ),
@@ -198,7 +351,7 @@ class _ClassInfoPageState extends State<ClassInfoPage> {
               mainAxisExtent: 160,
             ),
             delegate: SliverChildBuilderDelegate(
-                  (context, index) => _ShimmerInfoCard(),
+              (context, index) => _ShimmerInfoCard(),
               childCount: 7,
             ),
           ),
@@ -214,6 +367,34 @@ class _ClassInfoPageState extends State<ClassInfoPage> {
           ),
         ),
       ],
+    );
+  }
+
+  // Add these methods to _ClassInfoPageState:
+  void _onCreateAnnouncement() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => CreateAnnouncementScreen(
+              classRoomId: widget.classDetails['id'],
+              className: widget.classDetails['class_name'],
+            ),
+      ),
+    );
+  }
+
+  void _onViewAnnouncements() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => AnnouncementsListScreen(
+              classRoomId: widget.classDetails['id'],
+              className: widget.classDetails['class_name'],
+              isTeacher: true, // Set to true for teacher view
+            ),
+      ),
     );
   }
 }
@@ -275,21 +456,22 @@ class _InfoCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: item.isCopyable && item.value != "N/A"
-            ? () {
-          Clipboard.setData(ClipboardData(text: item.value));
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Copied ${item.label} to clipboard"),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              duration: const Duration(seconds: 1),
-            ),
-          );
-        }
-            : null,
+        onTap:
+            item.isCopyable && item.value != "N/A"
+                ? () {
+                  Clipboard.setData(ClipboardData(text: item.value));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("Copied ${item.label} to clipboard"),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      duration: const Duration(seconds: 1),
+                    ),
+                  );
+                }
+                : null,
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(

@@ -138,7 +138,7 @@ class _EditStudentProfileTeacherPageState extends State<EditStudentProfileTeache
           .where((level) {
             final id = DatabaseHelpers.safeStringFromResult(level, 'id');
             final levelNumber = DatabaseHelpers.safeIntFromResult(level, 'level_number');
-            return id.isNotEmpty && levelNumber > 0;
+            return id.isNotEmpty && levelNumber >= 0;
           })
           .toList();
     } catch (e) {

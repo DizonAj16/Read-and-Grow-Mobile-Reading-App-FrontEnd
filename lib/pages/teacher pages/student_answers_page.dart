@@ -368,7 +368,7 @@ class _StudentAnswersPageState extends State<StudentAnswersPage> {
                     correctMatches++;
                     debugPrint("✅ Match correct: $leftItem == $userSelected");
                   } else {
-                    debugPrint("❌ Match incorrect: $leftItem != $userSelected");
+                    debugPrint("❌ Match wrong: $leftItem != $userSelected");
                   }
                 }
                 isCorrect = correctMatches == matchingPairs.length;
@@ -807,12 +807,12 @@ class _StudentAnswersPageState extends State<StudentAnswersPage> {
     final primaryColor = Theme.of(context).colorScheme.primary;
     final borderColor =
         isStudentAnswer
-            ? (isCorrect ? Colors.green : primaryColor)
+            ? (isCorrect ? Colors.green : Colors.red)  // Changed to red
             : Colors.green;
     final backgroundColor = isStudentAnswer ? Colors.white : Colors.white;
     final textColor =
         isStudentAnswer
-            ? (isCorrect ? Colors.green[800] : Colors.black87)
+            ? (isCorrect ? Colors.green[800] : Colors.red[800])  // Changed to red
             : Colors.green[800];
 
     debugPrint("🟦 Building Option Card:");
@@ -907,16 +907,16 @@ class _StudentAnswersPageState extends State<StudentAnswersPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        isCorrect ? Icons.check_circle : Icons.error,
-                        color: isCorrect ? Colors.green : primaryColor,
+                        isCorrect ? Icons.check_circle : Icons.close,
+                        color: isCorrect ? Colors.green : Colors.red,  // Changed to red
                         size: 14,
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        isCorrect ? 'Correct' : 'Incorrect',
+                        isCorrect ? 'Correct' : 'Wrong',
                         style: TextStyle(
                           fontSize: 12,
-                          color: isCorrect ? Colors.green : primaryColor,
+                          color: isCorrect ? Colors.green : Colors.red,  // Changed to red
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -951,7 +951,7 @@ class _StudentAnswersPageState extends State<StudentAnswersPage> {
         border: Border.all(
           color:
               isSelected
-                  ? (isCorrect ? Colors.green : primaryColor)
+                  ? (isCorrect ? Colors.green : Colors.red)  // Changed to red
                   : Colors.grey[300]!,
           width: isSelected ? 2 : 1,
         ),
@@ -1008,7 +1008,7 @@ class _StudentAnswersPageState extends State<StudentAnswersPage> {
                       fontWeight: FontWeight.w500,
                       color:
                           isSelected
-                              ? (isCorrect ? Colors.green[800] : primaryColor)
+                              ? (isCorrect ? Colors.green[800] : Colors.red[800])  // Changed to red
                               : Colors.grey[700],
                     ),
                     textAlign: TextAlign.center,
@@ -1087,7 +1087,7 @@ class _StudentAnswersPageState extends State<StudentAnswersPage> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: isCorrect ? Colors.green[300]! : primaryMedium,
+                    color: isCorrect ? Colors.green[300]! : Colors.red[300]!,  // Changed to red
                     width: isCorrect ? 2 : 1,
                   ),
                 ),
@@ -1096,7 +1096,7 @@ class _StudentAnswersPageState extends State<StudentAnswersPage> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: isCorrect ? Colors.green[800] : Colors.black87,
+                    color: isCorrect ? Colors.green[800] : Colors.red[800],  // Changed to red
                   ),
                 ),
               ),
@@ -1140,7 +1140,6 @@ class _StudentAnswersPageState extends State<StudentAnswersPage> {
                 ),
                 child: Text(
                   correctAnswer,
-
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -1237,7 +1236,7 @@ class _StudentAnswersPageState extends State<StudentAnswersPage> {
                               color:
                                   isSelectionCorrect
                                       ? Colors.green
-                                      : primaryColor,
+                                      : Colors.red,  // Changed to red
                               width: isSelectionCorrect ? 2 : 1,
                             ),
                           ),
@@ -1272,7 +1271,7 @@ class _StudentAnswersPageState extends State<StudentAnswersPage> {
                                   color:
                                       isSelectionCorrect
                                           ? Colors.green
-                                          : primaryColor,
+                                          : Colors.red,  // Changed to red
                                   size: 16,
                                 ),
                               ),
@@ -1285,7 +1284,7 @@ class _StudentAnswersPageState extends State<StudentAnswersPage> {
                                     color:
                                         isSelectionCorrect
                                             ? Colors.green[50]
-                                            : primaryLight,
+                                            : Colors.red[50],  // Changed to red
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Column(
@@ -1297,7 +1296,7 @@ class _StudentAnswersPageState extends State<StudentAnswersPage> {
                                           color:
                                               isSelectionCorrect
                                                   ? Colors.green[800]
-                                                  : primaryColor,
+                                                  : Colors.red[800],  // Changed to red
                                         ),
                                         textAlign: TextAlign.center,
                                       ),
@@ -1485,17 +1484,17 @@ class _StudentAnswersPageState extends State<StudentAnswersPage> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: isCorrect ? Colors.green[50] : Colors.orange[50],
+            color: isCorrect ? Colors.green[50] : Colors.red[50],  // Changed to red
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: isCorrect ? Colors.green[100]! : Colors.orange[100]!,
+              color: isCorrect ? Colors.green[100]! : Colors.red[100]!,  // Changed to red
             ),
           ),
           child: Row(
             children: [
               Icon(
-                isCorrect ? Icons.check_circle : Icons.error,
-                color: isCorrect ? Colors.green[700] : Colors.orange[700],
+                isCorrect ? Icons.check_circle : Icons.close,
+                color: isCorrect ? Colors.green[700] : Colors.red[700],  // Changed to red
                 size: 20,
               ),
               const SizedBox(width: 8),
@@ -1505,7 +1504,7 @@ class _StudentAnswersPageState extends State<StudentAnswersPage> {
                       ? 'All pairs matched correctly!'
                       : 'Some pairs were not matched correctly.',
                   style: TextStyle(
-                    color: isCorrect ? Colors.green[700] : Colors.orange[700],
+                    color: isCorrect ? Colors.green[700] : Colors.red[700],  // Changed to red
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -1573,7 +1572,7 @@ class _StudentAnswersPageState extends State<StudentAnswersPage> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: isCorrect ? Colors.green[300]! : primaryMedium,
+                    color: isCorrect ? Colors.green[300]! : Colors.red[300]!,  // Changed to red
                     width: isCorrect ? 2 : 1,
                   ),
                 ),
@@ -1582,7 +1581,7 @@ class _StudentAnswersPageState extends State<StudentAnswersPage> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: isCorrect ? Colors.green[800] : Colors.black87,
+                    color: isCorrect ? Colors.green[800] : Colors.red[800],  // Changed to red
                   ),
                 ),
               ),
@@ -1684,7 +1683,7 @@ class _StudentAnswersPageState extends State<StudentAnswersPage> {
                                       isThisSelected
                                           ? (isCorrect
                                               ? Colors.green
-                                              : primaryColor)
+                                              : Colors.red)  // Changed to red
                                           : Colors.grey[300]!,
                                   width: isThisSelected ? 2 : 1,
                                 ),
@@ -1736,7 +1735,7 @@ class _StudentAnswersPageState extends State<StudentAnswersPage> {
                                                     isThisSelected
                                                         ? (isCorrect
                                                             ? Colors.green[800]
-                                                            : primaryColor)
+                                                            : Colors.red[800])  // Changed to red
                                                         : Colors.grey[700],
                                               ),
                                             ),
@@ -1777,7 +1776,7 @@ class _StudentAnswersPageState extends State<StudentAnswersPage> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: isCorrect ? Colors.green[100]! : Colors.grey[200]!,
+          color: isCorrect ? Colors.green[100]! : Colors.red[100]!,  // Changed to red
           width: 1,
         ),
       ),
@@ -1804,31 +1803,31 @@ class _StudentAnswersPageState extends State<StudentAnswersPage> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: isCorrect ? Colors.green[50] : Colors.orange[50],
+                    color: isCorrect ? Colors.green[50] : Colors.red[50],  // Changed to red
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color:
-                          isCorrect ? Colors.green[200]! : Colors.orange[200]!,
+                          isCorrect ? Colors.green[200]! : Colors.red[200]!,  // Changed to red
                     ),
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        isCorrect ? Icons.check_circle : Icons.error,
+                        isCorrect ? Icons.check_circle : Icons.close,
                         size: 14,
                         color:
-                            isCorrect ? Colors.green[700] : Colors.orange[700],
+                            isCorrect ? Colors.green[700] : Colors.red[700],  // Changed to red
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        isCorrect ? 'Correct' : 'Incorrect',
+                        isCorrect ? 'Correct' : 'Wrong',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
                           color:
                               isCorrect
                                   ? Colors.green[700]
-                                  : Colors.orange[700],
+                                  : Colors.red[700],  // Changed to red
                         ),
                       ),
                     ],

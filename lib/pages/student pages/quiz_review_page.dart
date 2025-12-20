@@ -43,13 +43,14 @@ class _QuizReviewPageState extends State<QuizReviewPage> {
       debugPrint("🟦 Fetching submission ID: ${widget.submissionId}");
 
       // STEP 1: FETCH SUBMISSION AND STUDENT INFO
-      final submissionRes = await supabase
-          .from('student_submissions')
-          .select(
-            'score, max_score, assignment_id, quiz_answers, student_id',
-          )
-          .eq('id', widget.submissionId)
-          .maybeSingle();
+      final submissionRes =
+          await supabase
+              .from('student_submissions')
+              .select(
+                'score, max_score, assignment_id, quiz_answers, student_id',
+              )
+              .eq('id', widget.submissionId)
+              .maybeSingle();
 
       debugPrint("📥 Submission: $submissionRes");
 
@@ -59,11 +60,12 @@ class _QuizReviewPageState extends State<QuizReviewPage> {
       maxScore = submissionRes['max_score'] ?? 0;
 
       // Get student name
-      final studentRes = await supabase
-          .from('students')
-          .select('student_name')
-          .eq('id', submissionRes['student_id'])
-          .maybeSingle();
+      final studentRes =
+          await supabase
+              .from('students')
+              .select('student_name')
+              .eq('id', submissionRes['student_id'])
+              .maybeSingle();
 
       if (studentRes != null) {
         studentName = studentRes['student_name'] ?? 'Student';
@@ -73,11 +75,12 @@ class _QuizReviewPageState extends State<QuizReviewPage> {
       debugPrint("📌 Assignment ID: $assignmentId");
 
       // STEP 2: FETCH ASSIGNMENT & QUIZ
-      final assignmentWithQuiz = await supabase
-          .from('assignments')
-          .select('id, quiz_id, quizzes(id, title)')
-          .eq('id', assignmentId)
-          .single();
+      final assignmentWithQuiz =
+          await supabase
+              .from('assignments')
+              .select('id, quiz_id, quizzes(id, title)')
+              .eq('id', assignmentId)
+              .single();
 
       debugPrint("🧩 Assignment Join: $assignmentWithQuiz");
 
@@ -161,267 +164,282 @@ class _QuizReviewPageState extends State<QuizReviewPage> {
       // STEP 7: BUILD FINAL QUESTION LIST
       int correctCount = 0;
 
-      questions = (questionsRes as List).map((q) {
-        final qId = q['id'].toString();
-        final type = q['question_type'];
-        final opts = optionsMap[qId] ?? [];
-        final questionImageUrl = q['question_image_url'];
-        final matchingPairs = matchingPairsMap[qId] ?? [];
+      questions =
+          (questionsRes as List).map((q) {
+            final qId = q['id'].toString();
+            final type = q['question_type'];
+            final opts = optionsMap[qId] ?? [];
+            final questionImageUrl = q['question_image_url'];
+            final matchingPairs = matchingPairsMap[qId] ?? [];
 
-        // Get option_images from database
-        final optionImages = q['option_images'] ?? {};
-        debugPrint("📸 Option images for question $qId: $optionImages");
-        debugPrint("📸 Options for question $qId: $opts");
-        debugPrint("🔗 Matching pairs for question $qId: $matchingPairs");
+            // Get option_images from database
+            final optionImages = q['option_images'] ?? {};
+            debugPrint("📸 Option images for question $qId: $optionImages");
+            debugPrint("📸 Options for question $qId: $opts");
+            debugPrint("🔗 Matching pairs for question $qId: $matchingPairs");
 
-        final userAnswer = userAnswersList.firstWhere(
-          (e) => e['id'].toString() == qId,
-          orElse: () => {},
-        );
+            final userAnswer = userAnswersList.firstWhere(
+              (e) => e['id'].toString() == qId,
+              orElse: () => {},
+            );
 
-        String studentAnswer = "";
-        String correctAnswer = "";
-        String? studentAnswerImage;
-        String? correctAnswerImage;
-        bool isCorrect = false;
-        Map<String, String> optionImagesMap = {};
-        List<Map<String, dynamic>> userMatchingSelections = [];
+            String studentAnswer = "";
+            String correctAnswer = "";
+            String? studentAnswerImage;
+            String? correctAnswerImage;
+            bool isCorrect = false;
+            Map<String, String> optionImagesMap = {};
+            List<Map<String, dynamic>> userMatchingSelections = [];
 
-        // Handle multiple choice with images (both formats)
-        if (type == "multiple_choice_with_images" || type == "multiplechoicewithimages") {
-          // Convert option_images JSON to map
-          if (optionImages is Map) {
-            optionImages.forEach((key, value) {
-              if (value is String && value.isNotEmpty) {
-                optionImagesMap[key.toString()] = value;
+            // Handle multiple choice with images (both formats)
+            if (type == "multiple_choice_with_images" ||
+                type == "multiplechoicewithimages") {
+              // Convert option_images JSON to map
+              if (optionImages is Map) {
+                optionImages.forEach((key, value) {
+                  if (value is String && value.isNotEmpty) {
+                    optionImagesMap[key.toString()] = value;
+                  }
+                });
               }
-            });
-          }
 
-          debugPrint("🗺️ Option images map: $optionImagesMap");
+              debugPrint("🗺️ Option images map: $optionImagesMap");
 
-          final correctOpt = opts.firstWhere(
-            (o) => o['is_correct'] == true,
-            orElse: () => {'option_text': '(No correct answer)', 'id': null},
-          );
-
-          String rawUserAnswer = "";
-          String? userSelectedOptionId;
-          String? correctOptionId = correctOpt['id']?.toString();
-
-          if (userAnswer.isNotEmpty) {
-            if (userAnswer.containsKey("userAnswer")) {
-              rawUserAnswer = userAnswer["userAnswer"].toString();
-              debugPrint("🎯 User answer text: $rawUserAnswer");
-            }
-            if (userAnswer.containsKey("selected_option_id")) {
-              userSelectedOptionId = userAnswer["selected_option_id"].toString();
-              debugPrint(
-                "🎯 User selected option ID: $userSelectedOptionId",
+              final correctOpt = opts.firstWhere(
+                (o) => o['is_correct'] == true,
+                orElse:
+                    () => {'option_text': '(No correct answer)', 'id': null},
               );
-            }
 
-            // If no selected_option_id but we have userAnswer text, try to find matching option
-            if (userSelectedOptionId == null && rawUserAnswer.isNotEmpty) {
-              for (var opt in opts) {
-                if (opt["option_text"] == rawUserAnswer) {
-                  userSelectedOptionId = opt["id"]?.toString();
+              String rawUserAnswer = "";
+              String? userSelectedOptionId;
+              String? correctOptionId = correctOpt['id']?.toString();
+
+              if (userAnswer.isNotEmpty) {
+                if (userAnswer.containsKey("userAnswer")) {
+                  rawUserAnswer = userAnswer["userAnswer"].toString();
+                  debugPrint("🎯 User answer text: $rawUserAnswer");
+                }
+                if (userAnswer.containsKey("selected_option_id")) {
+                  userSelectedOptionId =
+                      userAnswer["selected_option_id"].toString();
                   debugPrint(
-                    "🔍 Found matching option by text: $userSelectedOptionId",
+                    "🎯 User selected option ID: $userSelectedOptionId",
                   );
-                  break;
+                }
+
+                // If no selected_option_id but we have userAnswer text, try to find matching option
+                if (userSelectedOptionId == null && rawUserAnswer.isNotEmpty) {
+                  for (var opt in opts) {
+                    if (opt["option_text"] == rawUserAnswer) {
+                      userSelectedOptionId = opt["id"]?.toString();
+                      debugPrint(
+                        "🔍 Found matching option by text: $userSelectedOptionId",
+                      );
+                      break;
+                    }
+                  }
                 }
               }
-            }
-          }
 
-          studentAnswer = rawUserAnswer.isEmpty ? "(No answer)" : rawUserAnswer;
-          correctAnswer = correctOpt['option_text'] ?? "(No correct)";
+              studentAnswer =
+                  rawUserAnswer.isEmpty ? "(No answer)" : rawUserAnswer;
+              correctAnswer = correctOpt['option_text'] ?? "(No correct)";
 
-          // Get image URLs from optionImagesMap using option indices
-          if (userSelectedOptionId != null) {
-            // Find the index of the user's selected option
-            int selectedIndex = opts.indexWhere(
-              (o) => o['id'].toString() == userSelectedOptionId,
-            );
-            if (selectedIndex != -1) {
-              studentAnswerImage = optionImagesMap[selectedIndex.toString()];
-              debugPrint(
-                "🖼️ Student answer image at index $selectedIndex: $studentAnswerImage",
-              );
-            }
-          }
-
-          if (correctOptionId != null) {
-            // Find the index of the correct option
-            int correctIndex = opts.indexWhere(
-              (o) => o['id'].toString() == correctOptionId,
-            );
-            if (correctIndex != -1) {
-              correctAnswerImage = optionImagesMap[correctIndex.toString()];
-              debugPrint(
-                "✅ Correct answer image at index $correctIndex: $correctAnswerImage",
-              );
-            }
-          }
-
-          // Check if answer is correct
-          isCorrect = rawUserAnswer == correctAnswer;
-          debugPrint("✓ Is correct: $isCorrect");
-
-          // Add option images to option data for display
-          for (int i = 0; i < opts.length; i++) {
-            final imageUrl = optionImagesMap[i.toString()];
-            opts[i]['option_image_url'] = imageUrl;
-            debugPrint(
-              "📋 Option $i (${opts[i]['option_text']}): $imageUrl",
-            );
-          }
-        } else if (type == "fill_in_the_blank_with_image" || type == "fillintheblankwithimage") {
-          final correctOpt = opts.firstWhere(
-            (o) => o['is_correct'] == true,
-            orElse: () => {'option_text': '(No correct answer)'},
-          );
-          correctAnswer = correctOpt['option_text'] ?? "(No correct)";
-
-          String rawUserAnswer = "";
-          if (userAnswer.isNotEmpty && userAnswer.containsKey("userAnswer")) {
-            rawUserAnswer = userAnswer["userAnswer"].toString();
-          }
-          studentAnswer = rawUserAnswer.isEmpty ? "(No answer)" : rawUserAnswer;
-          isCorrect = studentAnswer.trim().toLowerCase() ==
-              correctAnswer.trim().toLowerCase();
-        } else if (type == "matching") {
-          // Handle matching type questions
-          debugPrint(
-            "🔍 Checking for matching_pairs in userAnswer: ${userAnswer.containsKey('matching_pairs')}",
-          );
-
-          if (userAnswer.isNotEmpty && userAnswer.containsKey("matching_pairs")) {
-            final matchingPairsData = userAnswer["matching_pairs"];
-            debugPrint(
-              "🔍 matching_pairs data type: ${matchingPairsData.runtimeType}",
-            );
-
-            if (matchingPairsData is List) {
-              debugPrint(
-                "🔍 matching_pairs is List with length: ${matchingPairsData.length}",
-              );
-
-              // First, extract the correct matching pairs (from rightItemUrl in quiz_answers)
-              matchingPairs.clear();
-
-              // Then extract user matching selections from the same data
-              for (var pair in matchingPairsData) {
-                if (pair is Map) {
-                  debugPrint("🔍 Processing pair: $pair");
-
-                  // Add to correct matching pairs
-                  matchingPairs.add({
-                    'left_item': pair['leftItem'] ?? '',
-                    'right_item_url': pair['rightItemUrl'] ?? '',
-                  });
-
-                  // Add to user selections
-                  userMatchingSelections.add({
-                    'left_item': pair['leftItem'] ?? '',
-                    'user_selected': pair['userSelected'] ?? '',
-                    'correct_image_url': pair['rightItemUrl'] ?? '',
-                  });
+              // Get image URLs from optionImagesMap using option indices
+              if (userSelectedOptionId != null) {
+                // Find the index of the user's selected option
+                int selectedIndex = opts.indexWhere(
+                  (o) => o['id'].toString() == userSelectedOptionId,
+                );
+                if (selectedIndex != -1) {
+                  studentAnswerImage =
+                      optionImagesMap[selectedIndex.toString()];
+                  debugPrint(
+                    "🖼️ Student answer image at index $selectedIndex: $studentAnswerImage",
+                  );
                 }
               }
-            }
-          }
 
-          // For matching questions, check if all pairs are correct
-          if (matchingPairs.isNotEmpty && userMatchingSelections.isNotEmpty) {
-            int correctMatches = 0;
-            for (var userSelection in userMatchingSelections) {
-              final leftItem = userSelection['left_item']?.toString() ?? '';
-              final userSelected = userSelection['user_selected']?.toString() ?? '';
+              if (correctOptionId != null) {
+                // Find the index of the correct option
+                int correctIndex = opts.indexWhere(
+                  (o) => o['id'].toString() == correctOptionId,
+                );
+                if (correctIndex != -1) {
+                  correctAnswerImage = optionImagesMap[correctIndex.toString()];
+                  debugPrint(
+                    "✅ Correct answer image at index $correctIndex: $correctAnswerImage",
+                  );
+                }
+              }
 
-              debugPrint("🔍 Checking match: $leftItem -> $userSelected");
+              // Check if answer is correct
+              isCorrect = rawUserAnswer == correctAnswer;
+              debugPrint("✓ Is correct: $isCorrect");
 
-              // In your data structure, userSelected contains the text (like "nag")
-              // and the leftItem is also "nag", so if userSelected == leftItem, it's correct
-              if (userSelected == leftItem) {
-                correctMatches++;
-                debugPrint("✅ Match correct: $leftItem == $userSelected");
+              // Add option images to option data for display
+              for (int i = 0; i < opts.length; i++) {
+                final imageUrl = optionImagesMap[i.toString()];
+                opts[i]['option_image_url'] = imageUrl;
+                debugPrint(
+                  "📋 Option $i (${opts[i]['option_text']}): $imageUrl",
+                );
+              }
+            } else if (type == "fill_in_the_blank_with_image" ||
+                type == "fillintheblankwithimage") {
+              final correctOpt = opts.firstWhere(
+                (o) => o['is_correct'] == true,
+                orElse: () => {'option_text': '(No correct answer)'},
+              );
+              correctAnswer = correctOpt['option_text'] ?? "(No correct)";
+
+              String rawUserAnswer = "";
+              if (userAnswer.isNotEmpty &&
+                  userAnswer.containsKey("userAnswer")) {
+                rawUserAnswer = userAnswer["userAnswer"].toString();
+              }
+              studentAnswer =
+                  rawUserAnswer.isEmpty ? "(No answer)" : rawUserAnswer;
+              isCorrect =
+                  studentAnswer.trim().toLowerCase() ==
+                  correctAnswer.trim().toLowerCase();
+            } else if (type == "matching") {
+              // Handle matching type questions
+              debugPrint(
+                "🔍 Checking for matching_pairs in userAnswer: ${userAnswer.containsKey('matching_pairs')}",
+              );
+
+              if (userAnswer.isNotEmpty &&
+                  userAnswer.containsKey("matching_pairs")) {
+                final matchingPairsData = userAnswer["matching_pairs"];
+                debugPrint(
+                  "🔍 matching_pairs data type: ${matchingPairsData.runtimeType}",
+                );
+
+                if (matchingPairsData is List) {
+                  debugPrint(
+                    "🔍 matching_pairs is List with length: ${matchingPairsData.length}",
+                  );
+
+                  // First, extract the correct matching pairs (from rightItemUrl in quiz_answers)
+                  matchingPairs.clear();
+
+                  // Then extract user matching selections from the same data
+                  for (var pair in matchingPairsData) {
+                    if (pair is Map) {
+                      debugPrint("🔍 Processing pair: $pair");
+
+                      // Add to correct matching pairs
+                      matchingPairs.add({
+                        'left_item': pair['leftItem'] ?? '',
+                        'right_item_url': pair['rightItemUrl'] ?? '',
+                      });
+
+                      // Add to user selections
+                      userMatchingSelections.add({
+                        'left_item': pair['leftItem'] ?? '',
+                        'user_selected': pair['userSelected'] ?? '',
+                        'correct_image_url': pair['rightItemUrl'] ?? '',
+                      });
+                    }
+                  }
+                }
+              }
+
+              // For matching questions, check if all pairs are correct
+              if (matchingPairs.isNotEmpty &&
+                  userMatchingSelections.isNotEmpty) {
+                int correctMatches = 0;
+                for (var userSelection in userMatchingSelections) {
+                  final leftItem = userSelection['left_item']?.toString() ?? '';
+                  final userSelected =
+                      userSelection['user_selected']?.toString() ?? '';
+
+                  debugPrint("🔍 Checking match: $leftItem -> $userSelected");
+
+                  // In your data structure, userSelected contains the text (like "nag")
+                  // and the leftItem is also "nag", so if userSelected == leftItem, it's correct
+                  if (userSelected == leftItem) {
+                    correctMatches++;
+                    debugPrint("✅ Match correct: $leftItem == $userSelected");
+                  } else {
+                    debugPrint("❌ Match wrong: $leftItem != $userSelected");
+                  }
+                }
+                isCorrect = correctMatches == matchingPairs.length;
+                debugPrint(
+                  "🔍 Matching question result: $correctMatches/${matchingPairs.length} correct, isCorrect: $isCorrect",
+                );
               } else {
-                debugPrint("❌ Match incorrect: $leftItem != $userSelected");
+                debugPrint(
+                  "🔍 No matching data found: pairs=${matchingPairs.length}, selections=${userMatchingSelections.length}",
+                );
               }
-            }
-            isCorrect = correctMatches == matchingPairs.length;
-            debugPrint(
-              "🔍 Matching question result: $correctMatches/${matchingPairs.length} correct, isCorrect: $isCorrect",
-            );
-          } else {
-            debugPrint(
-              "🔍 No matching data found: pairs=${matchingPairs.length}, selections=${userMatchingSelections.length}",
-            );
-          }
-        } else {
-          // For other question types, also handle option images if they exist
-          if (optionImages is Map) {
-            optionImages.forEach((key, value) {
-              if (value is String && value.isNotEmpty) {
-                optionImagesMap[key.toString()] = value;
+            } else {
+              // For other question types, also handle option images if they exist
+              if (optionImages is Map) {
+                optionImages.forEach((key, value) {
+                  if (value is String && value.isNotEmpty) {
+                    optionImagesMap[key.toString()] = value;
+                  }
+                });
               }
-            });
-          }
 
-          // Add option images to option data for display
-          for (int i = 0; i < opts.length; i++) {
-            final imageUrl = optionImagesMap[i.toString()];
-            opts[i]['option_image_url'] = imageUrl;
-            debugPrint(
-              "📋 Option $i (${opts[i]['option_text']}): $imageUrl",
-            );
-          }
+              // Add option images to option data for display
+              for (int i = 0; i < opts.length; i++) {
+                final imageUrl = optionImagesMap[i.toString()];
+                opts[i]['option_image_url'] = imageUrl;
+                debugPrint(
+                  "📋 Option $i (${opts[i]['option_text']}): $imageUrl",
+                );
+              }
 
-          final correctOpt = opts.firstWhere(
-            (o) => o['is_correct'] == true,
-            orElse: () => {'option_text': '(No correct answer)'},
-          );
-          correctAnswer = correctOpt['option_text'] ?? "(No correct)";
-
-          String rawUserAnswer = "";
-          if (userAnswer.isNotEmpty) {
-            if (userAnswer.containsKey("userAnswer")) {
-              rawUserAnswer = userAnswer["userAnswer"].toString();
-            }
-            if (userAnswer.containsKey("selected_option_id")) {
-              final selected = userAnswer["selected_option_id"];
-              final studentOpt = opts.firstWhere(
-                (o) => o["id"] == selected,
-                orElse: () => {"option_text": rawUserAnswer},
+              final correctOpt = opts.firstWhere(
+                (o) => o['is_correct'] == true,
+                orElse: () => {'option_text': '(No correct answer)'},
               );
-              rawUserAnswer = studentOpt["option_text"].toString();
+              correctAnswer = correctOpt['option_text'] ?? "(No correct)";
+
+              String rawUserAnswer = "";
+              if (userAnswer.isNotEmpty) {
+                if (userAnswer.containsKey("userAnswer")) {
+                  rawUserAnswer = userAnswer["userAnswer"].toString();
+                }
+                if (userAnswer.containsKey("selected_option_id")) {
+                  final selected = userAnswer["selected_option_id"];
+                  final studentOpt = opts.firstWhere(
+                    (o) => o["id"] == selected,
+                    orElse: () => {"option_text": rawUserAnswer},
+                  );
+                  rawUserAnswer = studentOpt["option_text"].toString();
+                }
+              }
+              studentAnswer =
+                  rawUserAnswer.isEmpty ? "(No answer)" : rawUserAnswer;
+              isCorrect =
+                  studentAnswer.trim().toLowerCase() ==
+                  correctAnswer.trim().toLowerCase();
             }
-          }
-          studentAnswer = rawUserAnswer.isEmpty ? "(No answer)" : rawUserAnswer;
-          isCorrect = studentAnswer.trim().toLowerCase() ==
-              correctAnswer.trim().toLowerCase();
-        }
 
-        if (isCorrect) correctCount++;
+            if (isCorrect) correctCount++;
 
-        return {
-          'id': qId,
-          'questionText': q['question_text'],
-          'type': type,
-          'questionImageUrl': questionImageUrl,
-          'options': opts,
-          'studentAnswer': studentAnswer,
-          'studentAnswerImage': studentAnswerImage,
-          'correctAnswer': correctAnswer,
-          'correctAnswerImage': correctAnswerImage,
-          'isCorrect': isCorrect,
-          'optionImagesMap': optionImagesMap,
-          'matchingPairs': matchingPairs,
-          'userMatchingSelections': userMatchingSelections,
-        };
-      }).toList();
+            return {
+              'id': qId,
+              'questionText': q['question_text'],
+              'type': type,
+              'questionImageUrl': questionImageUrl,
+              'options': opts,
+              'studentAnswer': studentAnswer,
+              'studentAnswerImage': studentAnswerImage,
+              'correctAnswer': correctAnswer,
+              'correctAnswerImage': correctAnswerImage,
+              'isCorrect': isCorrect,
+              'optionImagesMap': optionImagesMap,
+              'matchingPairs': matchingPairs,
+              'userMatchingSelections': userMatchingSelections,
+            };
+          }).toList();
 
       score = correctCount;
       maxScore = questions.length;
@@ -732,22 +750,23 @@ class _QuizReviewPageState extends State<QuizReviewPage> {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: options.map((option) {
-                  final optionText = option['option_text'] ?? "";
-                  final optionImage = option['option_image_url'];
-                  final isThisCorrect = option['is_correct'] == true;
-                  final isThisSelected = studentAnswer == optionText;
+                children:
+                    options.map((option) {
+                      final optionText = option['option_text'] ?? "";
+                      final optionImage = option['option_image_url'];
+                      final isThisCorrect = option['is_correct'] == true;
+                      final isThisSelected = studentAnswer == optionText;
 
-                  return Container(
-                    width: 100,
-                    child: _buildSmallOptionCard(
-                      text: optionText,
-                      imageUrl: optionImage,
-                      isCorrect: isThisCorrect,
-                      isSelected: isThisSelected,
-                    ),
-                  );
-                }).toList(),
+                      return Container(
+                        width: 100,
+                        child: _buildSmallOptionCard(
+                          text: optionText,
+                          imageUrl: optionImage,
+                          isCorrect: isThisCorrect,
+                          isSelected: isThisSelected,
+                        ),
+                      );
+                    }).toList(),
               ),
             ],
           ),
@@ -764,13 +783,17 @@ class _QuizReviewPageState extends State<QuizReviewPage> {
   }) {
     final colorScheme = Theme.of(context).colorScheme;
     final primaryColor = colorScheme.primary;
-    final borderColor = isStudentAnswer
-        ? (isCorrect ? Colors.green : primaryColor)
-        : Colors.green;
+    final borderColor =
+        isStudentAnswer
+            ? (isCorrect ? Colors.green : Colors.red) // Changed to red
+            : Colors.green;
     final backgroundColor = isStudentAnswer ? Colors.white : Colors.white;
-    final textColor = isStudentAnswer
-        ? (isCorrect ? Colors.green[800] : Colors.black87)
-        : Colors.green[800];
+    final textColor =
+        isStudentAnswer
+            ? (isCorrect
+                ? Colors.green[800]
+                : Colors.red[800]) // Changed to red
+            : Colors.green[800];
 
     return Container(
       decoration: BoxDecoration(
@@ -797,10 +820,11 @@ class _QuizReviewPageState extends State<QuizReviewPage> {
                     if (loadingProgress == null) return child;
                     return Center(
                       child: CircularProgressIndicator(
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded /
-                                loadingProgress.expectedTotalBytes!
-                            : null,
+                        value:
+                            loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
+                                : null,
                       ),
                     );
                   },
@@ -855,16 +879,22 @@ class _QuizReviewPageState extends State<QuizReviewPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        isCorrect ? Icons.check_circle : Icons.error,
-                        color: isCorrect ? Colors.green : primaryColor,
+                        isCorrect ? Icons.check_circle : Icons.close,
+                        color:
+                            isCorrect
+                                ? Colors.green
+                                : Colors.red, // Changed to red
                         size: 14,
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        isCorrect ? 'Correct' : 'Incorrect',
+                        isCorrect ? 'Correct' : 'Wrong',
                         style: TextStyle(
                           fontSize: 12,
-                          color: isCorrect ? Colors.green : primaryColor,
+                          color:
+                              isCorrect
+                                  ? Colors.green
+                                  : Colors.red, // Changed to red
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -892,9 +922,10 @@ class _QuizReviewPageState extends State<QuizReviewPage> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
-          color: isSelected
-              ? (isCorrect ? Colors.green : primaryColor)
-              : Colors.grey[300]!,
+          color:
+              isSelected
+                  ? (isCorrect ? Colors.green : Colors.red) // Changed to red
+                  : Colors.grey[300]!,
           width: isSelected ? 2 : 1,
         ),
       ),
@@ -917,10 +948,11 @@ class _QuizReviewPageState extends State<QuizReviewPage> {
                     if (loadingProgress == null) return child;
                     return Center(
                       child: CircularProgressIndicator(
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded /
-                                loadingProgress.expectedTotalBytes!
-                            : null,
+                        value:
+                            loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
+                                : null,
                       ),
                     );
                   },
@@ -946,9 +978,12 @@ class _QuizReviewPageState extends State<QuizReviewPage> {
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w500,
-                      color: isSelected
-                          ? (isCorrect ? Colors.green[800] : primaryColor)
-                          : Colors.grey[700],
+                      color:
+                          isSelected
+                              ? (isCorrect
+                                  ? Colors.green[800]
+                                  : Colors.red[800]) // Changed to red
+                              : Colors.grey[700],
                     ),
                     textAlign: TextAlign.center,
                     maxLines: 2,
@@ -1027,7 +1062,10 @@ class _QuizReviewPageState extends State<QuizReviewPage> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: isCorrect ? Colors.green[300]! : primaryMedium,
+                    color:
+                        isCorrect
+                            ? Colors.green[300]!
+                            : Colors.red[300]!, // Changed to red
                     width: isCorrect ? 2 : 1,
                   ),
                 ),
@@ -1036,7 +1074,10 @@ class _QuizReviewPageState extends State<QuizReviewPage> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: isCorrect ? Colors.green[800] : Colors.black87,
+                    color:
+                        isCorrect
+                            ? Colors.green[800]
+                            : Colors.red[800], // Changed to red
                   ),
                 ),
               ),
@@ -1107,7 +1148,8 @@ class _QuizReviewPageState extends State<QuizReviewPage> {
     );
 
     final matchingPairs = q['matchingPairs'] as List<Map<String, dynamic>>;
-    final userMatchingSelections = q['userMatchingSelections'] as List<Map<String, dynamic>>;
+    final userMatchingSelections =
+        q['userMatchingSelections'] as List<Map<String, dynamic>>;
     final isCorrect = q['isCorrect'];
     final questionImageUrl = q['questionImageUrl'];
 
@@ -1147,92 +1189,119 @@ class _QuizReviewPageState extends State<QuizReviewPage> {
               // Display user's matching attempts
               if (userMatchingSelections.isNotEmpty)
                 Column(
-                  children: userMatchingSelections.map((selection) {
-                    final leftItem = selection['left_item']?.toString() ?? '';
-                    final userSelected = selection['user_selected']?.toString() ?? '';
-                    final correctImageUrl = selection['correct_image_url']?.toString() ?? '';
-                    final isSelectionCorrect = userSelected == leftItem;
+                  children:
+                      userMatchingSelections.map((selection) {
+                        final leftItem =
+                            selection['left_item']?.toString() ?? '';
+                        final userSelected =
+                            selection['user_selected']?.toString() ?? '';
+                        final correctImageUrl =
+                            selection['correct_image_url']?.toString() ?? '';
+                        final isSelectionCorrect = userSelected == leftItem;
 
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: isSelectionCorrect ? Colors.green : primaryColor,
-                          width: isSelectionCorrect ? 2 : 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          // Left item (text)
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[50],
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                leftItem,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.black87,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color:
+                                  isSelectionCorrect
+                                      ? Colors.green
+                                      : Colors.red, // Changed to red
+                              width: isSelectionCorrect ? 2 : 1,
                             ),
                           ),
-
-                          // Arrow
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: Icon(
-                              Icons.arrow_forward,
-                              color: isSelectionCorrect ? Colors.green : primaryColor,
-                              size: 16,
-                            ),
-                          ),
-
-                          // User's selected item
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: isSelectionCorrect ? Colors.green[50] : primaryLight,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Column(
-                                children: [
-                                  Text(
-                                    userSelected,
+                          child: Row(
+                            children: [
+                              // Left item (text)
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[50],
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    leftItem,
                                     style: TextStyle(
                                       fontWeight: FontWeight.w500,
-                                      color: isSelectionCorrect ? Colors.green[800] : primaryColor,
+                                      color: Colors.black87,
                                     ),
                                     textAlign: TextAlign.center,
                                   ),
-                                  if (correctImageUrl.isNotEmpty && userSelected == leftItem)
-                                    Container(
-                                      height: 40,
-                                      margin: const EdgeInsets.only(top: 4),
-                                      child: Image.network(
-                                        correctImageUrl,
-                                        fit: BoxFit.contain,
-                                        errorBuilder: (context, error, stackTrace) {
-                                          return Icon(Icons.image, color: Colors.grey);
-                                        },
-                                      ),
-                                    ),
-                                ],
+                                ),
                               ),
-                            ),
+
+                              // Arrow
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                                child: Icon(
+                                  Icons.arrow_forward,
+                                  color:
+                                      isSelectionCorrect
+                                          ? Colors.green
+                                          : Colors.red, // Changed to red
+                                  size: 16,
+                                ),
+                              ),
+
+                              // User's selected item
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        isSelectionCorrect
+                                            ? Colors.green[50]
+                                            : Colors.red[50], // Changed to red
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        userSelected,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                          color:
+                                              isSelectionCorrect
+                                                  ? Colors.green[800]
+                                                  : Colors
+                                                      .red[800], // Changed to red
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      if (correctImageUrl.isNotEmpty &&
+                                          userSelected == leftItem)
+                                        Container(
+                                          height: 40,
+                                          margin: const EdgeInsets.only(top: 4),
+                                          child: Image.network(
+                                            correctImageUrl,
+                                            fit: BoxFit.contain,
+                                            errorBuilder: (
+                                              context,
+                                              error,
+                                              stackTrace,
+                                            ) {
+                                              return Icon(
+                                                Icons.image,
+                                                color: Colors.grey,
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
+                        );
+                      }).toList(),
                 )
               else
                 Text(
@@ -1276,87 +1345,101 @@ class _QuizReviewPageState extends State<QuizReviewPage> {
 
               if (matchingPairs.isNotEmpty)
                 Column(
-                  children: matchingPairs.map((pair) {
-                    final leftItem = pair['left_item']?.toString() ?? '';
-                    final rightItemUrl = pair['right_item_url']?.toString() ?? '';
+                  children:
+                      matchingPairs.map((pair) {
+                        final leftItem = pair['left_item']?.toString() ?? '';
+                        final rightItemUrl =
+                            pair['right_item_url']?.toString() ?? '';
 
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.green[200]!, width: 2),
-                      ),
-                      child: Row(
-                        children: [
-                          // Left item (text)
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[50],
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                leftItem,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.black87,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: Colors.green[200]!,
+                              width: 2,
                             ),
                           ),
-
-                          // Arrow
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: Icon(
-                              Icons.arrow_forward,
-                              color: Colors.green,
-                              size: 16,
-                            ),
-                          ),
-
-                          // Right item (image)
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.green[50],
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Column(
-                                children: [
-                                  Text(
-                                    'Correct match',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.green[700],
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                          child: Row(
+                            children: [
+                              // Left item (text)
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[50],
+                                    borderRadius: BorderRadius.circular(4),
                                   ),
-                                  if (rightItemUrl.isNotEmpty)
-                                    Container(
-                                      height: 40,
-                                      margin: const EdgeInsets.only(top: 4),
-                                      child: Image.network(
-                                        rightItemUrl,
-                                        fit: BoxFit.contain,
-                                        errorBuilder: (context, error, stackTrace) {
-                                          return Icon(Icons.image, color: Colors.grey);
-                                        },
-                                      ),
+                                  child: Text(
+                                    leftItem,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.black87,
                                     ),
-                                ],
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
                               ),
-                            ),
+
+                              // Arrow
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                                child: Icon(
+                                  Icons.arrow_forward,
+                                  color: Colors.green,
+                                  size: 16,
+                                ),
+                              ),
+
+                              // Right item (image)
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green[50],
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        'Correct match',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.green[700],
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      if (rightItemUrl.isNotEmpty)
+                                        Container(
+                                          height: 40,
+                                          margin: const EdgeInsets.only(top: 4),
+                                          child: Image.network(
+                                            rightItemUrl,
+                                            fit: BoxFit.contain,
+                                            errorBuilder: (
+                                              context,
+                                              error,
+                                              stackTrace,
+                                            ) {
+                                              return Icon(
+                                                Icons.image,
+                                                color: Colors.grey,
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
+                        );
+                      }).toList(),
                 )
               else
                 Text(
@@ -1375,17 +1458,24 @@ class _QuizReviewPageState extends State<QuizReviewPage> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: isCorrect ? Colors.green[50] : Colors.orange[50],
+            color:
+                isCorrect ? Colors.green[50] : Colors.red[50], // Changed to red
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: isCorrect ? Colors.green[100]! : Colors.orange[100]!,
+              color:
+                  isCorrect
+                      ? Colors.green[100]!
+                      : Colors.red[100]!, // Changed to red
             ),
           ),
           child: Row(
             children: [
               Icon(
-                isCorrect ? Icons.check_circle : Icons.error,
-                color: isCorrect ? Colors.green[700] : Colors.orange[700],
+                isCorrect ? Icons.check_circle : Icons.close,
+                color:
+                    isCorrect
+                        ? Colors.green[700]
+                        : Colors.red[700], // Changed to red
                 size: 20,
               ),
               const SizedBox(width: 8),
@@ -1395,7 +1485,10 @@ class _QuizReviewPageState extends State<QuizReviewPage> {
                       ? 'All pairs matched correctly!'
                       : 'Some pairs were not matched correctly.',
                   style: TextStyle(
-                    color: isCorrect ? Colors.green[700] : Colors.orange[700],
+                    color:
+                        isCorrect
+                            ? Colors.green[700]
+                            : Colors.red[700], // Changed to red
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -1464,7 +1557,10 @@ class _QuizReviewPageState extends State<QuizReviewPage> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: isCorrect ? Colors.green[300]! : primaryMedium,
+                    color:
+                        isCorrect
+                            ? Colors.green[300]!
+                            : Colors.red[300]!, // Changed to red
                     width: isCorrect ? 2 : 1,
                   ),
                 ),
@@ -1473,7 +1569,10 @@ class _QuizReviewPageState extends State<QuizReviewPage> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: isCorrect ? Colors.green[800] : Colors.black87,
+                    color:
+                        isCorrect
+                            ? Colors.green[800]
+                            : Colors.red[800], // Changed to red
                   ),
                 ),
               ),
@@ -1558,77 +1657,95 @@ class _QuizReviewPageState extends State<QuizReviewPage> {
                     ),
                     const SizedBox(height: 8),
                     Column(
-                      children: options.map((option) {
-                        final optionText = option['option_text'] ?? "";
-                        final optionImage = option['option_image_url'];
-                        final isThisCorrect = option['is_correct'] == true;
-                        final isThisSelected = studentAnswer == optionText;
+                      children:
+                          options.map((option) {
+                            final optionText = option['option_text'] ?? "";
+                            final optionImage = option['option_image_url'];
+                            final isThisCorrect = option['is_correct'] == true;
+                            final isThisSelected = studentAnswer == optionText;
 
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                              color: isThisSelected
-                                  ? (isCorrect ? Colors.green : primaryColor)
-                                  : Colors.grey[300]!,
-                              width: isThisSelected ? 2 : 1,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              // Option image if available
-                              if (optionImage != null && optionImage.isNotEmpty)
-                                Container(
-                                  width: 60,
-                                  height: 60,
-                                  decoration: BoxDecoration(
-                                    border: Border(
-                                      right: BorderSide(
-                                        color: Colors.grey[300]!,
-                                        width: 1,
-                                      ),
-                                    ),
-                                  ),
-                                  child: Image.network(
-                                    optionImage,
-                                    fit: BoxFit.contain,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Icon(Icons.broken_image, color: Colors.grey);
-                                    },
-                                  ),
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color:
+                                      isThisSelected
+                                          ? (isCorrect
+                                              ? Colors.green
+                                              : Colors.red) // Changed to red
+                                          : Colors.grey[300]!,
+                                  width: isThisSelected ? 2 : 1,
                                 ),
-
-                              // Option text and status
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(10),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          optionText,
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w500,
-                                            color: isThisSelected
-                                                ? (isCorrect
-                                                    ? Colors.green[800]
-                                                    : primaryColor)
-                                                : Colors.grey[700],
+                              ),
+                              child: Row(
+                                children: [
+                                  // Option image if available
+                                  if (optionImage != null &&
+                                      optionImage.isNotEmpty)
+                                    Container(
+                                      width: 60,
+                                      height: 60,
+                                      decoration: BoxDecoration(
+                                        border: Border(
+                                          right: BorderSide(
+                                            color: Colors.grey[300]!,
+                                            width: 1,
                                           ),
                                         ),
                                       ),
-                                      if (isThisCorrect)
-                                        Icon(Icons.check, color: Colors.green, size: 16),
-                                    ],
+                                      child: Image.network(
+                                        optionImage,
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (
+                                          context,
+                                          error,
+                                          stackTrace,
+                                        ) {
+                                          return Icon(
+                                            Icons.broken_image,
+                                            color: Colors.grey,
+                                          );
+                                        },
+                                      ),
+                                    ),
+
+                                  // Option text and status
+                                  Expanded(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(10),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              optionText,
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w500,
+                                                color:
+                                                    isThisSelected
+                                                        ? (isCorrect
+                                                            ? Colors.green[800]
+                                                            : Colors
+                                                                .red[800]) // Changed to red
+                                                        : Colors.grey[700],
+                                              ),
+                                            ),
+                                          ),
+                                          if (isThisCorrect)
+                                            Icon(
+                                              Icons.check,
+                                              color: Colors.green,
+                                              size: 16,
+                                            ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                ],
                               ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
+                            );
+                          }).toList(),
                     ),
                   ],
                 ),
@@ -1652,7 +1769,10 @@ class _QuizReviewPageState extends State<QuizReviewPage> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: isCorrect ? Colors.green[100]! : Colors.grey[200]!,
+          color:
+              isCorrect
+                  ? Colors.green[100]!
+                  : Colors.red[100]!, // Changed to red
           width: 1,
         ),
       ),
@@ -1674,28 +1794,43 @@ class _QuizReviewPageState extends State<QuizReviewPage> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: isCorrect ? Colors.green[50] : Colors.orange[50],
+                    color:
+                        isCorrect
+                            ? Colors.green[50]
+                            : Colors.red[50], // Changed to red
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isCorrect ? Colors.green[200]! : Colors.orange[200]!,
+                      color:
+                          isCorrect
+                              ? Colors.green[200]!
+                              : Colors.red[200]!, // Changed to red
                     ),
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        isCorrect ? Icons.check_circle : Icons.error,
+                        isCorrect ? Icons.check_circle : Icons.close,
                         size: 14,
-                        color: isCorrect ? Colors.green[700] : Colors.orange[700],
+                        color:
+                            isCorrect
+                                ? Colors.green[700]
+                                : Colors.red[700], // Changed to red
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        isCorrect ? 'Correct' : 'Incorrect',
+                        isCorrect ? 'Correct' : 'Wrong',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
-                          color: isCorrect ? Colors.green[700] : Colors.orange[700],
+                          color:
+                              isCorrect
+                                  ? Colors.green[700]
+                                  : Colors.red[700], // Changed to red
                         ),
                       ),
                     ],
@@ -1740,9 +1875,11 @@ class _QuizReviewPageState extends State<QuizReviewPage> {
             const SizedBox(height: 20),
 
             // Question-specific content based on type
-            if (type == "multiple_choice_with_images" || type == "multiplechoicewithimages")
+            if (type == "multiple_choice_with_images" ||
+                type == "multiplechoicewithimages")
               _buildMultipleChoiceWithImagesSection(q)
-            else if (type == "fill_in_the_blank_with_image" || type == "fillintheblankwithimage")
+            else if (type == "fill_in_the_blank_with_image" ||
+                type == "fillintheblankwithimage")
               _buildFillInTheBlankWithImageSection(q)
             else if (type == "matching")
               _buildMatchingSection(q)
@@ -1768,67 +1905,71 @@ class _QuizReviewPageState extends State<QuizReviewPage> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : questions.isEmpty
+      body:
+          isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : questions.isEmpty
               ? const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.quiz_outlined, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text(
-                        'No questions found',
-                        style: TextStyle(fontSize: 18, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                )
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.quiz_outlined, size: 64, color: Colors.grey),
+                    SizedBox(height: 16),
+                    Text(
+                      'No questions found',
+                      style: TextStyle(fontSize: 18, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              )
               : Container(
-                  color: Colors.grey[50],
-                  child: Column(
-                    children: [
-                      // Score Card
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: _buildScoreCard(),
-                      ),
+                color: Colors.grey[50],
+                child: Column(
+                  children: [
+                    // Score Card
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: _buildScoreCard(),
+                    ),
 
-                      // Questions List
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(24),
-                              topRight: Radius.circular(24),
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.grey.withOpacity(0.1),
-                                blurRadius: 10,
-                                spreadRadius: 1,
-                              ),
-                            ],
+                    // Questions List
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(24),
+                            topRight: Radius.circular(24),
                           ),
-                          child: ClipRRect(
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(24),
-                              topRight: Radius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.1),
+                              blurRadius: 10,
+                              spreadRadius: 1,
                             ),
-                            child: ListView.builder(
-                              padding: const EdgeInsets.all(16),
-                              itemCount: questions.length,
-                              itemBuilder: (context, index) {
-                                return _buildQuestionCard(questions[index], index);
-                              },
-                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(24),
+                            topRight: Radius.circular(24),
+                          ),
+                          child: ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: questions.length,
+                            itemBuilder: (context, index) {
+                              return _buildQuestionCard(
+                                questions[index],
+                                index,
+                              );
+                            },
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
+              ),
     );
   }
 }

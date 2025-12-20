@@ -127,7 +127,6 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
     );
   }
 
-
   Future<void> _handleLogin() async {
     if (!mounted) return;
     final formState = _formKey.currentState;
@@ -194,20 +193,43 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
     }
   }
 
-
   Widget _buildHeader(BuildContext context) => Column(
     children: [
       const SizedBox(height: 50),
+      // You can add an admin icon image if you have one
+      // For example: assets/icons/admin.png
       CircleAvatar(
         radius: 80,
-        backgroundColor: Colors.white,
-        child: Icon(Icons.admin_panel_settings,
-            size: 90, color: Theme.of(context).colorScheme.primary),
+        backgroundColor: Theme.of(context).colorScheme.onPrimary,
+        child: Icon(
+          Icons.admin_panel_settings,
+          size: 90,
+          color: Theme.of(context).colorScheme.primary,
+        ),
       ),
-      const SizedBox(height: 5),
-      Text("Admin Login",
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: Colors.white)),
-      const SizedBox(height: 80),
+      const SizedBox(height: 10),
+      Text(
+        "Admin Login",
+        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+          color: Theme.of(context).colorScheme.onPrimary,
+          fontWeight: FontWeight.bold,
+        ),
+        textAlign: TextAlign.center,
+      ),
+      const SizedBox(height: 8),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Text(
+          "Welcome back! Sign in to manage the system",
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.9),
+            fontSize: 14,
+            fontStyle: FontStyle.italic,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
+      const SizedBox(height: 60),
     ],
   );
 
@@ -240,7 +262,16 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
           EmailTextField(
             labelText: "Admin Email",
             controller: _emailController,
-            validator: (value) => (value == null || value.trim().isEmpty) ? 'Email is required' : null,
+            hintText: "Enter admin email address",
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Email is required';
+              }
+              if (!value.contains('@')) {
+                return 'Please enter a valid email address';
+              }
+              return null;
+            },
           ),
           const SizedBox(height: 20),
           PasswordTextField(
@@ -250,6 +281,40 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
           ),
           const SizedBox(height: 20),
           LoginButton(text: "Login", onPressed: _handleLogin),
+          // Security note for admin login
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.amber.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: Colors.amber.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.security,
+                  size: 18,
+                  color: Colors.amber.shade700,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    "For security: Admin access is restricted to authorized personnel only.",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.amber.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 2,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     ),
@@ -260,8 +325,10 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.primary,
-        iconTheme: const IconThemeData(color: Colors.white),
-        actions: [ThemeToggleButton(iconColor: Colors.white)],
+        iconTheme: IconThemeData(
+          color: Theme.of(context).colorScheme.onPrimary,
+        ),
+        actions: [ThemeToggleButton(iconColor: Theme.of(context).colorScheme.onPrimary)],
       ),
       body: Stack(
         children: [

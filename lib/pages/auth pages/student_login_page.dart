@@ -15,14 +15,14 @@ import '../auth pages/teacher_signup_page.dart';
 import '../auth pages/parent_signup_page.dart';
 import '../parent pages/parent_dashboard_page.dart';
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+class StudentLoginPage extends StatefulWidget {
+  const StudentLoginPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<StudentLoginPage> createState() => _StudentLoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _StudentLoginPageState extends State<StudentLoginPage> {
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
@@ -278,25 +278,85 @@ class _LoginPageState extends State<LoginPage> {
 
   Widget _buildHeader(BuildContext context) => Column(
     children: [
-      const SizedBox(height: 50),
+      const SizedBox(height: 40),
+      // Instruction banner
+      Container(
+        margin: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.info_outline,
+              color: Colors.white,
+              size: 24,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Login Options",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Enter username OR username@student.app",
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: 14,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 30),
       CircleAvatar(
         radius: 80,
         backgroundColor: Theme.of(context).colorScheme.onPrimary,
-        child: Icon(
-          Icons.person,
-          size: 90,
-          color: Theme.of(context).colorScheme.primary,
+        child: Image.asset(
+          'assets/icons/graduating-student.png',
+          width: 120,
+          height: 120,
+          fit: BoxFit.contain,
         ),
       ),
-      const SizedBox(height: 5),
+      const SizedBox(height: 10),
       Text(
-        "Login",
+        "Student Login",
         style: Theme.of(context).textTheme.headlineMedium?.copyWith(
           color: Theme.of(context).colorScheme.onPrimary,
+          fontWeight: FontWeight.bold,
         ),
         textAlign: TextAlign.center,
       ),
-      const SizedBox(height: 80),
+      const SizedBox(height: 8),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Text(
+          "Welcome back! Sign in to continue your reading journey",
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.9),
+            fontSize: 14,
+            fontStyle: FontStyle.italic,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
+      const SizedBox(height: 60),
     ],
   );
 
@@ -317,7 +377,7 @@ class _LoginPageState extends State<LoginPage> {
           TextFormField(
             controller: usernameController,
             decoration: InputDecoration(
-              labelText: "Username/Email",
+              labelText: "Username or Email",
               labelStyle: TextStyle(
                 color: Theme.of(context).colorScheme.onSurface,
               ),
@@ -359,15 +419,33 @@ class _LoginPageState extends State<LoginPage> {
                 vertical: 16,
                 horizontal: 20,
               ),
+              hintText: "username OR username@student.app",
+              hintStyle: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                fontStyle: FontStyle.italic,
+              ),
             ),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return 'Username is required';
+                return 'Username or email is required';
               }
               return null;
             },
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 8),
+          // Helper text below username field
+          Padding(
+            padding: const EdgeInsets.only(left: 16, bottom: 12),
+            child: Text(
+              "Accepted formats: username OR username@student.app",
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
           PasswordTextField(
             labelText: "Password",
             controller: passwordController,
@@ -393,14 +471,42 @@ class _LoginPageState extends State<LoginPage> {
           ),
           LoginButton(text: "Login", onPressed: login),
           const SizedBox(height: 20),
-          Divider(height: 10),
+          Divider(
+            height: 10,
+            color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+          ),
           const SizedBox(height: 5),
           Text(
             "or",
-            style: TextStyle(fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 5),
+          // Instruction for different user types
+          Container(
+            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                width: 1,
+              ),
+            ),
+            child: Text(
+              "Don't have an account? Sign up below based on your role:",
+              style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.primary,
@@ -408,7 +514,7 @@ class _LoginPageState extends State<LoginPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              padding: EdgeInsets.symmetric(vertical: 20),
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
               elevation: 4,
             ),
             icon: Image.asset(
@@ -418,12 +524,12 @@ class _LoginPageState extends State<LoginPage> {
             ),
             label: const Text(
               "Sign up as Student",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             onPressed: () {
               Navigator.of(
                 context,
-              ).push(PageTransition(page: StudentSignUpPage()));
+              ).push(PageTransition(page: const StudentSignUpPage()));
             },
           ),
           const SizedBox(height: 10),
@@ -434,7 +540,7 @@ class _LoginPageState extends State<LoginPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              padding: EdgeInsets.symmetric(vertical: 20),
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
               elevation: 4,
             ),
             icon: Image.asset(
@@ -444,12 +550,12 @@ class _LoginPageState extends State<LoginPage> {
             ),
             label: const Text(
               "Sign up as Teacher",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             onPressed: () {
               Navigator.of(
                 context,
-              ).push(PageTransition(page: TeacherSignUpPage()));
+              ).push(PageTransition(page: const TeacherSignUpPage()));
             },
           ),
           const SizedBox(height: 10),
@@ -460,19 +566,65 @@ class _LoginPageState extends State<LoginPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              padding: EdgeInsets.symmetric(vertical: 20),
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
               elevation: 4,
             ),
-            icon: const Icon(Icons.family_restroom, size: 30),
+            icon: const Icon(Icons.family_restroom, size: 28),
             label: const Text(
               "Sign up as Parent",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             onPressed: () {
               Navigator.of(
                 context,
-              ).push(PageTransition(page: ParentSignUpPage()));
+              ).push(PageTransition(page: const ParentSignUpPage()));
             },
+          ),
+          // Additional help text for login options
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.help_outline,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Need help logging in?",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "• Try username only (e.g., juandelacruz)\n• OR add @student.app (e.g., juandelacruz@student.app)",
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

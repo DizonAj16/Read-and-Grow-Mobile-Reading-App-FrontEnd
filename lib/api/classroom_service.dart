@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:deped_reading_app_laravel/models/announcement_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/classroom_model.dart';
@@ -10,7 +11,6 @@ import '../utils/database_helpers.dart';
 import '../utils/file_validator.dart';
 
 class ClassroomService {
-
   static Future<Map<String, dynamic>?> createClassV2({
     required String className,
     required String gradeLevel,
@@ -27,25 +27,31 @@ class ClassroomService {
         return null;
       }
 
-      final teacher = await supabase
-          .from('teachers')
-          .select('id')
-          .eq('id', currentUser.id)
-          .single();
+      final teacher =
+          await supabase
+              .from('teachers')
+              .select('id')
+              .eq('id', currentUser.id)
+              .single();
 
       if (teacher['id'] == null) {
         print('Teacher record not found');
         return null;
       }
 
-      final response = await supabase.from('class_rooms').insert({
-        'teacher_id': teacher['id'],
-        'class_name': className,
-        'grade_level': gradeLevel,
-        'section': section,
-        'school_year': schoolYear,
-        'classroom_code': classroomCode,
-      }).select().single();
+      final response =
+          await supabase
+              .from('class_rooms')
+              .insert({
+                'teacher_id': teacher['id'],
+                'class_name': className,
+                'grade_level': gradeLevel,
+                'section': section,
+                'school_year': schoolYear,
+                'classroom_code': classroomCode,
+              })
+              .select()
+              .single();
 
       return response;
     } catch (e) {
@@ -54,8 +60,9 @@ class ClassroomService {
     }
   }
 
-
-  static Future<List<Map<String, dynamic>>> fetchStudentQuizzes(String studentId) async {
+  static Future<List<Map<String, dynamic>>> fetchStudentQuizzes(
+    String studentId,
+  ) async {
     final supabase = Supabase.instance.client;
 
     final response = await supabase
@@ -111,12 +118,13 @@ class ClassroomService {
     try {
       final supabase = Supabase.instance.client;
 
-      final response = await supabase
-          .from('class_rooms')
-          .update(body)
-          .eq('id', classId)
-          .select()
-          .single();
+      final response =
+          await supabase
+              .from('class_rooms')
+              .update(body)
+              .eq('id', classId)
+              .select()
+              .single();
 
       return response;
     } catch (e) {
@@ -149,11 +157,14 @@ class ClassroomService {
     final supabase = Supabase.instance.client;
 
     try {
-      final response = await supabase
-          .from('class_rooms')
-          .select('*, student_enrollments(*), teacher:teachers(teacher_name)')
-          .eq('id', classId)
-          .maybeSingle();
+      final response =
+          await supabase
+              .from('class_rooms')
+              .select(
+                '*, student_enrollments(*), teacher:teachers(teacher_name)',
+              )
+              .eq('id', classId)
+              .maybeSingle();
 
       if (response == null) return {};
 
@@ -164,7 +175,7 @@ class ClassroomService {
       classDetails['student_count'] = studentCount;
       final teacher = classDetails['teacher'];
       classDetails['teacher_name'] =
-      teacher != null ? teacher['teacher_name'] ?? 'N/A' : 'N/A';
+          teacher != null ? teacher['teacher_name'] ?? 'N/A' : 'N/A';
 
       return classDetails;
     } catch (e) {
@@ -180,25 +191,29 @@ class ClassroomService {
       final currentUser = supabase.auth.currentUser;
       if (currentUser == null) throw Exception('No logged-in teacher');
 
-      final teacher = await supabase
-          .from('teachers')
-          .select('id')
-          .eq('id', currentUser.id)
-          .single();
+      final teacher =
+          await supabase
+              .from('teachers')
+              .select('id')
+              .eq('id', currentUser.id)
+              .single();
 
       final teacherId = teacher['id'];
       final response = await supabase
           .from('class_rooms')
-          .select('id, class_name, grade_level, section, teacher_id, school_year, student_enrollments(student_id)')
+          .select(
+            'id, class_name, grade_level, section, teacher_id, school_year, student_enrollments(student_id)',
+          )
           .eq('teacher_id', teacherId);
 
       return (response as List<dynamic>).map((json) {
         final data = Map<String, dynamic>.from(json);
         // Count enrollments properly - get the list of enrollments and count them
         final enrollments = data['student_enrollments'] as List?;
-        final studentCount = (enrollments != null && enrollments.isNotEmpty)
-            ? enrollments.length
-            : 0;
+        final studentCount =
+            (enrollments != null && enrollments.isNotEmpty)
+                ? enrollments.length
+                : 0;
 
         data['student_count'] = studentCount;
         return Classroom.fromJson(data);
@@ -232,11 +247,12 @@ class ClassroomService {
       final user = supabase.auth.currentUser;
       if (user == null) throw Exception("No logged-in student");
 
-      final student = await supabase
-          .from('students')
-          .select('id')
-          .eq('id', user.id)
-          .single();
+      final student =
+          await supabase
+              .from('students')
+              .select('id')
+              .eq('id', user.id)
+              .single();
 
       final studentId = student['id'];
       final response = await supabase
@@ -288,52 +304,50 @@ class ClassroomService {
     final supabase = Supabase.instance.client;
 
     try {
-      debugPrint('📝 [ASSIGN_STUDENT] Starting assignment - Student: $studentId, Class: $classRoomId');
+      debugPrint(
+        '📝 [ASSIGN_STUDENT] Starting assignment - Student: $studentId, Class: $classRoomId',
+      );
 
       // 1️⃣ Validate inputs
       if (studentId.isEmpty || !Validators.isValidUUID(studentId)) {
         debugPrint('❌ [ASSIGN_STUDENT] Invalid student ID: $studentId');
-        return {
-          'error': 'Invalid student ID provided.',
-        };
+        return {'error': 'Invalid student ID provided.'};
       }
 
       if (classRoomId.isEmpty || !Validators.isValidUUID(classRoomId)) {
         debugPrint('❌ [ASSIGN_STUDENT] Invalid class room ID: $classRoomId');
-        return {
-          'error': 'Invalid class room ID provided.',
-        };
+        return {'error': 'Invalid class room ID provided.'};
       }
 
       // 2️⃣ Verify student exists
-      final studentExists = await supabase
-          .from('students')
-          .select('id, student_name')
-          .eq('id', studentId)
-          .maybeSingle();
+      final studentExists =
+          await supabase
+              .from('students')
+              .select('id, student_name')
+              .eq('id', studentId)
+              .maybeSingle();
 
       if (studentExists == null) {
         debugPrint('❌ [ASSIGN_STUDENT] Student not found: $studentId');
-        return {
-          'error': 'Student not found.',
-        };
+        return {'error': 'Student not found.'};
       }
 
       // 3️⃣ Verify class exists
-      final classExists = await supabase
-          .from('class_rooms')
-          .select('id, class_name')
-          .eq('id', classRoomId)
-          .maybeSingle();
+      final classExists =
+          await supabase
+              .from('class_rooms')
+              .select('id, class_name')
+              .eq('id', classRoomId)
+              .maybeSingle();
 
       if (classExists == null) {
         debugPrint('❌ [ASSIGN_STUDENT] Class room not found: $classRoomId');
-        return {
-          'error': 'Class room not found.',
-        };
+        return {'error': 'Class room not found.'};
       }
 
-      debugPrint('✅ [ASSIGN_STUDENT] Student "${studentExists['student_name']}" and class "${classExists['class_name']}" verified');
+      debugPrint(
+        '✅ [ASSIGN_STUDENT] Student "${studentExists['student_name']}" and class "${classExists['class_name']}" verified',
+      );
 
       // 4️⃣ Check if student is already enrolled in ANY class
       final existingEnrollments = await supabase
@@ -344,13 +358,18 @@ class ClassroomService {
       if (existingEnrollments.isNotEmpty) {
         final existingEnrollment = existingEnrollments.first;
         final existingClassId = existingEnrollment['class_room_id'] as String?;
-        final existingClassName = existingEnrollment['class_rooms']?['class_name'] as String?;
+        final existingClassName =
+            existingEnrollment['class_rooms']?['class_name'] as String?;
 
-        debugPrint('⚠️ [ASSIGN_STUDENT] Student already enrolled in class: $existingClassId ($existingClassName)');
+        debugPrint(
+          '⚠️ [ASSIGN_STUDENT] Student already enrolled in class: $existingClassId ($existingClassName)',
+        );
 
         // If already enrolled in this class, return success
         if (existingClassId == classRoomId) {
-          debugPrint('✅ [ASSIGN_STUDENT] Student already enrolled in this class - returning success');
+          debugPrint(
+            '✅ [ASSIGN_STUDENT] Student already enrolled in this class - returning success',
+          );
           return {
             'student_id': studentId,
             'class_room_id': classRoomId,
@@ -359,23 +378,33 @@ class ClassroomService {
         }
 
         // If enrolled in a different class, prevent assignment
-        debugPrint('❌ [ASSIGN_STUDENT] Cannot assign - student enrolled in different class');
+        debugPrint(
+          '❌ [ASSIGN_STUDENT] Cannot assign - student enrolled in different class',
+        );
         return {
-          'error': 'Student is already enrolled in "${existingClassName ?? 'another class'}". Please unassign them first.',
+          'error':
+              'Student is already enrolled in "${existingClassName ?? 'another class'}". Please unassign them first.',
           'existing_class_id': existingClassId,
           'existing_class_name': existingClassName,
         };
       }
 
       // 5️⃣ Proceed with assignment if no existing enrollment
-      debugPrint('📝 [ASSIGN_STUDENT] No existing enrollment found - proceeding with assignment');
-      
+      debugPrint(
+        '📝 [ASSIGN_STUDENT] No existing enrollment found - proceeding with assignment',
+      );
+
       final enrollmentDate = DateTime.now().toIso8601String();
-      final response = await supabase.from('student_enrollments').insert({
-        'student_id': studentId,
-        'class_room_id': classRoomId,
-        'enrollment_date': enrollmentDate,
-      }).select().single();
+      final response =
+          await supabase
+              .from('student_enrollments')
+              .insert({
+                'student_id': studentId,
+                'class_room_id': classRoomId,
+                'enrollment_date': enrollmentDate,
+              })
+              .select()
+              .single();
 
       debugPrint('✅ [ASSIGN_STUDENT] Successfully assigned student to class');
       return response;
@@ -390,17 +419,14 @@ class ClassroomService {
           errorString.contains('violates unique constraint') ||
           errorString.contains('primary key')) {
         debugPrint('⚠️ [ASSIGN_STUDENT] Duplicate enrollment detected');
-        return {
-          'error': 'Student is already enrolled in this class.',
-        };
+        return {'error': 'Student is already enrolled in this class.'};
       }
 
       // Check for foreign key violations
-      if (errorString.contains('foreign key') || errorString.contains('constraint')) {
+      if (errorString.contains('foreign key') ||
+          errorString.contains('constraint')) {
         debugPrint('⚠️ [ASSIGN_STUDENT] Foreign key constraint violation');
-        return {
-          'error': 'Invalid student or class room ID.',
-        };
+        return {'error': 'Invalid student or class room ID.'};
       }
 
       return {
@@ -409,6 +435,7 @@ class ClassroomService {
       };
     }
   }
+
   static Future<http.Response> unassignStudent({
     required String studentId,
     required String classRoomId,
@@ -421,8 +448,6 @@ class ClassroomService {
           .delete()
           .eq('student_id', studentId)
           .eq('class_room_id', classRoomId);
-
-
 
       return http.Response(
         '{"message": "Student unassigned successfully"}',
@@ -439,8 +464,9 @@ class ClassroomService {
     }
   }
 
-
-  static Future<Set<String>> getAssignedStudentIdsForClass(String classRoomId) async {
+  static Future<Set<String>> getAssignedStudentIdsForClass(
+    String classRoomId,
+  ) async {
     try {
       final supabase = Supabase.instance.client;
 
@@ -449,9 +475,10 @@ class ClassroomService {
           .select('student_id')
           .eq('class_room_id', classRoomId);
 
-      final assignedIds = (assignedResponse as List)
-          .map((e) => e['student_id'] as String)
-          .toSet();
+      final assignedIds =
+          (assignedResponse as List)
+              .map((e) => e['student_id'] as String)
+              .toSet();
 
       return assignedIds;
     } catch (e) {
@@ -468,9 +495,10 @@ class ClassroomService {
           .from('student_enrollments')
           .select('student_id');
 
-      final assignedIds = (assignedResponse as List)
-          .map((e) => e['student_id'] as String)
-          .toSet();
+      final assignedIds =
+          (assignedResponse as List)
+              .map((e) => e['student_id'] as String)
+              .toSet();
 
       return assignedIds;
     } catch (e) {
@@ -479,14 +507,11 @@ class ClassroomService {
     }
   }
 
-
   static Future<List<Student>> getAssignedStudents() async {
     try {
       final supabase = Supabase.instance.client;
 
-      final response = await supabase
-          .from('students')
-          .select();
+      final response = await supabase.from('students').select();
 
       final List<dynamic> list = response;
       return list
@@ -505,9 +530,10 @@ class ClassroomService {
           .from('student_enrollments')
           .select('student_id');
 
-      final assignedIds = (assignedResponse as List)
-          .map((e) => e['student_id'] as String)
-          .toList();
+      final assignedIds =
+          (assignedResponse as List)
+              .map((e) => e['student_id'] as String)
+              .toList();
       final response = await supabase
           .from('students')
           .select()
@@ -544,7 +570,9 @@ class ClassroomService {
     try {
       final supabase = Supabase.instance.client;
 
-      debugPrint('👥 [GET_CLASSMATES] Fetching students for class: $classRoomId');
+      debugPrint(
+        '👥 [GET_CLASSMATES] Fetching students for class: $classRoomId',
+      );
 
       // Get all enrollments for this class
       final enrollmentsResponse = await supabase
@@ -558,11 +586,14 @@ class ClassroomService {
       }
 
       // Extract student IDs
-      final studentIds = (enrollmentsResponse as List)
-          .map((e) => e['student_id'] as String)
-          .toList();
+      final studentIds =
+          (enrollmentsResponse as List)
+              .map((e) => e['student_id'] as String)
+              .toList();
 
-      debugPrint('✅ [GET_CLASSMATES] Found ${studentIds.length} enrolled students');
+      debugPrint(
+        '✅ [GET_CLASSMATES] Found ${studentIds.length} enrolled students',
+      );
 
       // Fetch student details
       if (studentIds.isEmpty) {
@@ -576,11 +607,14 @@ class ClassroomService {
           .inFilter('id', studentIds);
 
       final List<dynamic> list = studentsResponse;
-      final students = list
-          .map((json) => Student.fromJson(Map<String, dynamic>.from(json)))
-          .toList();
+      final students =
+          list
+              .map((json) => Student.fromJson(Map<String, dynamic>.from(json)))
+              .toList();
 
-      debugPrint('✅ [GET_CLASSMATES] Retrieved ${students.length} student records');
+      debugPrint(
+        '✅ [GET_CLASSMATES] Retrieved ${students.length} student records',
+      );
       return students;
     } catch (e) {
       debugPrint('❌ [GET_CLASSMATES] Error fetching students by class: $e');
@@ -595,17 +629,11 @@ class ClassroomService {
       // Validate class code
       final trimmedCode = classCode.trim();
       if (trimmedCode.isEmpty) {
-        return {
-          'success': false,
-          'message': 'Class code cannot be empty.',
-        };
+        return {'success': false, 'message': 'Class code cannot be empty.'};
       }
 
       if (trimmedCode.length < 4) {
-        return {
-          'success': false,
-          'message': 'Invalid class code format.',
-        };
+        return {'success': false, 'message': 'Invalid class code format.'};
       }
 
       // 1️⃣ Find the class by its code using safe helpers
@@ -625,29 +653,20 @@ class ClassroomService {
 
       final classRoom = classData.first;
       final classRoomId = DatabaseHelpers.safeStringFromResult(classRoom, 'id');
-      
+
       if (classRoomId.isEmpty) {
-        return {
-          'success': false,
-          'message': 'Invalid class data.',
-        };
+        return {'success': false, 'message': 'Invalid class data.'};
       }
 
       // 2️⃣ Get the current user's corresponding student record
       final userId = supabase.auth.currentUser?.id;
       if (userId == null || userId.isEmpty) {
-        return {
-          'success': false,
-          'message': 'User not authenticated.',
-        };
+        return {'success': false, 'message': 'User not authenticated.'};
       }
 
       // Validate user ID
       if (!Validators.isValidUUID(userId)) {
-        return {
-          'success': false,
-          'message': 'Invalid user ID.',
-        };
+        return {'success': false, 'message': 'Invalid user ID.'};
       }
 
       final studentData = await DatabaseHelpers.safeGetSingle(
@@ -657,20 +676,14 @@ class ClassroomService {
       );
 
       if (studentData == null) {
-        return {
-          'success': false,
-          'message': 'Student record not found.',
-        };
+        return {'success': false, 'message': 'Student record not found.'};
       }
 
       // 3️⃣ Check if already enrolled using safe helpers
       final existingEnrollments = await DatabaseHelpers.safeGetList(
         supabase: supabase,
         table: 'student_enrollments',
-        filters: {
-          'student_id': userId,
-          'class_room_id': classRoomId,
-        },
+        filters: {'student_id': userId, 'class_room_id': classRoomId},
         limit: 1,
       );
 
@@ -711,7 +724,8 @@ class ClassroomService {
       debugPrint("❌ Error joining class: $e");
       return {
         'success': false,
-        'message': 'An error occurred while joining the class. Please try again.',
+        'message':
+            'An error occurred while joining the class. Please try again.',
       };
     }
   }
@@ -725,10 +739,7 @@ class ClassroomService {
       final supabase = Supabase.instance.client;
 
       final file = File(filePath);
-      final sizeValidation = await validateFileSize(
-        file,
-        limitMB: sizeLimitMB,
-      );
+      final sizeValidation = await validateFileSize(file, limitMB: sizeLimitMB);
       if (!sizeValidation.isValid) {
         throw FileSizeLimitException(
           FileValidator.backendLimitMessage(sizeLimitMB),
@@ -738,42 +749,52 @@ class ClassroomService {
       }
 
       final fileName =
-          'class_backgrounds/$classId-${DateTime
-          .now()
-          .millisecondsSinceEpoch}.jpg';
+          'class_backgrounds/$classId-${DateTime.now().millisecondsSinceEpoch}.jpg';
 
       final fileBytes = await file.readAsBytes();
-      
+
       // Upload file to Supabase storage
       try {
-        await supabase.storage.from('materials').uploadBinary(
-          fileName,
-          fileBytes,
-          fileOptions: const FileOptions(upsert: true),
-        );
+        await supabase.storage
+            .from('materials')
+            .uploadBinary(
+              fileName,
+              fileBytes,
+              fileOptions: const FileOptions(upsert: true),
+            );
       } catch (storageError) {
         print('Error uploading file to storage: $storageError');
         return null; // File upload failed, return null
       }
 
-      final publicUrl =
-          supabase.storage.from('materials').getPublicUrl(fileName);
+      final publicUrl = supabase.storage
+          .from('materials')
+          .getPublicUrl(fileName);
 
       // Try to update class_rooms table - this may fail if column doesn't exist yet
       // But we still return success since the file was uploaded and SharedPreferences will handle it
       try {
-        await supabase.from('class_rooms').update({
-          'background_image': publicUrl,
-        }).eq('id', classId);
-        
+        await supabase
+            .from('class_rooms')
+            .update({'background_image': publicUrl})
+            .eq('id', classId);
+
         print('✅ Successfully updated class_rooms table with background_image');
       } catch (dbError) {
         // Database update failed (likely column doesn't exist), but file upload succeeded
         // Log the error but continue - SharedPreferences will handle the storage
-        print('⚠️ Warning: Could not update class_rooms.background_image column: $dbError');
-        print('⚠️ This may be because the column does not exist in the database yet.');
-        print('⚠️ Please run the SQL migration to add the background_image column.');
-        print('⚠️ The image was uploaded successfully and will work with SharedPreferences.');
+        print(
+          '⚠️ Warning: Could not update class_rooms.background_image column: $dbError',
+        );
+        print(
+          '⚠️ This may be because the column does not exist in the database yet.',
+        );
+        print(
+          '⚠️ Please run the SQL migration to add the background_image column.',
+        );
+        print(
+          '⚠️ The image was uploaded successfully and will work with SharedPreferences.',
+        );
       }
 
       // Return success response even if database update failed
@@ -790,4 +811,404 @@ class ClassroomService {
       return null;
     }
   }
+
+/// Create a new announcement
+static Future<Announcement?> createAnnouncement({
+  required String classRoomId,
+  required String title,
+  required String content,
+  String? imagePath, // Add this parameter
+}) async {
+  final supabase = Supabase.instance.client;
+
+  try {
+    final currentUser = supabase.auth.currentUser;
+    if (currentUser == null) {
+      debugPrint('❌ No logged-in user found');
+      return null;
+    }
+
+    debugPrint('📝 Creating announcement for class: $classRoomId');
+
+    String? imageUrl;
+
+    // Upload image if provided
+    if (imagePath != null && imagePath.isNotEmpty) {
+      imageUrl = await _uploadAnnouncementImage(imagePath, classRoomId);
+      debugPrint('📸 Image uploaded: $imageUrl');
+    }
+
+    // Create announcement data
+    final announcementData = <String, dynamic>{
+      'class_room_id': classRoomId,
+      'teacher_id': currentUser.id,
+      'title': title,
+      'content': content,
+    };
+
+    // Only add image_url if we have a value
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      announcementData['image_url'] = imageUrl;
+      debugPrint('📝 Adding image_url to announcement data: $imageUrl');
+    } else {
+      debugPrint('📝 No image to add, imageUrl: $imageUrl');
+    }
+
+    debugPrint('📝 Announcement data to insert: $announcementData');
+
+    final response = await supabase
+        .from('announcements')
+        .insert(announcementData)
+        .select('''
+          *,
+          teacher:teachers(
+            teacher_name,
+            profile_picture
+          )
+        ''')
+        .single();
+
+    debugPrint('✅ Announcement created successfully');
+    debugPrint('✅ Response: $response');
+    
+    return Announcement.fromJson(response);
+  } catch (e) {
+    debugPrint('❌ Error creating announcement: $e');
+    return null;
+  }
+}
+
+  // Update the select query in getClassAnnouncements to include image_url
+  static Future<List<Announcement>> getClassAnnouncements(
+    String classRoomId,
+  ) async {
+    final supabase = Supabase.instance.client;
+
+    try {
+      debugPrint('📝 Fetching announcements for class: $classRoomId');
+
+      final response = await supabase
+          .from('announcements')
+          .select('''
+            *,
+            teacher:teachers(
+              teacher_name,
+              profile_picture
+            )
+          ''')
+          .eq('class_room_id', classRoomId)
+          .order('created_at', ascending: false);
+
+      debugPrint('✅ Found ${response.length} announcements');
+
+      return (response as List<dynamic>)
+          .map((json) => Announcement.fromJson(json))
+          .toList();
+    } catch (e) {
+      debugPrint('❌ Error fetching announcements: $e');
+      return [];
+    }
+  }
+
+  /// Get a single announcement by ID
+  static Future<Announcement?> getAnnouncementById(
+    String announcementId,
+  ) async {
+    final supabase = Supabase.instance.client;
+
+    try {
+      final response =
+          await supabase
+              .from('announcements')
+              .select('''
+            *,
+            teacher:teachers(
+              teacher_name,
+              profile_picture
+            )
+          ''')
+              .eq('id', announcementId)
+              .maybeSingle();
+
+      if (response == null) return null;
+
+      return Announcement.fromJson(response);
+    } catch (e) {
+      debugPrint('❌ Error fetching announcement: $e');
+      return null;
+    }
+  }
+
+/// Update an existing announcement with optional image
+static Future<Announcement?> updateAnnouncement({
+  required String announcementId,
+  required String title,
+  required String content,
+  String? imagePath, // Add this parameter
+  bool removeImage = false, // Add this parameter
+}) async {
+  final supabase = Supabase.instance.client;
+
+  try {
+    String? imageUrl;
+    final shouldUpdateImage = imagePath != null && imagePath.isNotEmpty;
+    final shouldRemoveImage = removeImage;
+
+    // If we have a new image, upload it
+    if (shouldUpdateImage) {
+      // Get class ID first
+      final currentAnnouncement = await getAnnouncementById(announcementId);
+      if (currentAnnouncement != null) {
+        imageUrl = await _uploadAnnouncementImage(
+          imagePath,
+          currentAnnouncement.classRoomId,
+        );
+        debugPrint('📸 New image uploaded: $imageUrl');
+      }
+    }
+
+    // Create update data
+    final updateData = <String, dynamic>{
+      'title': title,
+      'content': content,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+
+    // Handle image update/removal
+    if (shouldRemoveImage) {
+      // Delete existing image from storage first
+      final currentAnnouncement = await getAnnouncementById(announcementId);
+      if (currentAnnouncement?.imageUrl != null && currentAnnouncement!.imageUrl!.isNotEmpty) {
+        await _deleteAnnouncementImage(currentAnnouncement.imageUrl);
+      }
+      // Set image_url to null
+      updateData['image_url'] = null;
+      debugPrint('🗑️ Removing image from announcement');
+    } else if (shouldUpdateImage && imageUrl != null && imageUrl.isNotEmpty) {
+      // Delete old image if exists
+      final currentAnnouncement = await getAnnouncementById(announcementId);
+      if (currentAnnouncement?.imageUrl != null && currentAnnouncement!.imageUrl!.isNotEmpty) {
+        await _deleteAnnouncementImage(currentAnnouncement.imageUrl);
+      }
+      // Set new image URL
+      updateData['image_url'] = imageUrl;
+      debugPrint('📝 Setting new image_url: $imageUrl');
+    } else {
+      debugPrint('📝 No image changes to make');
+    }
+
+    debugPrint('📝 Update data: $updateData');
+
+    final response = await supabase
+        .from('announcements')
+        .update(updateData)
+        .eq('id', announcementId)
+        .select('''
+          *,
+          teacher:teachers(
+            teacher_name,
+            profile_picture
+          )
+        ''')
+        .single();
+
+    debugPrint('✅ Announcement updated successfully');
+    debugPrint('✅ Response: $response');
+    
+    return Announcement.fromJson(response);
+  } catch (e) {
+    debugPrint('❌ Error updating announcement: $e');
+    return null;
+  }
+}
+
+  /// Delete an announcement
+  /// Delete announcement with image cleanup
+  static Future<bool> deleteAnnouncement(String announcementId) async {
+    final supabase = Supabase.instance.client;
+
+    try {
+      // Get announcement first to check for image
+      final announcement = await getAnnouncementById(announcementId);
+
+      if (announcement != null && announcement.imageUrl != null) {
+        // Delete image from storage
+        await _deleteAnnouncementImage(announcement.imageUrl);
+      }
+
+      // Delete announcement from database
+      await supabase.from('announcements').delete().eq('id', announcementId);
+
+      debugPrint('✅ Announcement deleted successfully');
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error deleting announcement: $e');
+      return false;
+    }
+  }
+
+  /// Get announcements for student (across all enrolled classes)
+  static Future<List<Announcement>> getStudentAnnouncements() async {
+    final supabase = Supabase.instance.client;
+
+    try {
+      final user = supabase.auth.currentUser;
+      if (user == null) throw Exception("No logged-in student");
+
+      // Get student's enrolled classes
+      final enrollmentsResponse = await supabase
+          .from('student_enrollments')
+          .select('class_room_id')
+          .eq('student_id', user.id);
+
+      if (enrollmentsResponse.isEmpty) return [];
+
+      final classIds =
+          (enrollmentsResponse as List<dynamic>)
+              .map((e) => e['class_room_id'] as String)
+              .toList();
+
+      // Get announcements from all enrolled classes
+      final announcementsResponse = await supabase
+          .from('announcements')
+          .select('''
+            *,
+            teacher:teachers(
+              teacher_name,
+              profile_picture
+            ),
+            class_rooms:class_room_id(
+              class_name
+            )
+          ''')
+          .inFilter('class_room_id', classIds)
+          .order('created_at', ascending: false);
+
+      debugPrint(
+        '✅ Found ${announcementsResponse.length} announcements for student',
+      );
+
+      // Convert to Announcement objects and add class name
+      return (announcementsResponse as List<dynamic>).map((json) {
+        final announcement = Announcement.fromJson(json);
+        // Add class name if available
+        final classRoom = json['class_rooms'];
+        return announcement;
+      }).toList();
+    } catch (e) {
+      debugPrint('❌ Error fetching student announcements: $e');
+      return [];
+    }
+  }
+
+  static Future<int> getAnnouncementsCount(String classRoomId) async {
+    final supabase = Supabase.instance.client;
+
+    try {
+      final response = await supabase
+          .from('announcements')
+          .select()
+          .eq('class_room_id', classRoomId);
+
+      // Option 1: Get count from response metadata (Supabase Dart v2+)
+      final count = response.length;
+
+      debugPrint('✅ Found $count announcements for class: $classRoomId');
+      return count;
+    } catch (e) {
+      debugPrint('❌ Error fetching announcements count: $e');
+      return 0;
+    }
+  }
+
+/// Upload announcement image to Supabase storage
+static Future<String?> _uploadAnnouncementImage(
+  String filePath,
+  String classRoomId,
+) async {
+  try {
+    final supabase = Supabase.instance.client;
+
+    // Generate unique filename
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final fileName =
+        'announcements/$classRoomId/${timestamp}_${filePath.split('/').last}';
+
+    debugPrint('📤 Uploading image to: $fileName');
+
+    // Read file bytes
+    final file = File(filePath);
+    if (!file.existsSync()) {
+      debugPrint('❌ File does not exist: $filePath');
+      return null;
+    }
+
+    final fileBytes = await file.readAsBytes();
+    debugPrint('📏 File size: ${fileBytes.length} bytes');
+
+    // Upload to Supabase storage bucket 'materials' (which already works)
+    try {
+      await supabase.storage
+          .from('materials') // Use 'materials' bucket instead of 'document'
+          .uploadBinary(
+            fileName,
+            fileBytes,
+            fileOptions: const FileOptions(upsert: true),
+          );
+      debugPrint('✅ Image uploaded successfully to storage');
+    } catch (storageError) {
+      debugPrint('❌ Storage upload error: $storageError');
+      return null;
+    }
+
+    // Get public URL
+    final publicUrl = supabase.storage
+        .from('materials') // Use 'materials' bucket
+        .getPublicUrl(fileName);
+
+    debugPrint('✅ Image uploaded successfully: $publicUrl');
+    return publicUrl;
+  } catch (e) {
+    debugPrint('❌ Error uploading announcement image: $e');
+    return null;
+  }
+}
+
+/// Delete announcement image from storage
+static Future<void> _deleteAnnouncementImage(String? imageUrl) async {
+  try {
+    if (imageUrl == null || imageUrl.isEmpty) return;
+
+    final supabase = Supabase.instance.client;
+
+    // Extract file path from URL
+    final uri = Uri.parse(imageUrl);
+    final pathSegments = uri.pathSegments;
+
+    // Check if URL is from 'materials' bucket
+    final bucketIndex = pathSegments.indexOf('materials');
+    if (bucketIndex != -1 && bucketIndex + 1 < pathSegments.length) {
+      final filePath = pathSegments.sublist(bucketIndex + 1).join('/');
+
+      // Delete from storage
+      await supabase.storage.from('materials').remove([filePath]);
+
+      debugPrint('✅ Image deleted from storage: $filePath');
+    }
+    // Also check for 'document' bucket for backward compatibility
+    else {
+      final documentIndex = pathSegments.indexOf('document');
+      if (documentIndex != -1 && documentIndex + 1 < pathSegments.length) {
+        final filePath = pathSegments.sublist(documentIndex + 1).join('/');
+
+        // Delete from storage
+        await supabase.storage.from('document').remove([filePath]);
+
+        debugPrint('✅ Image deleted from storage: $filePath');
+      }
+    }
+  } catch (e) {
+    debugPrint('❌ Error deleting announcement image: $e');
+  }
+}
 }

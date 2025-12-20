@@ -67,6 +67,10 @@ dependencies:
   dio: ^5.4.0
   iconsax: ^0.0.8
   cached_network_image: ^3.4.1
+  syncfusion_flutter_charts: ^30.2.7
+  pdfx: ^2.9.2
+  pdf: ^3.11.3
+  printing: ^5.14.2
 
 
 dev_dependencies:

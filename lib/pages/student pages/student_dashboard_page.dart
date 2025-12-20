@@ -1,5 +1,6 @@
 import 'package:deped_reading_app_laravel/api/supabase_auth_service.dart';
 import 'package:deped_reading_app_laravel/models/student_model.dart';
+import 'package:deped_reading_app_laravel/pages/student%20pages/student%20class%20pages/student_class_page.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -464,8 +465,8 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
                                 const SizedBox(height: 30),
                                 _buildProgressSection(),
                                 const SizedBox(height: 30),
-                                _buildQuickAccessSection(context),
-                                const SizedBox(height: 20),
+                                // _buildQuickAccessSection(context),
+                                // const SizedBox(height: 20),
                                 _buildMyGradesCard(context),
                                 const SizedBox(height: 30),
                                 _buildRecentActivitiesSection(context),
@@ -1041,100 +1042,100 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
     );
   }
 
-  Widget _buildQuickAccessSection(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: _primaryColor.withOpacity(0.15),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Material(
-          child: InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const EnhancedReadingLevelPage(),
-                ),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [_primaryColor, _primaryColor.withOpacity(0.8)],
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Icon(
-                      Icons.book_rounded,
-                      color: Colors.white,
-                      size: 36,
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Reading Materials',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Continue your reading journey with assigned materials',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.white.withOpacity(0.9),
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  // Widget _buildQuickAccessSection(BuildContext context) {
+  //   return Container(
+  //     decoration: BoxDecoration(
+  //       borderRadius: BorderRadius.circular(20),
+  //       boxShadow: [
+  //         BoxShadow(
+  //           color: _primaryColor.withOpacity(0.15),
+  //           blurRadius: 15,
+  //           offset: const Offset(0, 5),
+  //         ),
+  //       ],
+  //     ),
+  //     child: ClipRRect(
+  //       borderRadius: BorderRadius.circular(20),
+  //       child: Material(
+  //         child: InkWell(
+  //           onTap: () {
+  //             Navigator.push(
+  //               context,
+  //               MaterialPageRoute(
+  //                 builder: (_) => const EnhancedReadingLevelPage(),
+  //               ),
+  //             );
+  //           },
+  //           child: Container(
+  //             padding: const EdgeInsets.all(24),
+  //             decoration: BoxDecoration(
+  //               gradient: LinearGradient(
+  //                 begin: Alignment.topLeft,
+  //                 end: Alignment.bottomRight,
+  //                 colors: [_primaryColor, _primaryColor.withOpacity(0.8)],
+  //               ),
+  //             ),
+  //             child: Row(
+  //               children: [
+  //                 Container(
+  //                   padding: const EdgeInsets.all(16),
+  //                   decoration: BoxDecoration(
+  //                     color: Colors.white.withOpacity(0.2),
+  //                     borderRadius: BorderRadius.circular(16),
+  //                   ),
+  //                   child: const Icon(
+  //                     Icons.book_rounded,
+  //                     color: Colors.white,
+  //                     size: 36,
+  //                   ),
+  //                 ),
+  //                 // const SizedBox(width: 20),
+  //                 // Expanded(
+  //                 //   child: Column(
+  //                 //     crossAxisAlignment: CrossAxisAlignment.start,
+  //                 //     children: [
+  //                 //       Text(
+  //                 //         'Reading Materials',
+  //                 //         style: TextStyle(
+  //                 //           fontSize: 20,
+  //                 //           fontWeight: FontWeight.bold,
+  //                 //           color: Colors.white,
+  //                 //           letterSpacing: -0.5,
+  //                 //         ),
+  //                 //       ),
+  //                 //       const SizedBox(height: 8),
+  //                 //       Text(
+  //                 //         'Continue your reading journey with assigned materials',
+  //                 //         style: TextStyle(
+  //                 //           fontSize: 14,
+  //                 //           color: Colors.white.withOpacity(0.9),
+  //                 //         ),
+  //                 //         maxLines: 2,
+  //                 //         overflow: TextOverflow.ellipsis,
+  //                 //       ),
+  //                 //     ],
+  //                 //   ),
+  //                 // ),
+  //                 Container(
+  //                   padding: const EdgeInsets.all(8),
+  //                   decoration: BoxDecoration(
+  //                     color: Colors.white.withOpacity(0.2),
+  //                     shape: BoxShape.circle,
+  //                   ),
+  //                   child: const Icon(
+  //                     Icons.arrow_forward_ios_rounded,
+  //                     color: Colors.white,
+  //                     size: 20,
+  //                   ),
+  //                 ),
+  //               ],
+  //             ),
+  //           ),
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
 
   Widget _buildMyGradesCard(BuildContext context) {
     return Container(
@@ -1278,31 +1279,34 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const EnhancedReadingLevelPage(),
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 14,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 2,
-                shadowColor: _primaryColor.withOpacity(0.3),
-              ),
-              child: const Text('Start Learning Now'),
-            ),
+            // const SizedBox(height: 20),
+            // ElevatedButton(
+            //   onPressed: () {
+            //     Navigator.push(
+            //       context,
+            //       MaterialPageRoute(
+            //         builder: (_) => const StudentClassPage(),
+            //         // Add this line to maintain the bottom navigation
+            //         maintainState: true,
+            //         fullscreenDialog: false,
+            //       ),
+            //     );
+            //   },
+            //   style: ElevatedButton.styleFrom(
+            //     backgroundColor: _primaryColor,
+            //     foregroundColor: Colors.white,
+            //     padding: const EdgeInsets.symmetric(
+            //       horizontal: 32,
+            //       vertical: 14,
+            //     ),
+            //     shape: RoundedRectangleBorder(
+            //       borderRadius: BorderRadius.circular(12),
+            //     ),
+            //     elevation: 2,
+            //     shadowColor: _primaryColor.withOpacity(0.3),
+            //   ),
+            //   child: const Text('Start Learning Now'),
+            // ),
           ],
         ),
       );

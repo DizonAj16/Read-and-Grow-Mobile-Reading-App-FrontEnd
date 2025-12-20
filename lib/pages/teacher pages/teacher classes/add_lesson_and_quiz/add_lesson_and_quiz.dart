@@ -373,7 +373,7 @@ class _AddLessonWithQuizScreenState extends State<AddLessonWithQuizScreen> {
           child: Image.network(
             _uploadedFileUrl!,
             height: 150,
-            fit: BoxFit.cover,
+            fit: BoxFit.contain,
           ),
         );
         iconColor = Colors.green;
@@ -1229,7 +1229,7 @@ class _AddLessonWithQuizScreenState extends State<AddLessonWithQuizScreen> {
                           borderRadius: BorderRadius.circular(8),
                           child: Image.network(
                             q.questionImageUrl!,
-                            fit: BoxFit.cover,
+                            fit: BoxFit.contain,
                             width: double.infinity,
                             height: double.infinity,
                           ),
@@ -1662,7 +1662,7 @@ class _AddLessonWithQuizScreenState extends State<AddLessonWithQuizScreen> {
                                           ),
                                           child: Image.network(
                                             pair.rightItemUrl!,
-                                            fit: BoxFit.cover,
+                                            fit: BoxFit.contain,
                                           ),
                                         ),
                               ),
@@ -1802,7 +1802,7 @@ class _AddLessonWithQuizScreenState extends State<AddLessonWithQuizScreen> {
                                         borderRadius: BorderRadius.circular(8),
                                         child: Image.network(
                                           optionImage!,
-                                          fit: BoxFit.cover,
+                                          fit: BoxFit.contain,
                                           width: double.infinity,
                                           height: double.infinity,
                                         ),

@@ -168,20 +168,81 @@ class _ParentLoginPageState extends State<ParentLoginPage> {
     }
   }
 
-  // Header widget
+  // Header widget with instruction
   Widget _buildHeader(BuildContext context) => Column(
         children: [
-          const SizedBox(height: 50),
+          const SizedBox(height: 40),
+          // Instruction banner
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: Colors.white,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Login Instruction",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Use your username with '@parent.app'\ne.g. juandelacruz@parent.app",
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 14,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 30),
           CircleAvatar(
             radius: 80,
             backgroundColor: Colors.white,
             child: Icon(Icons.family_restroom,
                 size: 90, color: Theme.of(context).colorScheme.primary),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 10),
           Text("Parent Login",
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: Colors.white)),
-          const SizedBox(height: 80),
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              )),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 8),
+            child: Text(
+              "Sign in to monitor your child's reading progress",
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.9),
+                fontSize: 14,
+                fontStyle: FontStyle.italic,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 60),
         ],
       );
 
@@ -199,7 +260,7 @@ class _ParentLoginPageState extends State<ParentLoginPage> {
         ),
       );
 
-  // Login form
+  // Login form with enhanced email field hint
   Widget _buildLoginForm(BuildContext context) => Form(
         key: _formKey,
         autovalidateMode:
@@ -217,18 +278,75 @@ class _ParentLoginPageState extends State<ParentLoginPage> {
               EmailTextField(
                 labelText: "Email",
                 controller: _emailController,
-                validator: (value) =>
-                    (value == null || value.trim().isEmpty) ? 'Email is required' : null,
+                hintText: "username@parent.app",
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Email is required';
+                  }
+                  if (!value.contains('@')) {
+                    return 'Include "@parent.app" after your username';
+                  }
+                  if (!value.endsWith('@parent.app')) {
+                    return 'Email should end with @parent.app';
+                  }
+                  return null;
+                },
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 8),
+              // Helper text below email field
+              Padding(
+                padding: const EdgeInsets.only(left: 16, bottom: 12),
+                child: Text(
+                  "Format: username@parent.app",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               PasswordTextField(
                 labelText: "Password",
                 controller: _passwordController,
                 validator: (value) =>
                     (value == null || value.trim().isEmpty) ? 'Password is required' : null,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               LoginButton(text: "Login", onPressed: _handleLogin),
+              const SizedBox(height: 20),
+              // Additional help text
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.help_outline,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        "Need help? Contact your school administrator for login credentials.",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                        ),
+                        maxLines: 2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),

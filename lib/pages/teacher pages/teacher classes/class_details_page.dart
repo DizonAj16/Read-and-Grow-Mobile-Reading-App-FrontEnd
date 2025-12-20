@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'tabs/class_info.dart';
+import 'tabs/class_analytics_page.dart';
 import 'tabs/student_reading_progress_page.dart'; // Import the new progress page
 
 class ClassDetailsPage extends StatefulWidget {
@@ -370,10 +371,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
 
           final prefs = await SharedPreferences.getInstance();
           final classId = widget.classDetails['id'].toString();
-          await prefs.setString(
-            "class_background_$classId",
-            newBackgroundUrl,
-          );
+          await prefs.setString("class_background_$classId", newBackgroundUrl);
 
           if (mounted) {
             setState(() {});
@@ -386,7 +384,11 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
               SnackBar(
                 content: Row(
                   children: [
-                    const Icon(Icons.check_circle, color: Colors.white, size: 22),
+                    const Icon(
+                      Icons.check_circle,
+                      color: Colors.white,
+                      size: 22,
+                    ),
                     const SizedBox(width: 10),
                     const Expanded(
                       child: Text(
@@ -398,7 +400,10 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
                 ),
                 backgroundColor: Colors.green[700],
                 behavior: SnackBarBehavior.floating,
-                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                margin: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 20,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -630,15 +635,32 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
           onPageChanged: (index) => setState(() => _currentIndex = index),
           children: [
             ClassInfoPage(classDetails: widget.classDetails),
-            StudentsManagementPage(classId: widget.classDetails['id'].toString()),
+            StudentsManagementPage(
+              classId: widget.classDetails['id'].toString(),
+            ),
             MaterialsPage(classId: widget.classDetails['id'].toString()),
             TasksPage(classId: widget.classDetails['id'].toString()),
             // Add the 3 new pages here - pass classId to filter content by classroom
-            ReadingRecordingsGradingPage(classId: widget.classDetails['id'].toString()),
-            ViewGradedRecordingsPage(classId: widget.classDetails['id'].toString()),
-            TeacherReadingMaterialsPage(classId: widget.classDetails['id'].toString()),
+            ReadingRecordingsGradingPage(
+              classId: widget.classDetails['id'].toString(),
+            ),
+            ViewGradedRecordingsPage(
+              classId: widget.classDetails['id'].toString(),
+            ),
+            TeacherReadingMaterialsPage(
+              classId: widget.classDetails['id'].toString(),
+            ),
             // Add the new reading progress page
-            StudentReadingProgressPage(classId: widget.classDetails['id'].toString()),
+            StudentReadingProgressPage(
+              classId: widget.classDetails['id'].toString(),
+            ),
+            // In ClassDetailsPage, update the ClassAnalyticsPage constructor call:
+            // In the ClassAnalyticsPage constructor call:
+            ClassAnalyticsPage(
+              classId: widget.classDetails['id'].toString(),
+              teacherId:
+                  widget.classDetails['teacher_id'].toString(), // If available
+            ),
           ],
         ),
       ),
@@ -656,8 +678,21 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
       _buildTabItem(Icons.task_outlined, Icons.task, "Tasks"),
       _buildTabItem(Icons.mic_outlined, Icons.mic, "Grade"),
       _buildTabItem(Icons.check_circle_outline, Icons.check_circle, "Graded"),
-      _buildTabItem(Icons.library_books_outlined, Icons.library_books, "Reading"),
-      _buildTabItem(Icons.trending_up_outlined, Icons.trending_up, "Progress"), // New progress tab
+      _buildTabItem(
+        Icons.library_books_outlined,
+        Icons.library_books,
+        "Reading",
+      ),
+      _buildTabItem(
+        Icons.trending_up_outlined,
+        Icons.trending_up,
+        "Progress",
+      ), // New progress tab
+      _buildTabItem(
+        Icons.analytics_outlined,
+        Icons.analytics,
+        "Analytics",
+      ),
     ];
 
     return Container(
@@ -686,17 +721,14 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
               // Left scroll button
               if (_currentIndex > 0)
                 IconButton(
-                  icon: Icon(
-                    Icons.chevron_left,
-                    color: colorScheme.primary,
-                  ),
+                  icon: Icon(Icons.chevron_left, color: colorScheme.primary),
                   onPressed: () {
                     if (_currentIndex > 0) {
                       _onTabTapped(_currentIndex - 1);
                     }
                   },
                 ),
-              
+
               // Main tab area
               Expanded(
                 child: ListView.builder(
@@ -707,17 +739,23 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
                     return GestureDetector(
                       onTap: () => _onTabTapped(index),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         margin: const EdgeInsets.symmetric(horizontal: 2),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              isSelected ? tabItems[index].activeIcon : tabItems[index].icon,
-                              color: isSelected 
-                                ? colorScheme.primary 
-                                : colorScheme.onSurface.withOpacity(0.6),
+                              isSelected
+                                  ? tabItems[index].activeIcon
+                                  : tabItems[index].icon,
+                              color:
+                                  isSelected
+                                      ? colorScheme.primary
+                                      : colorScheme.onSurface.withOpacity(0.6),
                               size: 24,
                             ),
                             const SizedBox(height: 4),
@@ -725,10 +763,16 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
                               tabItems[index].label,
                               style: TextStyle(
                                 fontSize: 11,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                color: isSelected 
-                                  ? colorScheme.primary 
-                                  : colorScheme.onSurface.withOpacity(0.6),
+                                fontWeight:
+                                    isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                color:
+                                    isSelected
+                                        ? colorScheme.primary
+                                        : colorScheme.onSurface.withOpacity(
+                                          0.6,
+                                        ),
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -739,14 +783,11 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
                   },
                 ),
               ),
-              
+
               // Right scroll button
               if (_currentIndex < tabItems.length - 1)
                 IconButton(
-                  icon: Icon(
-                    Icons.chevron_right,
-                    color: colorScheme.primary,
-                  ),
+                  icon: Icon(Icons.chevron_right, color: colorScheme.primary),
                   onPressed: () {
                     if (_currentIndex < tabItems.length - 1) {
                       _onTabTapped(_currentIndex + 1);
@@ -770,9 +811,5 @@ class _TabItem {
   final IconData activeIcon;
   final String label;
 
-  _TabItem({
-    required this.icon,
-    required this.activeIcon,
-    required this.label,
-  });
+  _TabItem({required this.icon, required this.activeIcon, required this.label});
 }

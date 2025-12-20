@@ -56,7 +56,8 @@ class _EnhancedReadingMaterialPageState
   String _teacherFeedback = '';
   int? _teacherScore;
   bool _isRetakeRequested = false; // Teacher requests retake
-  bool _isRetakeApproved = false; // Teacher approves retake (for cases where approval is separate)
+  bool _isRetakeApproved =
+      false; // Teacher approves retake (for cases where approval is separate)
 
   // File type detection
   String? _fileType; // 'pdf', 'image', or null
@@ -68,6 +69,9 @@ class _EnhancedReadingMaterialPageState
   bool _isPlayingPreview = false;
   Duration _currentDuration = Duration.zero;
   Duration _totalDuration = Duration.zero;
+  StreamSubscription? _audioPositionSubscription;
+  StreamSubscription? _audioDurationSubscription;
+  StreamSubscription? _audioStateSubscription;
 
   // PDF viewer state
   bool _showFullView = false;
@@ -83,6 +87,17 @@ class _EnhancedReadingMaterialPageState
   int _recordingSeconds = 0;
   Timer? _recordingTimer;
 
+  // Teacher audio recording state
+  String? _teacherAudioUrl;
+  bool _isLoadingTeacherAudio = false;
+  bool _isPlayingTeacherAudio = false;
+  Duration _teacherAudioCurrentDuration = Duration.zero;
+  Duration _teacherAudioTotalDuration = Duration.zero;
+  final AudioPlayer _teacherAudioPlayer = AudioPlayer();
+  StreamSubscription? _teacherAudioPositionSubscription;
+  StreamSubscription? _teacherAudioDurationSubscription;
+  StreamSubscription? _teacherAudioStateSubscription;
+
   @override
   void initState() {
     super.initState();
@@ -90,44 +105,140 @@ class _EnhancedReadingMaterialPageState
     _setupAudioPlayerListeners();
     _loadCurrentRecording();
     _checkPrerequisiteStatus();
+    _loadTeacherAudio();
   }
 
   @override
   void dispose() {
+    _cleanupAudioResources();
     _audioRecorder.dispose();
-    _audioPlayer.dispose();
     _pdfViewerController.dispose();
     _recordingTimer?.cancel();
+    _cleanupOldAudioFiles();
     super.dispose();
   }
 
-  void _setupAudioPlayerListeners() {
-    _audioPlayer.positionStream.listen((position) {
+  void _cleanupAudioResources() {
+    // Clean up student audio player
+    _audioPositionSubscription?.cancel();
+    _audioDurationSubscription?.cancel();
+    _audioStateSubscription?.cancel();
+    _audioPlayer.dispose();
+
+    // Clean up teacher audio player
+    _teacherAudioPositionSubscription?.cancel();
+    _teacherAudioDurationSubscription?.cancel();
+    _teacherAudioStateSubscription?.cancel();
+    _teacherAudioPlayer.dispose();
+  }
+
+  Future<void> _loadTeacherAudio() async {
+    try {
+      setState(() => _isLoadingTeacherAudio = true);
+
+      // Get teacher audio URL from material data
+      _teacherAudioUrl = widget.material['audio_url'] as String?;
+
+      debugPrint('🎤 Teacher audio URL from material: $_teacherAudioUrl');
+
+      if (_teacherAudioUrl != null && _teacherAudioUrl!.isNotEmpty) {
+        debugPrint('🎤 Teacher audio found: $_teacherAudioUrl');
+
+        // Setup teacher audio player listeners
+        _teacherAudioPositionSubscription = _teacherAudioPlayer.positionStream
+            .listen((position) {
+              if (mounted) {
+                setState(() {
+                  _teacherAudioCurrentDuration = position;
+                });
+              }
+            });
+
+        _teacherAudioDurationSubscription = _teacherAudioPlayer.durationStream
+            .listen((duration) {
+              if (mounted) {
+                setState(() {
+                  _teacherAudioTotalDuration = duration ?? Duration.zero;
+                });
+              }
+            });
+
+        _teacherAudioStateSubscription = _teacherAudioPlayer.playerStateStream
+            .listen((state) {
+              if (mounted) {
+                if (state.processingState == ProcessingState.completed) {
+                  setState(() {
+                    _isPlayingTeacherAudio = false;
+                    _teacherAudioCurrentDuration = Duration.zero;
+                  });
+                }
+              }
+            });
+      }
+    } catch (e) {
+      debugPrint('Error loading teacher audio: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingTeacherAudio = false);
+      }
+    }
+  }
+
+  Future<void> _playTeacherAudio() async {
+    if (_teacherAudioUrl == null || _teacherAudioUrl!.isEmpty) return;
+
+    try {
+      // Reset state before playing
+      setState(() {
+        _isPlayingTeacherAudio = true;
+        _teacherAudioCurrentDuration = Duration.zero;
+      });
+
+      // Stop any current playback
+      await _teacherAudioPlayer.stop();
+
+      // Set the audio source and play
+      await _teacherAudioPlayer.setUrl(_teacherAudioUrl!);
+      await _teacherAudioPlayer.play();
+    } catch (e) {
+      debugPrint('Error playing teacher audio: $e');
+      if (mounted) {
+        setState(() => _isPlayingTeacherAudio = false);
+      }
+    }
+  }
+
+  Future<void> _pauseTeacherAudio() async {
+    try {
+      await _teacherAudioPlayer.pause();
+      if (mounted) {
+        setState(() => _isPlayingTeacherAudio = false);
+      }
+    } catch (e) {
+      debugPrint('Error pausing teacher audio: $e');
+    }
+  }
+
+  Future<void> _stopTeacherAudio() async {
+    try {
+      await _teacherAudioPlayer.stop();
       if (mounted) {
         setState(() {
-          _currentDuration = position;
+          _isPlayingTeacherAudio = false;
+          _teacherAudioCurrentDuration = Duration.zero;
         });
       }
-    });
+    } catch (e) {
+      debugPrint('Error stopping teacher audio: $e');
+    }
+  }
 
-    _audioPlayer.durationStream.listen((duration) {
-      if (mounted) {
-        setState(() {
-          _totalDuration = duration ?? Duration.zero;
-        });
-      }
-    });
-
-    _audioPlayer.playerStateStream.listen((state) {
-      if (mounted) {
-        if (state.processingState == ProcessingState.completed) {
-          setState(() {
-            _isPlayingPreview = false;
-            _currentDuration = Duration.zero;
-          });
-        }
-      }
-    });
+  void _seekTeacherAudio(Duration position) async {
+    try {
+      await _teacherAudioPlayer.seek(position);
+    } catch (e) {
+      debugPrint('Error seeking teacher audio: $e');
+    }
   }
 
   Future<void> _checkPrerequisiteStatus() async {
@@ -145,11 +256,31 @@ class _EnhancedReadingMaterialPageState
 
       if (_hasPrerequisite && _prerequisiteId != null) {
         // Check if student has completed the prerequisite
-        _hasCompletedPrerequisite = await ReadingMaterialsService.hasStudentCompletedPrerequisite(
-          studentId: user.id,
-          prerequisiteId: _prerequisiteId!,
-          classId: widget.classId,
-        );
+        _hasCompletedPrerequisite =
+            await ReadingMaterialsService.hasStudentCompletedPrerequisite(
+              studentId: user.id,
+              prerequisiteId: _prerequisiteId!,
+              classId: widget.classId,
+            );
+
+        // FIX: Also check if retake is requested for the prerequisite
+        final prerequisiteRecordingRes =
+            await supabase
+                .from('student_recordings')
+                .select('is_retake_requested')
+                .eq('student_id', user.id)
+                .eq('material_id', _prerequisiteId!)
+                .eq('class_id', widget.classId ?? '')
+                .maybeSingle();
+
+        if (prerequisiteRecordingRes != null) {
+          final isRetakeRequestedOnPrerequisite =
+              prerequisiteRecordingRes['is_retake_requested'] == true;
+          // If retake is requested on prerequisite, student cannot access this material
+          if (isRetakeRequestedOnPrerequisite) {
+            _hasCompletedPrerequisite = false;
+          }
+        }
 
         // Update access status
         _canAccessMaterial = _hasCompletedPrerequisite;
@@ -215,9 +346,10 @@ class _EnhancedReadingMaterialPageState
             // 1. No existing recording (first time), OR
             // 2. Teacher has requested a retake (is_retake_requested = true), OR
             // 3. Teacher has approved a retake (is_retake_approved = true)
-            _canRecordAgain = !_hasExistingRecording || 
-                            _isRetakeRequested || 
-                            _isRetakeApproved;
+            _canRecordAgain =
+                !_hasExistingRecording ||
+                _isRetakeRequested ||
+                _isRetakeApproved;
 
             // Load teacher feedback if available
             if (recording['teacher_comments'] != null) {
@@ -299,7 +431,9 @@ class _EnhancedReadingMaterialPageState
     if (!_canAccessMaterial) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Complete the prerequisite "$_prerequisiteTitle" first'),
+          content: Text(
+            'Complete the prerequisite "$_prerequisiteTitle" first',
+          ),
           backgroundColor: Colors.orange,
         ),
       );
@@ -323,7 +457,8 @@ class _EnhancedReadingMaterialPageState
         return;
       }
 
-      final dir = await getTemporaryDirectory();
+      // FIX: Use application documents directory instead of temporary directory
+      final dir = await getApplicationDocumentsDirectory();
       final materialId = widget.material['id'] as String? ?? 'material';
       final classIdSuffix =
           widget.classId != null ? '_class${widget.classId}' : '';
@@ -371,51 +506,58 @@ class _EnhancedReadingMaterialPageState
 
   Future<void> _stopRecording() async {
     try {
+      // Use the path returned by stop() as the definitive source
       final path = await _audioRecorder.stop();
-
       _stopRecordingTimer();
+
+      if (path == null || path.isEmpty) {
+        throw Exception('Recorder returned an empty or null path');
+      }
+
+      // Verify the recorded file exists and has size
+      final recordedFile = File(path);
+      final bool fileExists = await recordedFile.exists();
+      final fileSize = fileExists ? await recordedFile.length() : 0;
+
+      debugPrint(
+        '✅ [RECORDING] Stopped. Path: $path, Exists: $fileExists, Size: $fileSize bytes',
+      );
 
       setState(() {
         isRecording = false;
-        hasRecording = path != null;
-        if (hasRecording) {
-          recordingPath = path;
-        }
+        hasRecording = fileExists && fileSize > 0;
+        recordingPath = hasRecording ? path : null;
       });
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(
-                  hasRecording ? Icons.check_circle : Icons.error,
-                  color: Colors.white,
-                ),
-                SizedBox(width: 8),
-                Text(
-                  hasRecording
-                      ? 'Recording saved!'
-                      : 'Failed to save recording',
-                ),
-              ],
-            ),
-            backgroundColor: hasRecording ? Colors.green : Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      // ... rest of your snackbar code ...
     } catch (e) {
-      debugPrint('Error stopping recording: $e');
+      debugPrint('❌ [RECORDING] Error stopping: $e');
+      // ... error handling ...
     }
   }
 
-  void _clearRecording() {
+  void _clearRecording() async {
     if (isRecording) {
-      _stopRecording();
+      await _stopRecording();
     }
 
     _stopRecordingTimer();
+
+    // Clean up audio player before clearing
+    await _stopPreview();
+
+    // FIX: Actually delete the file from disk
+    if (recordingPath != null) {
+      try {
+        final file = File(recordingPath!);
+        if (await file.exists()) {
+          await file.delete();
+          debugPrint('🗑️ [AUDIO_FILE] Deleted file: $recordingPath');
+        }
+      } catch (e) {
+        debugPrint('❌ [AUDIO_FILE] Error deleting file: $e');
+      }
+    }
 
     setState(() {
       hasRecording = false;
@@ -425,8 +567,6 @@ class _EnhancedReadingMaterialPageState
       _totalDuration = Duration.zero;
       _recordingSeconds = 0;
     });
-
-    _audioPlayer.stop();
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -445,34 +585,177 @@ class _EnhancedReadingMaterialPageState
     }
   }
 
+  Future<void> _cleanupOldAudioFiles() async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final files = Directory(dir.path).listSync();
+
+      // Delete files older than 24 hours
+      final cutoffTime = DateTime.now().subtract(Duration(hours: 24));
+
+      for (var file in files) {
+        if (file is File && file.path.endsWith('.m4a')) {
+          final stat = await file.stat();
+          if (stat.modified.isBefore(cutoffTime)) {
+            await file.delete();
+            debugPrint('🗑️ [CLEANUP] Deleted old audio file: ${file.path}');
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ [CLEANUP] Error cleaning up audio files: $e');
+    }
+  }
+
   Future<void> _playRecordingPreview() async {
-    if (recordingPath == null || !File(recordingPath!).existsSync()) return;
+    if (recordingPath == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('No recording available')));
+      return;
+    }
+
+    // CRITICAL FIX: Verify the file exists and is readable
+    final recordingFile = File(recordingPath!);
+    bool fileExists = await recordingFile.exists();
+
+    // FIX: Also check if file is actually readable and has size
+    int fileSize = 0;
+    if (fileExists) {
+      try {
+        fileSize = await recordingFile.length();
+        debugPrint('📁 [AUDIO_FILE] File exists, size: $fileSize bytes');
+      } catch (e) {
+        debugPrint('❌ [AUDIO_FILE] Error checking file size: $e');
+        fileExists = false;
+      }
+    }
+
+    if (!fileExists || fileSize == 0) {
+      debugPrint(
+        '❌ [AUDIO_PLAYBACK] File does not exist or is empty: $recordingPath',
+      );
+      setState(() {
+        hasRecording = false;
+        recordingPath = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Recording file not found or corrupted. Please record again.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     try {
-      setState(() => _isPlayingPreview = true);
+      // FIX: Check if audio player is already playing
+      if (_isPlayingPreview) {
+        await _audioPlayer.pause();
+        setState(() => _isPlayingPreview = false);
+      }
+
+      // FIX: Stop current playback completely
+      await _audioPlayer.stop();
+
+      // FIX: Clear the current source and set it again
       await _audioPlayer.setFilePath(recordingPath!);
+
+      // FIX: Set position to start and play
+      await _audioPlayer.seek(Duration.zero);
+
+      setState(() {
+        _isPlayingPreview = true;
+        _currentDuration = Duration.zero;
+      });
+
       await _audioPlayer.play();
+
+      debugPrint('▶️ [AUDIO_PLAYBACK] Playing audio from: $recordingPath');
+    } on PlayerException catch (e) {
+      debugPrint(
+        '❌ [AUDIO_PLAYBACK] PlayerException: ${e.code} - ${e.message}',
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error playing audio: ${e.message}')),
+      );
+      setState(() => _isPlayingPreview = false);
     } catch (e) {
-      debugPrint('Error playing preview: $e');
+      debugPrint('❌ [AUDIO_PLAYBACK] General error: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
       setState(() => _isPlayingPreview = false);
     }
   }
 
   Future<void> _pausePreview() async {
-    await _audioPlayer.pause();
-    setState(() => _isPlayingPreview = false);
+    try {
+      if (_audioPlayer.playing) {
+        await _audioPlayer.pause();
+      }
+      if (mounted) {
+        setState(() => _isPlayingPreview = false);
+      }
+    } catch (e) {
+      debugPrint('Error pausing preview: $e');
+    }
   }
 
   Future<void> _stopPreview() async {
-    await _audioPlayer.stop();
-    setState(() {
-      _isPlayingPreview = false;
-      _currentDuration = Duration.zero;
-    });
+    try {
+      await _audioPlayer.stop();
+      // FIX: Reset the player state
+      await _audioPlayer.seek(Duration.zero);
+
+      if (mounted) {
+        setState(() {
+          _isPlayingPreview = false;
+          _currentDuration = Duration.zero;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error stopping preview: $e');
+    }
   }
 
   void _seekAudio(Duration position) async {
-    await _audioPlayer.seek(position);
+    try {
+      await _audioPlayer.seek(position);
+    } catch (e) {
+      debugPrint('Error seeking audio: $e');
+    }
+  }
+
+  void _setupAudioPlayerListeners() {
+    _audioPositionSubscription = _audioPlayer.positionStream.listen((position) {
+      if (mounted) {
+        setState(() {
+          _currentDuration = position;
+        });
+      }
+    });
+
+    _audioDurationSubscription = _audioPlayer.durationStream.listen((duration) {
+      if (mounted) {
+        setState(() {
+          _totalDuration = duration ?? Duration.zero;
+        });
+      }
+    });
+
+    _audioStateSubscription = _audioPlayer.playerStateStream.listen((state) {
+      if (mounted) {
+        if (state.processingState == ProcessingState.completed) {
+          setState(() {
+            _isPlayingPreview = false;
+            _currentDuration = Duration.zero;
+          });
+        }
+      }
+    });
   }
 
   Future<void> _submitRecording() async {
@@ -480,7 +763,9 @@ class _EnhancedReadingMaterialPageState
     if (!_canAccessMaterial) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Complete the prerequisite "$_prerequisiteTitle" first'),
+          content: Text(
+            'Complete the prerequisite "$_prerequisiteTitle" first',
+          ),
           backgroundColor: Colors.orange,
         ),
       );
@@ -549,7 +834,9 @@ class _EnhancedReadingMaterialPageState
       // Backend validation: Check file size
       final sizeValidation = await validateFileSize(recordingFile);
       if (!sizeValidation.isValid) {
-        debugPrint('❌ [UPLOAD_RECORDING] File size validation failed: ${sizeValidation.getDetailedInfo()}');
+        debugPrint(
+          '❌ [UPLOAD_RECORDING] File size validation failed: ${sizeValidation.getDetailedInfo()}',
+        );
         setState(() => isSubmitting = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -563,7 +850,8 @@ class _EnhancedReadingMaterialPageState
       }
 
       // Check if this is a retake or first submission
-      final isRetakeSubmission = (_isRetakeRequested || _isRetakeApproved) && _hasExistingRecording;
+      final isRetakeSubmission =
+          (_isRetakeRequested || _isRetakeApproved) && _hasExistingRecording;
 
       // Create filename with path for folder structure
       final fileName =
@@ -677,7 +965,9 @@ class _EnhancedReadingMaterialPageState
     if (!_canAccessMaterial) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Complete the prerequisite "$_prerequisiteTitle" first'),
+          content: Text(
+            'Complete the prerequisite "$_prerequisiteTitle" first',
+          ),
           backgroundColor: Colors.orange,
         ),
       );
@@ -882,7 +1172,8 @@ class _EnhancedReadingMaterialPageState
 
   Widget _buildExpandedRecordingPanel() {
     final colorScheme = Theme.of(context).colorScheme;
-    final isRetakeInProgress = (_isRetakeRequested || _isRetakeApproved) && _hasExistingRecording;
+    final isRetakeInProgress =
+        (_isRetakeRequested || _isRetakeApproved) && _hasExistingRecording;
 
     return Container(
       key: ValueKey('expanded-panel'),
@@ -1259,7 +1550,8 @@ class _EnhancedReadingMaterialPageState
 
   Widget _buildMinimizedRecordingPanel() {
     final colorScheme = Theme.of(context).colorScheme;
-    final isRetakeInProgress = (_isRetakeRequested || _isRetakeApproved) && _hasExistingRecording;
+    final isRetakeInProgress =
+        (_isRetakeRequested || _isRetakeApproved) && _hasExistingRecording;
 
     return Material(
       color: Colors.transparent,
@@ -1635,7 +1927,11 @@ class _EnhancedReadingMaterialPageState
                   color: Colors.amber.withOpacity(0.2),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.lock_outline, color: Colors.amber[800], size: 24),
+                child: Icon(
+                  Icons.lock_outline,
+                  color: Colors.amber[800],
+                  size: 24,
+                ),
               ),
               SizedBox(width: 12),
               Expanded(
@@ -1643,7 +1939,9 @@ class _EnhancedReadingMaterialPageState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isClassContext ? 'Class Material Locked' : 'Material Locked',
+                      isClassContext
+                          ? 'Class Material Locked'
+                          : 'Material Locked',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -1663,9 +1961,9 @@ class _EnhancedReadingMaterialPageState
               ),
             ],
           ),
-          
+
           SizedBox(height: 16),
-          
+
           Container(
             padding: EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -1704,9 +2002,9 @@ class _EnhancedReadingMaterialPageState
               ],
             ),
           ),
-          
+
           SizedBox(height: 16),
-          
+
           Text(
             'Complete the prerequisite reading material before you can access this one. '
             'Your teacher has set up this learning path to help you progress effectively.',
@@ -1735,13 +2033,16 @@ class _EnhancedReadingMaterialPageState
     if (_isRetakeRequested) {
       statusColor = Colors.orange;
       statusIcon = Icons.refresh;
-      statusText = isClassContext ? 'Class Retake Requested' : 'Retake Requested';
-      statusMessage = 'Your teacher wants you to retake this reading. Record your new reading.';
+      statusText =
+          isClassContext ? 'Class Retake Requested' : 'Retake Requested';
+      statusMessage =
+          'Your teacher wants you to retake this reading. Record your new reading.';
     } else if (_isRetakeApproved) {
       statusColor = Colors.blue;
       statusIcon = Icons.refresh;
       statusText = isClassContext ? 'Class Retake Approved' : 'Retake Approved';
-      statusMessage = 'Your teacher has approved a retake. You can record a new reading now.';
+      statusMessage =
+          'Your teacher has approved a retake. You can record a new reading now.';
     } else if (_isGraded) {
       statusColor = Colors.green;
       statusIcon = Icons.grading;
@@ -1824,23 +2125,23 @@ class _EnhancedReadingMaterialPageState
                       ),
                       SizedBox(height: 4),
                       Text(
-                        '$_teacherScore/100',
+                        '$_teacherScore/5',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color:
-                              _teacherScore! >= 80
+                              _teacherScore! >= 4
                                   ? Colors.green
-                                  : _teacherScore! >= 60
+                                  : _teacherScore! >= 3
                                   ? Colors.orange
                                   : Colors.red,
                         ),
                       ),
                     ],
                   ),
-                  if (_teacherScore! >= 80)
+                  if (_teacherScore! >= 4)
                     Icon(Icons.emoji_events, color: Colors.amber, size: 32)
-                  else if (_teacherScore! >= 60)
+                  else if (_teacherScore! >= 3)
                     Icon(Icons.thumb_up, color: Colors.orange, size: 32)
                   else
                     Icon(Icons.thumb_down, color: Colors.red, size: 32),
@@ -1849,7 +2150,9 @@ class _EnhancedReadingMaterialPageState
             ),
           ],
 
-          if (_teacherFeedback.isNotEmpty && _isGraded && !_isRetakeRequested) ...[
+          if (_teacherFeedback.isNotEmpty &&
+              _isGraded &&
+              !_isRetakeRequested) ...[
             SizedBox(height: 16),
             Container(
               padding: EdgeInsets.all(16),
@@ -1950,6 +2253,24 @@ class _EnhancedReadingMaterialPageState
                       ),
                     ),
                   ),
+                  // Add audio indicator if teacher audio exists (moved here)
+                  if (_teacherAudioUrl != null && _teacherAudioUrl!.isNotEmpty)
+                    Tooltip(
+                      message: 'Has teacher audio instructions',
+                      child: Container(
+                        padding: EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.purple[100],
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.volume_up,
+                          size: 16,
+                          color: Colors.purple[700],
+                        ),
+                      ),
+                    ),
+                  SizedBox(width: 8),
                   Text(
                     'Required',
                     style: TextStyle(
@@ -1966,9 +2287,11 @@ class _EnhancedReadingMaterialPageState
           // Prerequisite Warning Card
           _buildPrerequisiteWarningCard(),
 
+          // Teacher Audio Player - This will display if teacher audio exists
+          _buildTeacherAudioPlayer(),
+
           // Submission Status Card
           _buildSubmissionStatusCard(),
-
           // Material Description
           if (widget.material['description'] != null &&
               widget.material['description'].toString().isNotEmpty)
@@ -2225,58 +2548,60 @@ class _EnhancedReadingMaterialPageState
             ),
           ),
 
-          // Recording Tools Button (when not showing floating panel and can record)
-          if (_canAccessMaterial && _canRecordAgain && !_showRecordingPanel)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.only(top: 32),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _isRetakeRequested || _isRetakeApproved
-                        ? (isClassContext
-                            ? 'Class Retake Required'
-                            : 'Retake Required')
-                        : isClassContext
-                        ? 'Class Recording Required'
-                        : 'Reading Recording',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: colorScheme.onSurface,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  ElevatedButton.icon(
-                    onPressed: _toggleRecordingPanel,
-                    icon: Icon(
-                      (_isRetakeRequested || _isRetakeApproved) ? Icons.refresh : Iconsax.microphone_2,
-                    ),
-                    label: Text(
-                      (_isRetakeRequested || _isRetakeApproved)
-                          ? (isClassContext
-                              ? 'Record Class Retake'
-                              : 'Record Retake')
-                          : isClassContext
-                          ? 'Record Class Reading'
-                          : 'Open Recording Tools',
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          (_isRetakeRequested || _isRetakeApproved)
-                              ? Colors.orange
-                              : colorScheme.primary,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          // // Recording Tools Button (when not showing floating panel and can record)
+          // if (_canAccessMaterial && _canRecordAgain && !_showRecordingPanel)
+          //   Container(
+          //     width: double.infinity,
+          //     padding: const EdgeInsets.only(top: 32),
+          //     child: Column(
+          //       crossAxisAlignment: CrossAxisAlignment.start,
+          //       children: [
+          //         Text(
+          //           _isRetakeRequested || _isRetakeApproved
+          //               ? (isClassContext
+          //                   ? 'Class Retake Required'
+          //                   : 'Retake Required')
+          //               : isClassContext
+          //               ? 'Class Recording Required'
+          //               : 'Reading Recording',
+          //           style: TextStyle(
+          //             fontSize: 16,
+          //             fontWeight: FontWeight.w600,
+          //             color: colorScheme.onSurface,
+          //           ),
+          //         ),
+          //         SizedBox(height: 8),
+          //         ElevatedButton.icon(
+          //           onPressed: _toggleRecordingPanel,
+          //           icon: Icon(
+          //             (_isRetakeRequested || _isRetakeApproved)
+          //                 ? Icons.refresh
+          //                 : Iconsax.microphone_2,
+          //           ),
+          //           label: Text(
+          //             (_isRetakeRequested || _isRetakeApproved)
+          //                 ? (isClassContext
+          //                     ? 'Record Class Retake'
+          //                     : 'Record Retake')
+          //                 : isClassContext
+          //                 ? 'Record Class Reading'
+          //                 : 'Open Recording Tools',
+          //           ),
+          //           style: ElevatedButton.styleFrom(
+          //             backgroundColor:
+          //                 (_isRetakeRequested || _isRetakeApproved)
+          //                     ? Colors.orange
+          //                     : colorScheme.primary,
+          //             foregroundColor: Colors.white,
+          //             padding: EdgeInsets.symmetric(vertical: 16),
+          //             shape: RoundedRectangleBorder(
+          //               borderRadius: BorderRadius.circular(12),
+          //             ),
+          //           ),
+          //         ),
+          //       ],
+          //     ),
+          //   ),
 
           // Locked Message (when cannot access)
           if (!_canAccessMaterial)
@@ -2363,7 +2688,7 @@ class _EnhancedReadingMaterialPageState
         appBar: AppBar(
           title: Text(
             isClassContext
-                ? 'Class: ${widget.material['title'] ?? 'Reading Material'}'
+                ? '${widget.material['title'] ?? 'Reading Material'}'
                 : widget.material['title'] ?? 'Reading Material',
             style: TextStyle(color: colorScheme.onPrimary),
           ),
@@ -2373,57 +2698,54 @@ class _EnhancedReadingMaterialPageState
             icon: Icon(Icons.arrow_back, color: colorScheme.onPrimary),
             onPressed: _toggleFullView,
           ),
-          actions:
-              _isPdf
-                  ? [
-                    IconButton(
-                      icon: Icon(Icons.zoom_in, color: colorScheme.onPrimary),
-                      onPressed: () {
-                        _pdfViewerController.zoomLevel = 1.5;
-                      },
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.zoom_out, color: colorScheme.onPrimary),
-                      onPressed: () {
-                        _pdfViewerController.zoomLevel = 1.0;
-                      },
-                    ),
-                    IconButton(
-                      icon: Icon(
-                        Icons.fit_screen,
-                        color: colorScheme.onPrimary,
+          actions: [
+            // PDF-specific controls
+            if (_isPdf) ...[
+              IconButton(
+                icon: Icon(Icons.zoom_in, color: colorScheme.onPrimary),
+                onPressed: () {
+                  _pdfViewerController.zoomLevel = 1.5;
+                },
+              ),
+              IconButton(
+                icon: Icon(Icons.zoom_out, color: colorScheme.onPrimary),
+                onPressed: () {
+                  _pdfViewerController.zoomLevel = 1.0;
+                },
+              ),
+              IconButton(
+                icon: Icon(Icons.fit_screen, color: colorScheme.onPrimary),
+                onPressed: () {
+                  _pdfViewerController.zoomLevel = 1.0;
+                },
+              ),
+            ],
+            // Recording tools button for all file types when user can record
+            if (_canAccessMaterial && _canRecordAgain && !isSubmitting)
+              IconButton(
+                icon: Icon(
+                  _showRecordingPanel ? Icons.close : Iconsax.microphone_2,
+                  color: colorScheme.onPrimary,
+                ),
+                onPressed: () {
+                  if (_canAccessMaterial) {
+                    setState(() {
+                      _showRecordingPanel = !_showRecordingPanel;
+                      _isRecordingPanelMinimized = false;
+                    });
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Complete the prerequisite "$_prerequisiteTitle" first',
+                        ),
+                        backgroundColor: Colors.orange,
                       ),
-                      onPressed: () {
-                        _pdfViewerController.zoomLevel = 1.0;
-                      },
-                    ),
-                  ]
-                  : [
-                    // Recording Tools Button in Full Screen Mode
-                    IconButton(
-                      icon: Icon(
-                        _showRecordingPanel
-                            ? Icons.close
-                            : Iconsax.microphone_2,
-                        color: colorScheme.onPrimary,
-                      ),
-                      onPressed: () {
-                        if (_canAccessMaterial) {
-                          setState(() {
-                            _showRecordingPanel = !_showRecordingPanel;
-                            _isRecordingPanelMinimized = false;
-                          });
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Complete the prerequisite "$_prerequisiteTitle" first'),
-                              backgroundColor: Colors.orange,
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                  ],
+                    );
+                  }
+                },
+              ),
+          ],
         ),
         body: Stack(
           children: [
@@ -2461,7 +2783,10 @@ class _EnhancedReadingMaterialPageState
       // FIXED: Floating Action Button logic
       floatingActionButton:
           // Show recording tools button when user can record and not currently showing panel
-          !_showRecordingPanel && _canAccessMaterial && _canRecordAgain && !isSubmitting
+          !_showRecordingPanel &&
+                  _canAccessMaterial &&
+                  _canRecordAgain &&
+                  !isSubmitting
               ? FloatingActionButton.extended(
                 onPressed: _toggleRecordingPanel,
                 icon: Icon(
@@ -2496,7 +2821,10 @@ class _EnhancedReadingMaterialPageState
               )
               // Show "Submitted" button when there's an existing recording and user cannot record again
               // BUT NOT when retake is required or material is locked
-              : _hasExistingRecording && !_canRecordAgain && !isRetakeRequired && _canAccessMaterial
+              : _hasExistingRecording &&
+                  !_canRecordAgain &&
+                  !isRetakeRequired &&
+                  _canAccessMaterial
               ? FloatingActionButton.extended(
                 onPressed: null,
                 icon: Icon(Icons.check_circle, color: Colors.white),
@@ -2514,6 +2842,169 @@ class _EnhancedReadingMaterialPageState
                 foregroundColor: Colors.white,
               )
               : null,
+    );
+  }
+
+  Widget _buildTeacherAudioPlayer() {
+    if (_teacherAudioUrl == null || _teacherAudioUrl!.isEmpty)
+      return SizedBox.shrink();
+
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      width: double.infinity,
+      margin: EdgeInsets.symmetric(vertical: 16),
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.purple[50],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.purple[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.purple[100],
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.volume_up,
+                  color: Colors.purple[700],
+                  size: 24,
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Teacher\'s Instructions',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.purple[800],
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Listen to your teacher\'s reading instructions',
+                      style: TextStyle(fontSize: 14, color: Colors.purple[600]),
+                    ),
+                  ],
+                ),
+              ),
+              if (_isLoadingTeacherAudio)
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.purple,
+                  ),
+                ),
+            ],
+          ),
+
+          SizedBox(height: 16),
+
+          // Audio Player
+          Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.purple[100]!),
+            ),
+            child: Column(
+              children: [
+                // Progress Bar
+                Slider(
+                  value: _teacherAudioCurrentDuration.inSeconds.toDouble(),
+                  min: 0,
+                  max: _teacherAudioTotalDuration.inSeconds.toDouble(),
+                  onChanged: (value) {
+                    _seekTeacherAudio(Duration(seconds: value.toInt()));
+                  },
+                  activeColor: Colors.purple,
+                  inactiveColor: Colors.purple.withOpacity(0.3),
+                ),
+
+                // Time and Controls
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _formatDuration(_teacherAudioCurrentDuration),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                    ),
+
+                    Row(
+                      children: [
+                        Tooltip(
+                          message: 'Restart',
+                          child: IconButton(
+                            icon: Icon(Iconsax.previous, size: 20),
+                            onPressed: () {
+                              _seekTeacherAudio(Duration.zero);
+                            },
+                          ),
+                        ),
+
+                        Tooltip(
+                          message: _isPlayingTeacherAudio ? 'Pause' : 'Play',
+                          child: IconButton(
+                            icon: Icon(
+                              _isPlayingTeacherAudio
+                                  ? Iconsax.pause
+                                  : Iconsax.play,
+                              size: 24,
+                              color: Colors.purple,
+                            ),
+                            onPressed:
+                                _isPlayingTeacherAudio
+                                    ? _pauseTeacherAudio
+                                    : _playTeacherAudio,
+                          ),
+                        ),
+
+                        Tooltip(
+                          message: 'Stop',
+                          child: IconButton(
+                            icon: Icon(Iconsax.stop, size: 20),
+                            onPressed: _stopTeacherAudio,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    Text(
+                      _formatDuration(_teacherAudioTotalDuration),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          SizedBox(height: 12),
+
+          Text(
+            'Tip: Listen carefully to your teacher\'s pronunciation and reading pace before recording your own.',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

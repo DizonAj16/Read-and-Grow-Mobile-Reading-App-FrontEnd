@@ -1,4 +1,5 @@
 import 'package:deped_reading_app_laravel/pages/student%20pages/enhanced_reading_level_page.dart';
+import 'package:deped_reading_app_laravel/pages/student%20pages/student%20class%20pages/tabs/student_announcements_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../list_of_quiz_and_lessons.dart';
@@ -160,44 +161,47 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
           Colors.black.withOpacity(0.3),
           BlendMode.darken,
         ),
-        child: widget.backgroundImage.startsWith('http')
-            ? Image.network(
-                widget.backgroundImage,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Container(
-                    color: avatarColor.withOpacity(0.2),
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded /
-                                loadingProgress.expectedTotalBytes!
-                            : null,
-                        color: Colors.white,
+        child:
+            widget.backgroundImage.startsWith('http')
+                ? Image.network(
+                  widget.backgroundImage,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      color: avatarColor.withOpacity(0.2),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          value:
+                              loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                      loadingProgress.expectedTotalBytes!
+                                  : null,
+                          color: Colors.white,
+                        ),
                       ),
-                    ),
-                  );
-                },
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: avatarColor.withOpacity(0.2),
-                    child: const Center(
-                      child: Icon(
-                        Icons.image_not_supported,
-                        color: Colors.white54,
-                        size: 48,
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: avatarColor.withOpacity(0.2),
+                      child: const Center(
+                        child: Icon(
+                          Icons.image_not_supported,
+                          color: Colors.white54,
+                          size: 48,
+                        ),
                       ),
-                    ),
-                  );
-                },
-              )
-            : Image.asset(
-                widget.backgroundImage,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) =>
-                    Container(color: avatarColor.withOpacity(0.2)),
-              ),
+                    );
+                  },
+                )
+                : Image.asset(
+                  widget.backgroundImage,
+                  fit: BoxFit.cover,
+                  errorBuilder:
+                      (_, __, ___) =>
+                          Container(color: avatarColor.withOpacity(0.2)),
+                ),
       ),
     );
   }
@@ -255,10 +259,14 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
         });
       },
       children: [
+        StudentAnnouncementsScreen(
+          classId: widget.classId,
+          className: widget.className,
+        ),
         ClassContentScreen(classRoomId: widget.classId),
         StudentListPage(classId: widget.classId),
         TeacherInfoPage(classId: widget.classId),
-        EnhancedReadingLevelPage(classId: widget.classId), // Added Reading Level tab
+        EnhancedReadingLevelPage(classId: widget.classId),
       ],
     );
   }
@@ -293,10 +301,21 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
 
   List<BottomNavigationBarItem> _buildBottomNavigationItems(ThemeData theme) {
     return [
-      _buildBottomNavItem(0, Icons.task_outlined, "Tasks", theme),
-      _buildBottomNavItem(1, Icons.people_outline, "Classmates", theme),
-      _buildBottomNavItem(2, Icons.person_outline, "Teacher", theme),
-      _buildBottomNavItem(3, Icons.library_books_outlined, "Reading Level", theme), // Added Reading Level
+      _buildBottomNavItem(
+        0,
+        Icons.announcement_outlined,
+        "Announcements",
+        theme,
+      ),
+      _buildBottomNavItem(1, Icons.task_outlined, "Tasks", theme),
+      _buildBottomNavItem(2, Icons.people_outline, "Classmates", theme),
+      _buildBottomNavItem(3, Icons.person_outline, "Teacher", theme),
+      _buildBottomNavItem(
+        4,
+        Icons.library_books_outlined,
+        "Reading Level",
+        theme,
+      ),
     ];
   }
 

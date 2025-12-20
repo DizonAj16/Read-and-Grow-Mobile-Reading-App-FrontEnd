@@ -17,6 +17,7 @@ class LessonReaderPage extends StatefulWidget {
   final String studentId;
   final String lessonTitle;
   final bool viewOnly;
+  final bool fromQuizReview; // NEW: Flag to identify if coming from quiz review
 
   const LessonReaderPage({
     super.key,
@@ -27,6 +28,7 @@ class LessonReaderPage extends StatefulWidget {
     required this.studentId,
     required this.lessonTitle,
     this.viewOnly = false,
+    this.fromQuizReview = false, // NEW: Default to false
   });
 
   @override
@@ -44,14 +46,14 @@ class _LessonReaderPageState extends State<LessonReaderPage> {
   String? _fileType; // 'pdf', 'image', 'video', 'audio'
   int? _materialId;
   String? _materialDescription;
-  
+
   // Video player controller
   VideoPlayerController? _videoController;
   bool _isVideoInitialized = false;
-  
+
   // Full-screen state
   bool _isFullScreen = false;
-  
+
   // Audio state
   bool _isAudioPlaying = false;
   Duration _audioDuration = Duration.zero;
@@ -97,94 +99,99 @@ class _LessonReaderPageState extends State<LessonReaderPage> {
     });
   }
 
-Future<void> _loadMaterial() async {
-  debugPrint('--- START _loadMaterial ---');
-  debugPrint('taskId: ${widget.taskId}');
-  debugPrint('classRoomId: ${widget.classRoomId}');
+  Future<void> _loadMaterial() async {
+    debugPrint('--- START _loadMaterial ---');
+    debugPrint('taskId: ${widget.taskId}');
+    debugPrint('classRoomId: ${widget.classRoomId}');
+    debugPrint('fromQuizReview: ${widget.fromQuizReview}'); // NEW: Log the source
 
-  try {
-    // Fetch material from task_materials
-    final materialRes = await _supabase
-        .from('task_materials')
-        .select('material_title, description, material_file_path, material_type')
-        .eq('task_id', widget.taskId)
-        .maybeSingle();
-
-    debugPrint('materialRes: $materialRes');
-
-    if (materialRes != null) {
-      _materialDescription = materialRes['description'] as String?;
-      final filePath = materialRes['material_file_path'] as String?;
-      _fileType = materialRes['material_type'] as String?;
-
-      debugPrint('material description: $_materialDescription');
-      debugPrint('filePath: $filePath');
-      debugPrint('fileType: $_fileType');
-
-      if (filePath != null && filePath.isNotEmpty) {
-        final publicUrl =
-            _supabase.storage.from('materials').getPublicUrl(filePath);
-
-        debugPrint('publicUrl: $publicUrl');
-
-        if (publicUrl.isNotEmpty) {
-          // Fetch material row from materials table
-          final materialRow = await _supabase
-              .from('materials')
-              .select('id')
-              .eq('material_file_url', publicUrl)
-              .eq('class_room_id', widget.classRoomId)
-              .order('created_at', ascending: false)
+    try {
+      // Fetch material from task_materials
+      final materialRes =
+          await _supabase
+              .from('task_materials')
+              .select(
+                'material_title, description, material_file_path, material_type',
+              )
+              .eq('task_id', widget.taskId)
               .maybeSingle();
 
-          debugPrint('materialRow: $materialRow');
+      debugPrint('materialRes: $materialRes');
 
-          if (materialRow != null) {
-            final dynamic idValue = materialRow['id'];
-            debugPrint('materialRow id raw: $idValue');
+      if (materialRes != null) {
+        _materialDescription = materialRes['description'] as String?;
+        final filePath = materialRes['material_file_path'] as String?;
+        _fileType = materialRes['material_type'] as String?;
 
-            if (idValue is int) {
-              _materialId = idValue;
-            } else if (idValue is num) {
-              _materialId = idValue.toInt();
+        debugPrint('material description: $_materialDescription');
+        debugPrint('filePath: $filePath');
+        debugPrint('fileType: $_fileType');
+
+        if (filePath != null && filePath.isNotEmpty) {
+          final publicUrl = _supabase.storage
+              .from('materials')
+              .getPublicUrl(filePath);
+
+          debugPrint('publicUrl: $publicUrl');
+
+          if (publicUrl.isNotEmpty) {
+            // Fetch material row from materials table
+            final materialRow =
+                await _supabase
+                    .from('materials')
+                    .select('id')
+                    .eq('material_file_url', publicUrl)
+                    .eq('class_room_id', widget.classRoomId)
+                    .order('created_at', ascending: false)
+                    .maybeSingle();
+
+            debugPrint('materialRow: $materialRow');
+
+            if (materialRow != null) {
+              final dynamic idValue = materialRow['id'];
+              debugPrint('materialRow id raw: $idValue');
+
+              if (idValue is int) {
+                _materialId = idValue;
+              } else if (idValue is num) {
+                _materialId = idValue.toInt();
+              }
+
+              debugPrint('parsed materialId: $_materialId');
             }
 
-            debugPrint('parsed materialId: $_materialId');
-          }
+            setState(() {
+              _fileUrl = publicUrl;
+            });
 
-          setState(() {
-            _fileUrl = publicUrl;
-          });
+            debugPrint('fileUrl set: $_fileUrl');
 
-          debugPrint('fileUrl set: $_fileUrl');
-
-          // Initialize video player if it's a video
-          if (_fileType == 'video' && _fileUrl != null) {
-            debugPrint('Initializing video player...');
-            _initializeVideoPlayer();
+            // Initialize video player if it's a video
+            if (_fileType == 'video' && _fileUrl != null) {
+              debugPrint('Initializing video player...');
+              _initializeVideoPlayer();
+            }
           }
         }
       }
+    } catch (e) {
+      debugPrint('Error loading lesson material: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        debugPrint('_isLoading set to false');
+      }
     }
-  } catch (e) {
-    debugPrint('Error loading lesson material: $e');
-  } finally {
-    if (mounted) {
-      setState(() => _isLoading = false);
-      debugPrint('_isLoading set to false');
-    }
+
+    debugPrint('--- END _loadMaterial ---');
   }
-
-  debugPrint('--- END _loadMaterial ---');
-}
-
 
   Future<void> _initializeVideoPlayer() async {
     if (_fileUrl == null) return;
-    
+
     _videoController = VideoPlayerController.networkUrl(Uri.parse(_fileUrl!));
     await _videoController!.initialize();
-    
+
     if (mounted) {
       setState(() {
         _isVideoInitialized = true;
@@ -237,11 +244,15 @@ Future<void> _loadMaterial() async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => StudentQuizPage(
-          quizId: widget.quizId,
-          assignmentId: widget.assignmentId,
-          studentId: widget.studentId,
-        ),
+        builder:
+            (_) => StudentQuizPage(
+              quizId: widget.quizId,
+              assignmentId: widget.assignmentId,
+              studentId: widget.studentId,
+              lessonTitle: widget.lessonTitle,
+              taskId: widget.taskId,
+              classRoomId: widget.classRoomId,
+            ),
       ),
     );
 
@@ -257,16 +268,16 @@ Future<void> _loadMaterial() async {
     switch (_fileType) {
       case 'pdf':
         return _buildPdfViewer();
-      
+
       case 'image':
         return _buildImageViewer();
-      
+
       case 'video':
         return _buildVideoPlayer();
-      
+
       case 'audio':
         return _buildAudioPlayer();
-      
+
       default:
         return _buildUnsupportedFileView();
     }
@@ -313,29 +324,33 @@ Future<void> _loadMaterial() async {
             backgroundDecoration: BoxDecoration(
               color: Theme.of(context).scaffoldBackgroundColor,
             ),
-            loadingBuilder: (context, event) => Center(
-              child: CircularProgressIndicator(
-                value: event == null
-                    ? 0
-                    : event.cumulativeBytesLoaded / event.expectedTotalBytes!,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-            errorBuilder: (context, error, stackTrace) => Container(
-              height: 300,
-              color: Colors.grey[200],
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 48, color: Colors.grey),
-                  SizedBox(height: 8),
-                  Text(
-                    'Failed to load image',
-                    style: TextStyle(color: Colors.grey),
+            loadingBuilder:
+                (context, event) => Center(
+                  child: CircularProgressIndicator(
+                    value:
+                        event == null
+                            ? 0
+                            : event.cumulativeBytesLoaded /
+                                event.expectedTotalBytes!,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
-                ],
-              ),
-            ),
+                ),
+            errorBuilder:
+                (context, error, stackTrace) => Container(
+                  height: 300,
+                  color: Colors.grey[200],
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error_outline, size: 48, color: Colors.grey),
+                      SizedBox(height: 8),
+                      Text(
+                        'Failed to load image',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
           ),
           Positioned(
             bottom: 16,
@@ -383,7 +398,9 @@ Future<void> _loadMaterial() async {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(color: Theme.of(context).colorScheme.primary),
+            CircularProgressIndicator(
+              color: Theme.of(context).colorScheme.primary,
+            ),
             SizedBox(height: 16),
             Text(
               'Loading video...',
@@ -393,7 +410,7 @@ Future<void> _loadMaterial() async {
         ),
       );
     }
-    
+
     return Stack(
       children: [
         Column(
@@ -438,7 +455,9 @@ Future<void> _loadMaterial() async {
             allowScrubbing: true,
             colors: VideoProgressColors(
               playedColor: Theme.of(context).colorScheme.primary,
-              bufferedColor: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+              bufferedColor: Theme.of(
+                context,
+              ).colorScheme.primary.withOpacity(0.3),
               backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
             ),
           ),
@@ -450,8 +469,8 @@ Future<void> _loadMaterial() async {
                 children: [
                   IconButton(
                     icon: Icon(
-                      _videoController!.value.isPlaying 
-                          ? Icons.pause 
+                      _videoController!.value.isPlaying
+                          ? Icons.pause
                           : Icons.play_arrow,
                       color: Theme.of(context).colorScheme.onSurface,
                     ),
@@ -466,17 +485,25 @@ Future<void> _loadMaterial() async {
                     },
                   ),
                   IconButton(
-                    icon: Icon(Icons.replay_10, color: Theme.of(context).colorScheme.onSurface),
+                    icon: Icon(
+                      Icons.replay_10,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
                     onPressed: () {
-                      final newPosition = _videoController!.value.position - 
+                      final newPosition =
+                          _videoController!.value.position -
                           Duration(seconds: 10);
                       _videoController!.seekTo(newPosition);
                     },
                   ),
                   IconButton(
-                    icon: Icon(Icons.forward_10, color: Theme.of(context).colorScheme.onSurface),
+                    icon: Icon(
+                      Icons.forward_10,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
                     onPressed: () {
-                      final newPosition = _videoController!.value.position + 
+                      final newPosition =
+                          _videoController!.value.position +
                           Duration(seconds: 10);
                       _videoController!.seekTo(newPosition);
                     },
@@ -565,9 +592,12 @@ Future<void> _loadMaterial() async {
                 SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     activeTrackColor: Theme.of(context).colorScheme.primary,
-                    inactiveTrackColor: Theme.of(context).colorScheme.surfaceVariant,
+                    inactiveTrackColor:
+                        Theme.of(context).colorScheme.surfaceVariant,
                     thumbColor: Theme.of(context).colorScheme.primary,
-                    overlayColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                    overlayColor: Theme.of(
+                      context,
+                    ).colorScheme.primary.withOpacity(0.2),
                     thumbShape: RoundSliderThumbShape(enabledThumbRadius: 10),
                     overlayShape: RoundSliderOverlayShape(overlayRadius: 20),
                     trackHeight: 4,
@@ -610,7 +640,8 @@ Future<void> _loadMaterial() async {
                       iconSize: 30,
                       color: Theme.of(context).colorScheme.onSurface,
                       onPressed: () {
-                        final newPosition = _audioPosition - Duration(seconds: 10);
+                        final newPosition =
+                            _audioPosition - Duration(seconds: 10);
                         _audioPlayer.seek(newPosition);
                       },
                     ),
@@ -628,7 +659,9 @@ Future<void> _loadMaterial() async {
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withOpacity(0.3),
                             blurRadius: 10,
                             spreadRadius: 2,
                           ),
@@ -655,7 +688,8 @@ Future<void> _loadMaterial() async {
                       iconSize: 30,
                       color: Theme.of(context).colorScheme.onSurface,
                       onPressed: () {
-                        final newPosition = _audioPosition + Duration(seconds: 10);
+                        final newPosition =
+                            _audioPosition + Duration(seconds: 10);
                         _audioPlayer.seek(newPosition);
                       },
                     ),
@@ -674,7 +708,7 @@ Future<void> _loadMaterial() async {
     final hours = twoDigits(duration.inHours);
     final minutes = twoDigits(duration.inMinutes.remainder(60));
     final seconds = twoDigits(duration.inSeconds.remainder(60));
-    
+
     if (duration.inHours > 0) {
       return '$hours:$minutes:$seconds';
     } else {
@@ -682,152 +716,129 @@ Future<void> _loadMaterial() async {
     }
   }
 
+  // NEW: Handle navigation back based on source
+  void _handleBackNavigation() {
+    if (widget.fromQuizReview) {
+      // Coming from quiz review - navigate back to ClassContentScreen
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } else {
+      // Coming from view material - just close the material
+      Navigator.of(context).pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: _isFullScreen
-          ? null
-          : AppBar(
-              title: Text(
-                widget.lessonTitle,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 18,
+      appBar:
+          _isFullScreen
+              ? null
+              : AppBar(
+                title: Text(
+                  widget.lessonTitle,
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
+                ),
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(
+                    bottom: Radius.circular(12),
+                  ),
+                ),
+                centerTitle: true,
+                leading: IconButton(
+                  icon: Icon(Icons.arrow_back),
+                  onPressed: _handleBackNavigation, // Updated
                 ),
               ),
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              foregroundColor: Theme.of(context).colorScheme.onPrimary,
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(
-                  bottom: Radius.circular(12),
-                ),
-              ),
-              centerTitle: true,
-            ),
-      body: _isLoading
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    color: Theme.of(context).colorScheme.primary,
-                    strokeWidth: 2,
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'Loading lesson material...',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : Container(
-              color: _isFullScreen ? Colors.black : Theme.of(context).scaffoldBackgroundColor,
-              child: Column(
-                children: [
-                  Expanded(
-                    child: _buildMaterialContent(),
-                  ),
-                  if (_materialDescription != null &&
-                      _materialDescription!.isNotEmpty &&
-                      !_isFullScreen)
-                    Container(
-                      margin: EdgeInsets.all(16),
-                      padding: EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 8,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
+      bottomNavigationBar:
+          _isFullScreen
+              ? null
+              : SafeArea(
+                child: Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    border: Border(
+                      top: BorderSide(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.outline.withOpacity(0.1),
                       ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: widget.viewOnly
+                      ? // When in viewOnly mode
+                      Row(
                         children: [
-                          Icon(
-                            Icons.info_outline,
-                            color: Theme.of(context).colorScheme.primary,
-                            size: 20,
-                          ),
-                          SizedBox(width: 12),
                           Expanded(
-                            child: Text(
-                              _materialDescription!,
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                height: 1.5,
+                            child: ElevatedButton(
+                              onPressed: _handleBackNavigation, // Updated
+                              style: ElevatedButton.styleFrom(
+                                padding: EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                backgroundColor:
+                                    Theme.of(context).colorScheme.primary,
+                                elevation: 3,
+                                shadowColor: Theme.of(
+                                  context,
+                                ).colorScheme.primary.withOpacity(0.3),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.arrow_back,
+                                    size: 20,
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    widget.fromQuizReview
+                                        ? 'Back to Tasks'  // NEW: Different text based on source
+                                        : 'Close Material', // NEW: Different text based on source
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
                         ],
-                      ),
-                    ),
-                  if (!_isFullScreen) SizedBox(height: 8),
-                ],
-              ),
-            ),
-      bottomNavigationBar: _isFullScreen
-          ? null
-          : SafeArea(
-              child: Container(
-                padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  border: Border(
-                    top: BorderSide(
-                      color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
-                    ),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 10,
-                      offset: Offset(0, -2),
-                    ),
-                  ],
-                ),
-                child: widget.viewOnly
-                    ? OutlinedButton.icon(
-                        onPressed: () => Navigator.pop(context),
-                        icon: Icon(Icons.menu_book_outlined),
-                        label: Text(
-                          'Close Material',
-                          style: TextStyle(fontSize: 16),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          side: BorderSide(
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
                       )
-                    : ElevatedButton.icon(
-                        onPressed: _isCompleting
-                            ? null
-                            : _handleDoneReading,
-                        icon: _isCompleting
-                            ? SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Theme.of(context).colorScheme.onPrimary,
-                                ),
-                              )
-                            : Icon(Icons.quiz, size: 22),
+                      : // Normal mode - single button for regular lesson flow
+                      ElevatedButton.icon(
+                        onPressed:
+                            _isCompleting ? null : _handleDoneReading,
+                        icon:
+                            _isCompleting
+                                ? SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                  ),
+                                )
+                                : Icon(Icons.quiz, size: 22),
                         label: Text(
                           _fileUrl == null
                               ? 'Proceed to Quiz'
@@ -839,14 +850,96 @@ Future<void> _loadMaterial() async {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          backgroundColor: Theme.of(context).colorScheme.primary,
-                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primary,
+                          foregroundColor:
+                              Theme.of(context).colorScheme.onPrimary,
                           elevation: 4,
-                          shadowColor: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                          shadowColor: Theme.of(
+                            context,
+                          ).colorScheme.primary.withOpacity(0.3),
                         ),
                       ),
+                ),
               ),
-            ),
+      body:
+          _isLoading
+              ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      color: Theme.of(context).colorScheme.primary,
+                      strokeWidth: 2,
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'Loading lesson material...',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+              : Container(
+                color:
+                    _isFullScreen
+                        ? Colors.black
+                        : Theme.of(context).scaffoldBackgroundColor,
+                child: Column(
+                  children: [
+                    Expanded(child: _buildMaterialContent()),
+                    if (_materialDescription != null &&
+                        _materialDescription!.isNotEmpty &&
+                        !_isFullScreen)
+                      Container(
+                        margin: EdgeInsets.all(16),
+                        padding: EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.outline.withOpacity(0.2),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 8,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: Theme.of(context).colorScheme.primary,
+                              size: 20,
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _materialDescription!,
+                                style: TextStyle(
+                                  color:
+                                      Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (!_isFullScreen) SizedBox(height: 8),
+                  ],
+                ),
+              ),
     );
   }
 

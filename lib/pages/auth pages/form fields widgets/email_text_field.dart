@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 class EmailTextField extends StatelessWidget {
   final String labelText;
   final IconData? prefixIcon;
+  final String? hintText;
   final TextEditingController? controller;
   final String? Function(String?)? validator; // <-- Add validator
 
@@ -12,6 +13,7 @@ class EmailTextField extends StatelessWidget {
     super.key,
     required this.labelText,
     this.prefixIcon = Icons.email,
+    this.hintText,
     this.controller,
     this.validator, // <-- Add validator
   });

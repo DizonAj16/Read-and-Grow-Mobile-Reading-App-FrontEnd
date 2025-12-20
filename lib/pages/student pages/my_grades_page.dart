@@ -412,29 +412,28 @@ class _MyGradesPageState extends State<MyGradesPage>
           ],
         ),
       ),
-      body:
-          isLoading
-              ? const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text(
-                      'Loading Grades & Analytics...',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              )
-              : TabBarView(
-                controller: _tabController,
+      body: isLoading
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildQuizScoresTab(),
-                  _buildReadingGradesTab(),
-                  _buildAnalyticsTab(),
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text(
+                    'Loading Grades & Analytics...',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
                 ],
               ),
+            )
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _buildQuizScoresTab(),
+                _buildReadingGradesTab(),
+                _buildAnalyticsTab(),
+              ],
+            ),
     );
   }
 
@@ -470,6 +469,32 @@ class _MyGradesPageState extends State<MyGradesPage>
       );
     }
 
+    // Calculate additional statistics
+    final quizScores =
+        (analyticsData['recentScores'] as List<dynamic>?)?.cast<double>() ??
+            [];
+    final quizCount = analyticsData['quizCount'] ?? 0;
+    final readingCount = analyticsData['readingCount'] ?? 0;
+    final overallQuizScore = analyticsData['overallQuizScore'] ?? 0;
+    final overallReadingScore = analyticsData['overallReadingScore'] ?? 0;
+    final totalAttempts = analyticsData['totalAttempts'] ?? 0;
+
+    // Calculate stats
+    final averageScore = totalAttempts > 0
+        ? (((overallQuizScore * quizCount) + (overallReadingScore * readingCount)) /
+            totalAttempts)
+        : 0;
+
+    final bestScore =
+        quizScores.isNotEmpty ? quizScores.reduce((a, b) => a > b ? a : b) : 0;
+    final worstScore =
+        quizScores.isNotEmpty ? quizScores.reduce((a, b) => a < b ? a : b) : 0;
+    final improvementRate =
+        quizScores.length >= 2 ? (quizScores.last - quizScores.first) : 0;
+
+    final isImproving = improvementRate > 0;
+    final consistencyScore = _calculateConsistency(quizScores);
+
     return RefreshIndicator(
       onRefresh: _loadAllGrades,
       color: primaryColor,
@@ -502,6 +527,7 @@ class _MyGradesPageState extends State<MyGradesPage>
                 ],
               ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
@@ -518,43 +544,120 @@ class _MyGradesPageState extends State<MyGradesPage>
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Text(
-                        'Overall Performance',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                      Expanded(
+                        child: Text(
+                          'Performance Dashboard',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      // Improvement indicator
+                      Container(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isImproving
+                              ? Colors.green.withOpacity(0.3)
+                              : Colors.red.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isImproving
+                                  ? Icons.trending_up
+                                  : Icons.trending_down,
+                              size: 16,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${isImproving ? '+' : ''}${(improvementRate * 100).toStringAsFixed(1)}%',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+
+                  // Key Stats Grid
+                  GridView.count(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisCount: 2,
+                    childAspectRatio: 1.5,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
                     children: [
-                      _buildScoreCard(
-                        'Quiz Score',
-                        '${(analyticsData['overallQuizScore'] * 100).toStringAsFixed(1)}%',
-                        Icons.quiz_rounded,
-                        Colors.white,
+                      _buildStatCard(
+                        title: 'Average Score',
+                        value: '${(averageScore * 100).toStringAsFixed(1)}%',
+                        icon: Icons.score,
+                        color: Colors.white,
+                        showTrend: false,
                       ),
-                      _buildScoreCard(
-                        'Reading Score',
-                        '${(analyticsData['overallReadingScore'] * 100).toStringAsFixed(1)}%',
-                        Icons.book_rounded,
-                        Colors.white,
+                      _buildStatCard(
+                        title: 'Best Score',
+                        value: '${(bestScore * 100).toStringAsFixed(1)}%',
+                        icon: Icons.emoji_events,
+                        color: Colors.white,
+                        showTrend: false,
                       ),
-                      _buildScoreCard(
-                        'Total Attempts',
-                        analyticsData['totalAttempts'].toString(),
-                        Icons.check_circle_rounded,
-                        Colors.white,
+                      _buildStatCard(
+                        title: 'Consistency',
+                        value: '${(consistencyScore * 100).toStringAsFixed(0)}%',
+                        icon: Icons.timeline,
+                        color: Colors.white,
+                        showTrend: false,
+                      ),
+                      _buildStatCard(
+                        title: 'Total Activities',
+                        value: totalAttempts.toString(),
+                        icon: Icons.checklist,
+                        color: Colors.white,
+                        showTrend: false,
                       ),
                     ],
                   ),
                 ],
               ),
             ),
+
+            // Performance Breakdown Row
+            Row(
+              children: [
+                Expanded(
+                  child: _buildMetricCard(
+                    title: 'Quiz Performance',
+                    value: '${(overallQuizScore * 100).toStringAsFixed(1)}%',
+                    icon: Icons.quiz,
+                    color: Colors.blue,
+                    count: quizCount,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildMetricCard(
+                    title: 'Reading Performance',
+                    value: '${(overallReadingScore * 100).toStringAsFixed(1)}%',
+                    icon: Icons.book,
+                    color: Colors.purple,
+                    count: readingCount,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
 
             // Performance Trend Chart
             Container(
@@ -574,152 +677,39 @@ class _MyGradesPageState extends State<MyGradesPage>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '📈 Performance Trend',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blueGrey[800],
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '📈 Performance Trend',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blueGrey[800],
+                        ),
+                      ),
+                      Container(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'Last ${quizScores.length} attempts',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
-                  SizedBox(height: 200, child: _buildTrendChart()),
-                ],
-              ),
-            ),
-
-            // Strengths & Weaknesses
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 8, bottom: 16),
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.green.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.green.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(
-                                Icons.thumb_up_rounded,
-                                color: Colors.green,
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              'Strengths',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green[700],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        ..._buildStrengthsList(),
-                      ],
-                    ),
+                  SizedBox(
+                    height: 200,
+                    child: _buildTrendChart(),
                   ),
-                ),
-                Expanded(
-                  child: Container(
-                    margin: const EdgeInsets.only(left: 8, bottom: 16),
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.red.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(
-                                Icons.thumb_down_rounded,
-                                color: Colors.red,
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              'Areas to Improve',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.red[700],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        ..._buildWeaknessesList(),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            // Category Performance
-            Container(
-              margin: const EdgeInsets.only(bottom: 16),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '📊 Performance by Category',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blueGrey[800],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(height: 300, child: _buildCategoryChart()),
                 ],
               ),
             ),
@@ -751,7 +741,63 @@ class _MyGradesPageState extends State<MyGradesPage>
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _buildScoreDistribution(),
+                  _buildEnhancedScoreDistribution(),
+                ],
+              ),
+            ),
+
+            // Strengths & Weaknesses
+            Row(
+              children: [
+                Expanded(
+                  child: _buildCategoryCard(
+                    title: 'Strengths',
+                    icon: Icons.thumb_up,
+                    color: Colors.green,
+                    data: analyticsData['strengths'] ?? {},
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildCategoryCard(
+                    title: 'Areas to Improve',
+                    icon: Icons.thumb_down,
+                    color: Colors.red,
+                    data: analyticsData['weaknesses'] ?? {},
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Activity Breakdown
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '📋 Activity Breakdown',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blueGrey[800],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildActivityBreakdown(),
                 ],
               ),
             ),
@@ -790,7 +836,7 @@ class _MyGradesPageState extends State<MyGradesPage>
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        'Learning Recommendations',
+                        'Personalized Recommendations',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -800,7 +846,7 @@ class _MyGradesPageState extends State<MyGradesPage>
                     ],
                   ),
                   const SizedBox(height: 12),
-                  ..._buildRecommendations(),
+                  ..._buildEnhancedRecommendations(),
                 ],
               ),
             ),
@@ -808,6 +854,551 @@ class _MyGradesPageState extends State<MyGradesPage>
         ),
       ),
     );
+  }
+
+  // NEW METHODS FOR ENHANCED ANALYTICS
+
+  Widget _buildStatCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+    required bool showTrend,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.3)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              color: color.withOpacity(0.9),
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+    required int count,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: color,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(Icons.format_list_numbered, size: 16, color: color),
+              const SizedBox(width: 6),
+              Text(
+                '$count activities',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: color.withOpacity(0.8),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEnhancedScoreDistribution() {
+    final recentScores =
+        (analyticsData['recentScores'] as List<dynamic>?)?.cast<double>() ??
+            [];
+
+    if (recentScores.isEmpty) {
+      return Center(
+        child: Text(
+          'No scores to analyze',
+          style: TextStyle(color: Colors.grey[600]),
+        ),
+      );
+    }
+
+    // Calculate score distribution
+    Map<String, int> distribution = {
+      'Excellent (80-100%)': 0,
+      'Good (60-79%)': 0,
+      'Average (40-59%)': 0,
+      'Needs Improvement (<40%)': 0,
+    };
+
+    for (var score in recentScores) {
+      final percentage = score * 100;
+      if (percentage >= 80) {
+        distribution['Excellent (80-100%)'] =
+            distribution['Excellent (80-100%)']! + 1;
+      } else if (percentage >= 60) {
+        distribution['Good (60-79%)'] = distribution['Good (60-79%)']! + 1;
+      } else if (percentage >= 40) {
+        distribution['Average (40-59%)'] = distribution['Average (40-59%)']! + 1;
+      } else {
+        distribution['Needs Improvement (<40%)'] =
+            distribution['Needs Improvement (<40%)']! + 1;
+      }
+    }
+
+    return Column(
+      children: distribution.entries.map((entry) {
+        final count = entry.value;
+        final percentage = recentScores.isNotEmpty
+            ? (count / recentScores.length * 100)
+            : 0;
+
+        Color getColor(String category) {
+          if (category.contains('Excellent')) return Colors.green;
+          if (category.contains('Good')) return Colors.blue;
+          if (category.contains('Average')) return Colors.orange;
+          return Colors.red;
+        }
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    entry.key,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.blueGrey[700],
+                    ),
+                  ),
+                  Text(
+                    '$count (${percentage.toStringAsFixed(1)}%)',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: getColor(entry.key),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: percentage / 100,
+                  minHeight: 8,
+                  backgroundColor: Colors.grey[200],
+                  valueColor: AlwaysStoppedAnimation<Color>(getColor(entry.key)),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildCategoryCard({
+    required String title,
+    required IconData icon,
+    required Color color,
+    required Map<String, dynamic> data,
+  }) {
+    final strengths = data as Map<String, double>;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blueGrey[800],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (strengths.isEmpty)
+            Text(
+              'No data available',
+              style: TextStyle(color: Colors.grey[600]),
+            )
+          else
+            ...strengths.entries.map((entry) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        entry.key,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.blueGrey[700],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${(entry.value * 100).toStringAsFixed(0)}%',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActivityBreakdown() {
+    final quizCount = analyticsData['quizCount'] ?? 0;
+    final readingCount = analyticsData['readingCount'] ?? 0;
+    final total = quizCount + readingCount;
+
+    if (total == 0) {
+      return Center(
+        child: Text(
+          'No activities completed',
+          style: TextStyle(color: Colors.grey[600]),
+        ),
+      );
+    }
+
+    final quizPercentage = (quizCount / total * 100);
+    final readingPercentage = (readingCount / total * 100);
+
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildActivityItem(
+              'Quiz Activities',
+              quizCount,
+              quizPercentage,
+              Icons.quiz,
+              Colors.blue,
+            ),
+            _buildActivityItem(
+              'Reading Activities',
+              readingCount,
+              readingPercentage,
+              Icons.book,
+              Colors.purple,
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Container(
+          height: 12,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(6),
+            color: Colors.grey[200],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                flex: quizCount,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.blue,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(6),
+                      bottomLeft: Radius.circular(6),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: readingCount,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.purple,
+                    borderRadius: const BorderRadius.only(
+                      topRight: Radius.circular(6),
+                      bottomRight: Radius.circular(6),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActivityItem(
+    String title,
+    int count,
+    double percentage,
+    IconData icon,
+    Color color,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 6),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Colors.blueGrey[700],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '$count (${percentage.toStringAsFixed(1)}%)',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<Widget> _buildEnhancedRecommendations() {
+    final weaknesses = analyticsData['weaknesses'] ?? {};
+    final strengths = analyticsData['strengths'] ?? {};
+    final List<Widget> recommendations = <Widget>[];
+
+    // Add personalized recommendations based on weaknesses
+    if (weaknesses.isEmpty) {
+      recommendations.add(
+        Text(
+          'Excellent work! Your performance is consistently strong across all areas. Keep up the great work!',
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.blueGrey[700],
+            height: 1.5,
+          ),
+        ),
+      );
+    } else {
+      recommendations.add(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Focus Areas:',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.red,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...(weaknesses as Map<String, double>).entries.map((entry) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.flag, size: 16, color: Colors.red),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Improve ${entry.key.toLowerCase()} skills (current: ${(entry.value * 100).toStringAsFixed(0)}%)',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.blueGrey[700],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ],
+        ),
+      );
+    }
+
+    recommendations.add(const SizedBox(height: 16));
+
+    // Add study tips
+    recommendations.add(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Study Tips:',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.blueGrey[800],
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...[
+            'Review incorrect answers after each quiz',
+            'Practice reading aloud for 15 minutes daily',
+            'Create flashcards for vocabulary improvement',
+            'Set specific goals for each study session',
+            'Use spaced repetition for better retention',
+          ].map((tip) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.check_circle, size: 16, color: Colors.green),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      tip,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.blueGrey[700],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ],
+      ),
+    );
+
+    return recommendations;
+  }
+
+  // Helper method to calculate consistency
+  double _calculateConsistency(List<double> scores) {
+    if (scores.length < 2) return 1.0;
+    
+    double sum = 0;
+    for (int i = 1; i < scores.length; i++) {
+      sum += (scores[i] - scores[i-1]).abs();
+    }
+    
+    final averageDifference = sum / (scores.length - 1);
+    // Convert to consistency score (1.0 = perfect consistency)
+    return 1.0 - averageDifference;
   }
 
   Widget _buildScoreCard(
@@ -845,8 +1436,7 @@ class _MyGradesPageState extends State<MyGradesPage>
   }
 
   Widget _buildTrendChart() {
-    final scores =
-        (analyticsData['recentScores'] as List?)?.cast<double>() ?? [];
+    final scores = (analyticsData['recentScores'] as List?)?.cast<double>() ?? [];
 
     if (scores.isEmpty) {
       return Center(
@@ -889,123 +1479,123 @@ class _MyGradesPageState extends State<MyGradesPage>
     );
   }
 
-List<Widget> _buildStrengthsList() {
-  final strengths = analyticsData['strengths'] ?? {};
-  final List<Widget> widgets = []; // Explicitly create List<Widget>
+  List<Widget> _buildStrengthsList() {
+    final strengths = analyticsData['strengths'] ?? {};
+    final List<Widget> widgets = [];
 
-  if (strengths.isEmpty) {
-    widgets.add(
-      Text(
-        'No strengths identified yet',
-        style: TextStyle(color: Colors.grey[600]),
-      ),
-    );
+    if (strengths.isEmpty) {
+      widgets.add(
+        Text(
+          'No strengths identified yet',
+          style: TextStyle(color: Colors.grey[600]),
+        ),
+      );
+      return widgets;
+    }
+
+    for (var entry in (strengths as Map).entries) {
+      final key = entry.key.toString();
+      final value = entry.value as double;
+
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '${(value * 100).toStringAsFixed(0)}%',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  key,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.blueGrey[700],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return widgets;
   }
 
-  for (var entry in (strengths as Map).entries) {
-    final key = entry.key.toString();
-    final value = entry.value as double;
-    
-    widgets.add(
-      Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                '${(value * 100).toStringAsFixed(0)}%',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                key,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.blueGrey[700],
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
+  List<Widget> _buildWeaknessesList() {
+    final weaknesses = analyticsData['weaknesses'] ?? {};
+    final List<Widget> widgets = [];
+
+    if (weaknesses.isEmpty) {
+      widgets.add(
+        Text(
+          'No areas to improve identified yet',
+          style: TextStyle(color: Colors.grey[600]),
         ),
-      ),
-    );
-  }
+      );
+      return widgets;
+    }
 
-  return widgets;
-}
+    for (var entry in (weaknesses as Map).entries) {
+      final key = entry.key.toString();
+      final value = entry.value as double;
 
-List<Widget> _buildWeaknessesList() {
-  final weaknesses = analyticsData['weaknesses'] ?? {};
-  final List<Widget> widgets = []; // Explicitly create List<Widget>
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '${(value * 100).toStringAsFixed(0)}%',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  key,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.blueGrey[700],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
-  if (weaknesses.isEmpty) {
-    widgets.add(
-      Text(
-        'No areas to improve identified yet',
-        style: TextStyle(color: Colors.grey[600]),
-      ),
-    );
     return widgets;
   }
-
-  for (var entry in (weaknesses as Map).entries) {
-    final key = entry.key.toString();
-    final value = entry.value as double;
-    
-    widgets.add(
-      Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                '${(value * 100).toStringAsFixed(0)}%',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.red,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                key,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.blueGrey[700],
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  return widgets;
-}
 
   Widget _buildCategoryChart() {
     final quizScores =
@@ -1022,7 +1612,6 @@ List<Widget> _buildWeaknessesList() {
       );
     }
 
-    // Fixed line - added explicit type argument
     final allCategories = <String>{...quizScores.keys, ...readingScores.keys};
     final List<BarChartGroupData> barGroups = [];
     int index = 0;
@@ -1098,7 +1687,7 @@ List<Widget> _buildWeaknessesList() {
                             percent: score,
                             lineHeight: 8,
                             backgroundColor: Colors.grey[200],
-                            progressColor: Colors.red,
+                            progressColor: Colors.green,
                           ),
                         ),
                       ),
@@ -1163,48 +1752,97 @@ List<Widget> _buildWeaknessesList() {
     );
   }
 
-List<Widget> _buildRecommendations() {
-  final weaknesses = analyticsData['weaknesses'] ?? {};
-  final List<Widget> recommendations = <Widget>[]; // Explicit List<Widget>
+  List<Widget> _buildRecommendations() {
+    final weaknesses = analyticsData['weaknesses'] ?? {};
+    final List<Widget> recommendations = <Widget>[];
 
-  if (weaknesses.isEmpty) {
-    recommendations.add(
-      Text(
-        'Great job! Keep up the good work and continue practicing regularly.',
-        style: TextStyle(color: Colors.grey[700]),
-      ),
-    );
-  } else {
-    int index = 1;
-    for (var entry in (weaknesses as Map).entries) {
-      final key = entry.key.toString();
-      final value = entry.value as double;
-      
+    if (weaknesses.isEmpty) {
       recommendations.add(
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: _getPrimaryColor(),
-                  shape: BoxShape.circle,
-                ),
-                child: Text(
-                  '$index',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+        Text(
+          'Great job! Keep up the good work and continue practicing regularly.',
+          style: TextStyle(color: Colors.grey[700]),
+        ),
+      );
+    } else {
+      int index = 1;
+      for (var entry in (weaknesses as Map).entries) {
+        final key = entry.key.toString();
+        final value = entry.value as double;
+
+        recommendations.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: _getPrimaryColor(),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    '$index',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Focus on improving your ${key.toLowerCase()} skills. Practice more exercises in this area.',
+                    style: TextStyle(color: Colors.grey[700]),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+        index++;
+      }
+    }
+
+    recommendations.add(
+      const SizedBox(height: 12),
+    );
+
+    recommendations.add(
+      Text(
+        'General Tips:',
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: Colors.blueGrey[800],
+        ),
+      ),
+    );
+
+    recommendations.add(
+      const SizedBox(height: 8),
+    );
+
+    final generalTips = [
+      'Review mistakes from previous quizzes',
+      'Practice reading aloud for better fluency',
+      'Take notes while reading comprehension exercises',
+      'Set aside regular study time each day',
+      'Ask your teacher for specific feedback',
+    ];
+
+    for (var tip in generalTips) {
+      recommendations.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.green, size: 16),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Focus on improving your ${key.toLowerCase()} skills. Practice more exercises in this area.',
+                  tip,
                   style: TextStyle(color: Colors.grey[700]),
                 ),
               ),
@@ -1212,59 +1850,10 @@ List<Widget> _buildRecommendations() {
           ),
         ),
       );
-      index++;
     }
+
+    return recommendations;
   }
-
-  recommendations.add(
-    const SizedBox(height: 12),
-  );
-
-  recommendations.add(
-    Text(
-      'General Tips:',
-      style: TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.bold,
-        color: Colors.blueGrey[800],
-      ),
-    ),
-  );
-
-  recommendations.add(
-    const SizedBox(height: 8),
-  );
-
-  final generalTips = [
-    'Review mistakes from previous quizzes',
-    'Practice reading aloud for better fluency',
-    'Take notes while reading comprehension exercises',
-    'Set aside regular study time each day',
-    'Ask your teacher for specific feedback',
-  ];
-
-  for (var tip in generalTips) {
-    recommendations.add(
-      Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.green, size: 16),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                tip,
-                style: TextStyle(color: Colors.grey[700]),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  return recommendations;
-}
 
   // Original quiz scores and reading grades tabs remain the same
   Widget _buildQuizScoresTab() {
@@ -1321,11 +1910,10 @@ List<Widget> _buildRecommendations() {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder:
-                          (_) => QuizReviewPage(
-                            submissionId: score['id'].toString(),
-                            studentId: supabase.auth.currentUser!.id,
-                          ),
+                      builder: (_) => QuizReviewPage(
+                        submissionId: score['id'].toString(),
+                        studentId: supabase.auth.currentUser!.id,
+                      ),
                     ),
                   );
                 },
@@ -1341,9 +1929,8 @@ List<Widget> _buildRecommendations() {
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: _getScoreColor(
-                          scorePercent.toDouble(),
-                        ).withOpacity(0.3),
+                        color:
+                            _getScoreColor(scorePercent.toDouble()).withOpacity(0.3),
                         blurRadius: 4,
                         offset: const Offset(0, 2),
                       ),
@@ -1412,9 +1999,7 @@ List<Widget> _buildRecommendations() {
                           color: _getScoreColor(scorePercent).withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: _getScoreColor(
-                              scorePercent,
-                            ).withOpacity(0.3),
+                            color: _getScoreColor(scorePercent).withOpacity(0.3),
                           ),
                         ),
                         child: Text(
@@ -1450,165 +2035,221 @@ List<Widget> _buildRecommendations() {
     );
   }
 
-Widget _buildReadingGradesTab() {
-  final primaryColor = _getPrimaryColor();
-  final primaryLight = _getPrimaryColor(0.1);
+  Widget _buildReadingGradesTab() {
+    final primaryColor = _getPrimaryColor();
+    final primaryLight = _getPrimaryColor(0.1);
 
-  if (readingGrades.isEmpty) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.mic_outlined, size: 80, color: Colors.grey[400]),
-          const SizedBox(height: 20),
-          Text(
-            'No reading grades yet',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
+    if (readingGrades.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.mic_outlined, size: 80, color: Colors.grey[400]),
+            const SizedBox(height: 20),
+            Text(
+              'No reading grades yet',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Submit reading recordings to see your grades here',
-            style: TextStyle(color: Colors.grey[500], fontSize: 14),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
+            const SizedBox(height: 8),
+            Text(
+              'Submit reading recordings to see your grades here',
+              style: TextStyle(color: Colors.grey[500], fontSize: 14),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
 
-  return RefreshIndicator(
-    onRefresh: _loadAllGrades,
-    color: primaryColor,
-    backgroundColor: Colors.white,
-    child: ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: readingGrades.length,
-      itemBuilder: (context, index) {
-        final grade = readingGrades[index];
-        final score = (grade['score'] ?? 0.0) as double;
-        final maxScore = (grade['max_score'] ?? 10.0) as double;
-        final scorePercent = maxScore > 0 ? (score / maxScore) : 0.0;
+    return RefreshIndicator(
+      onRefresh: _loadAllGrades,
+      color: primaryColor,
+      backgroundColor: Colors.white,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: readingGrades.length,
+        itemBuilder: (context, index) {
+          final grade = readingGrades[index];
+          final score = (grade['score'] ?? 0.0) as double;
+          final maxScore = (grade['max_score'] ?? 10.0) as double;
+          final scorePercent = maxScore > 0 ? (score / maxScore) : 0.0;
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          child: Material(
-            borderRadius: BorderRadius.circular(16),
-            elevation: 2,
-            color: Colors.white,
-            child: ExpansionTile(
-              leading: Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [primaryColor.withOpacity(0.7), primaryColor],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: primaryColor.withOpacity(0.3),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: const Icon(Icons.mic, color: Colors.white, size: 24),
-              ),
-              title: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width * 0.5,
-                ),
-                child: Text(
-                  grade['title'] ?? 'Reading Task',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Colors.blueGrey[800],
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              subtitle: _buildDateTimeDisplay(grade['graded_at']),
-              trailing: SizedBox(
-                width: 80,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Star rating row
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(5, (starIndex) {
-                        return Icon(
-                          starIndex < score.round()
-                              ? Icons.star_rounded
-                              : Icons.star_border_rounded,
-                          size: 16,
-                          color: starIndex < score.round()
-                              ? Colors.amber[600]
-                              : Colors.grey[300],
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 4),
-                    // Numeric score display
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getScoreColor(scorePercent)
-                            .withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: _getScoreColor(scorePercent)
-                              .withOpacity(0.3),
-                          width: 1,
-                        ),
-                      ),
-                      child: Text(
-                        '${score.toStringAsFixed(1)}/$maxScore',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: _getScoreColor(scorePercent),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              collapsedShape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              tilePadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 8,
-              ),
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(20),
+          return Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            child: Material(
+              borderRadius: BorderRadius.circular(16),
+              elevation: 2,
+              color: Colors.white,
+              child: ExpansionTile(
+                leading: Container(
+                  width: 50,
+                  height: 50,
                   decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(16),
-                      bottomRight: Radius.circular(16),
+                    gradient: LinearGradient(
+                      colors: [primaryColor.withOpacity(0.7), primaryColor],
                     ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: primaryColor.withOpacity(0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
+                  child: const Icon(Icons.mic, color: Colors.white, size: 24),
+                ),
+                title: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.5,
+                  ),
+                  child: Text(
+                    grade['title'] ?? 'Reading Task',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.blueGrey[800],
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                subtitle: _buildDateTimeDisplay(grade['graded_at']),
+                trailing: SizedBox(
+                  width: 80,
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      if (grade['teacher_comments'] != null &&
-                          grade['teacher_comments'].toString().isNotEmpty &&
-                          !grade['teacher_comments'].toString().startsWith('{'))
+                      // Star rating row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(5, (starIndex) {
+                          return Icon(
+                            starIndex < score.round()
+                                ? Icons.star_rounded
+                                : Icons.star_border_rounded,
+                            size: 16,
+                            color: starIndex < score.round()
+                                ? Colors.amber[600]
+                                : Colors.grey[300],
+                          );
+                        }),
+                      ),
+                      const SizedBox(height: 4),
+                      // Numeric score display
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color:
+                              _getScoreColor(scorePercent).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: _getScoreColor(scorePercent)
+                                .withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          '${score.toStringAsFixed(1)}/$maxScore',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: _getScoreColor(scorePercent),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                collapsedShape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                tilePadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(16),
+                        bottomRight: Radius.circular(16),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        if (grade['teacher_comments'] != null &&
+                            grade['teacher_comments'].toString().isNotEmpty &&
+                            !grade['teacher_comments']
+                                .toString()
+                                .startsWith('{'))
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: primaryLight,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Icon(
+                                        Icons.comment_rounded,
+                                        color: primaryColor,
+                                        size: 18,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      'Teacher Feedback',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.blueGrey[800],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  grade['teacher_comments'],
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.blueGrey[700],
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        const SizedBox(height: 12),
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
@@ -1622,113 +2263,59 @@ Widget _buildReadingGradesTab() {
                               ),
                             ],
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          child: Row(
                             children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                      color: primaryLight,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Icon(
-                                      Icons.comment_rounded,
-                                      color: primaryColor,
-                                      size: 18,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    'Teacher Feedback',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.blueGrey[800],
-                                    ),
-                                  ),
-                                ],
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: primaryLight,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.person,
+                                  color: primaryColor,
+                                  size: 18,
+                                ),
                               ),
-                              const SizedBox(height: 12),
-                              Text(
-                                grade['teacher_comments'],
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.blueGrey[700],
-                                  height: 1.4,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Graded by',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[600],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Teacher ${grade['graded_by_name'] ?? 'Unknown'}',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.blueGrey[800],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: primaryLight,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                Icons.person,
-                                color: primaryColor,
-                                size: 18,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Graded by',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Teacher ${grade['graded_by_name'] ?? 'Unknown'}',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.blueGrey[800],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        );
-      },
-    ),
-  );
-}
+          );
+        },
+      ),
+    );
+  }
 
   Color _getScoreColor(double percent) {
     final primaryColor = _getPrimaryColor();

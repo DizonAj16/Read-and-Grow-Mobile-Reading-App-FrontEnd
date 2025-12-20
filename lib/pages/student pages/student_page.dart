@@ -651,7 +651,7 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: radius * 0.6,
+                  fontSize: radius * 0.9,
                 ),
               )
               : ClipOval(
@@ -670,7 +670,7 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
-                            fontSize: radius * 0.6,
+                            fontSize: radius * .6,
                           ),
                         ),
                       ),

@@ -302,13 +302,13 @@ class _TeacherPageState extends State<TeacherPage> {
                     route: '/pupils',
                     isSelected: _currentRoute == '/pupils',
                   ),
-                  _buildDrawerItem(
-                    context,
-                    icon: Icons.emoji_events_rounded,
-                    title: 'Badges List',
-                    route: '/badges',
-                    isSelected: _currentRoute == '/badges',
-                  ),
+                  // _buildDrawerItem(
+                  //   context,
+                  //   icon: Icons.emoji_events_rounded,
+                  //   title: 'Badges List',
+                  //   route: '/badges',
+                  //   isSelected: _currentRoute == '/badges',
+                  // ),
                   _buildDrawerItem(
                     context,
                     icon: Icons.assignment_rounded,
@@ -519,9 +519,9 @@ class _TeacherPageState extends State<TeacherPage> {
       case '/pupils':
         page = const PupilManagementPage();
         break;
-      case '/badges':
-        page = const BadgesListPage();
-        break;
+      // case '/badges':
+      //   page = const BadgesListPage();
+      //   break;
       case '/submissions':
         page = const StudentSubmissionsPage();
         break;
