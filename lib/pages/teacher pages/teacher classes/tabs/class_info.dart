@@ -1,3 +1,4 @@
+import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/tabs/add_lesson_with_essay_screen.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/tabs/announcement_list_screen.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/tabs/create_announcement_screen.dart';
 import 'package:flutter/material.dart';
@@ -199,6 +200,43 @@ class _ClassInfoPageState extends State<ClassInfoPage> {
                           _onAddQuiz();
                         },
                       ),
+                      // In the options list in ClassInfoPage, add:
+ListTile(
+  leading: Container(
+    padding: const EdgeInsets.all(8),
+    decoration: BoxDecoration(
+      color: Colors.purple.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: const Icon(
+      Icons.edit_note,
+      color: Colors.purple,
+    ),
+  ),
+  title: Text(
+    'Add Lesson & Essay',
+    style: TextStyle(
+      fontWeight: FontWeight.w500,
+      color: Theme.of(context).colorScheme.onSurface,
+    ),
+  ),
+  subtitle: Text(
+    'Create essay assignments with manual grading',
+    style: TextStyle(
+      fontSize: 12,
+      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+    ),
+  ),
+  trailing: Icon(
+    Icons.chevron_right,
+    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+  ),
+  onTap: () {
+    Navigator.pop(context);
+    _onAddEssay();
+  },
+),
+
                       // Add spacing at the bottom for iOS safe area
                       SizedBox(
                         height: MediaQuery.of(context).viewInsets.bottom,
@@ -394,6 +432,18 @@ class _ClassInfoPageState extends State<ClassInfoPage> {
               className: widget.classDetails['class_name'],
               isTeacher: true, // Set to true for teacher view
             ),
+      ),
+    );
+  }
+
+  void _onAddEssay() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddLessonWithEssayScreen(
+          readingLevelId: widget.classDetails['reading_level_id'],
+          classDetails: widget.classDetails,
+        ),
       ),
     );
   }

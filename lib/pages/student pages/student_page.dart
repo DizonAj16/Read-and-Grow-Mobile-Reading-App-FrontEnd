@@ -1,10 +1,7 @@
 import 'package:deped_reading_app_laravel/api/supabase_auth_service.dart';
-import 'package:deped_reading_app_laravel/api/classroom_service.dart';
 import 'package:deped_reading_app_laravel/models/student_model.dart';
 import 'package:deped_reading_app_laravel/pages/auth%20pages/landing_page.dart';
-// Removed import: import 'package:deped_reading_app_laravel/pages/student%20pages/enhanced_reading_level_page.dart';
 import 'package:deped_reading_app_laravel/pages/student%20pages/student_dashboard_page.dart';
-// import 'package:deped_reading_app_laravel/pages/student%20pages/student_reading_materials_page.dart';
 import 'package:deped_reading_app_laravel/widgets/helpers/tts_helper.dart';
 import 'package:deped_reading_app_laravel/widgets/helpers/tts_modal.dart';
 import 'package:flutter/material.dart';
@@ -30,14 +27,12 @@ class _StudentPageState extends State<StudentPage> {
   final List<String> _pageTitles = [
     "Dashboard",
     "My Class",
-    // Removed "My Reading Level" from here
   ];
 
   // Fixed pages - order must match bottom navigation
   final List<Widget> _pages = [
     const StudentDashboardPage(),
     const StudentClassPage(),
-    // Removed EnhancedReadingLevelPage from here
   ];
 
   @override
@@ -107,17 +102,16 @@ class _StudentPageState extends State<StudentPage> {
 
   void _onTabTapped(int index) {
     setState(() => _currentIndex = index);
-    _pageController.jumpToPage(index); // Use jumpToPage instead of animateToPage for instant navigation
+    _pageController.jumpToPage(index);
   }
 
   void _showLogoutConfirmation() {
     showDialog(
       context: context,
-      builder:
-          (context) => _LogoutConfirmationDialog(
-            onStay: () => Navigator.pop(context),
-            onLogout: _logout,
-          ),
+      builder: (context) => _LogoutConfirmationDialog(
+        onStay: () => Navigator.pop(context),
+        onLogout: _logout,
+      ),
     );
   }
 
@@ -127,216 +121,21 @@ class _StudentPageState extends State<StudentPage> {
       appBar: _buildAppBar(context),
       body: _buildPageView(),
       bottomNavigationBar: _buildBottomNavigationBar(context),
-      // floatingActionButton: FloatingActionButton.extended(
-      //   onPressed: _showEnrollDialog,
-      //   icon: const Icon(Icons.meeting_room),
-      //   label: const Text("Join Class"),
-      // ),
     );
-  }
-
-  Future<void> _showEnrollDialog() async {
-    final TextEditingController codeController = TextEditingController();
-
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Enter Classroom Code"),
-        content: TextField(
-          controller: codeController,
-          decoration: const InputDecoration(
-            labelText: "Classroom Code",
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final code = codeController.text.trim();
-              if (code.isNotEmpty) {
-                await _enrollStudentToClass(code);
-                Navigator.pop(context);
-              }
-            },
-            child: const Text("Join"),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _enrollStudentToClass(String classroomCode) async {
-    if (!mounted) return;
-
-    try {
-      debugPrint('📝 [STUDENT_ENROLL] Starting enrollment with code: $classroomCode');
-      final supabase = Supabase.instance.client;
-
-      // 1️⃣ Validate classroom code
-      final classroomResponse = await supabase
-          .from('class_rooms')
-          .select('id, class_name')
-          .eq('classroom_code', classroomCode.trim())
-          .maybeSingle();
-
-      if (classroomResponse == null || classroomResponse['id'] == null) {
-        debugPrint('❌ [STUDENT_ENROLL] Invalid classroom code: $classroomCode');
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("❌ Invalid classroom code"),
-            backgroundColor: Colors.redAccent,
-            duration: Duration(seconds: 3),
-          ),
-        );
-        return;
-      }
-
-      final classId = classroomResponse['id'] as String;
-      final className = classroomResponse['class_name'] as String? ?? 'Unknown';
-
-      debugPrint('✅ [STUDENT_ENROLL] Found class: $className ($classId)');
-
-      // 2️⃣ Get current student
-      final user = supabase.auth.currentUser;
-      if (user == null) {
-        debugPrint('❌ [STUDENT_ENROLL] No logged-in user');
-        throw Exception("No logged-in user");
-      }
-
-      final studentResponse = await supabase
-          .from('students')
-          .select('id, student_name')
-          .eq('id', user.id)
-          .maybeSingle();
-
-      if (studentResponse == null) {
-        debugPrint('❌ [STUDENT_ENROLL] No matching student profile found');
-        throw Exception("No matching student profile found for this user");
-      }
-
-      final studentId = studentResponse['id'] as String;
-      final studentName = studentResponse['student_name'] as String? ?? 'Student';
-
-      debugPrint('✅ [STUDENT_ENROLL] Found student: $studentName ($studentId)');
-
-      // 3️⃣ Check if already enrolled in another class
-      final existingEnrollment = await supabase
-          .from('student_enrollments')
-          .select('class_room_id, class_rooms(class_name)')
-          .eq('student_id', studentId)
-          .maybeSingle();
-
-      if (existingEnrollment != null) {
-        final existingClassId = existingEnrollment['class_room_id'] as String?;
-        final existingClassName = existingEnrollment['class_rooms']?['class_name'] as String?;
-
-        // If already enrolled in this class
-        if (existingClassId == classId) {
-          debugPrint('ℹ️ [STUDENT_ENROLL] Already enrolled in this class');
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("You are already enrolled in $className"),
-              backgroundColor: Colors.orange,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-          if (Navigator.of(context, rootNavigator: true).canPop()) {
-            Navigator.of(context, rootNavigator: true).pop();
-          }
-          return;
-        }
-
-        // If enrolled in different class
-        debugPrint('❌ [STUDENT_ENROLL] Already enrolled in different class: $existingClassName');
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("You are already enrolled in \"${existingClassName ?? 'another class'}\". Please contact your teacher to switch classes."),
-            backgroundColor: Colors.redAccent,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-        return;
-      }
-
-      // 4️⃣ Insert enrollment using ClassroomService for consistency
-      debugPrint('📝 [STUDENT_ENROLL] No existing enrollment - proceeding with join');
-      final enrollmentResult = await ClassroomService.assignStudent(
-        studentId: studentId,
-        classRoomId: classId,
-      );
-
-      if (enrollmentResult != null && enrollmentResult.containsKey('error')) {
-        final errorMessage = enrollmentResult['error'] as String? ?? 'Failed to join class';
-        debugPrint('❌ [STUDENT_ENROLL] Assignment failed: $errorMessage');
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.redAccent,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-        return;
-      }
-
-      debugPrint('✅ [STUDENT_ENROLL] Successfully enrolled in class');
-
-      // 5️⃣ Show success snackbar
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("✅ Successfully joined $className!"),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-
-      // 6️⃣ Close the dialog
-      if (Navigator.of(context, rootNavigator: true).canPop()) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-
-      // 7️⃣ Wait a short moment to finish animations
-      await Future.delayed(const Duration(milliseconds: 200));
-
-      // 8️⃣ Refresh My Classes tab safely
-      if (!mounted) return;
-      setState(() {
-        _currentIndex = 1;
-      });
-
-      // Rebuild StudentClassPage (forces refresh)
-      _pageController.jumpToPage(1);
-
-    } catch (e, stack) {
-      debugPrint("❌ [STUDENT_ENROLL] Enrollment error: $e");
-      debugPrintStack(stackTrace: stack);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Error enrolling: ${e.toString().replaceAll('Exception: ', '')}"),
-            backgroundColor: Colors.redAccent,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
-    }
   }
 
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
-      title: Text(
-        _pageTitles[_currentIndex], // Use dynamic page titles
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w600,
+      title: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        child: Text(
+          _pageTitles[_currentIndex],
+          key: ValueKey(_currentIndex),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+          ),
         ),
       ),
       backgroundColor: Theme.of(context).colorScheme.primary,
@@ -347,8 +146,13 @@ class _StudentPageState extends State<StudentPage> {
           ttsHelper: _ttsHelper,
         ),
       ],
-      elevation: 2,
+      elevation: 4,
       shadowColor: Colors.black.withOpacity(0.3),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          bottom: Radius.circular(20),
+        ),
+      ),
     );
   }
 
@@ -357,8 +161,7 @@ class _StudentPageState extends State<StudentPage> {
       controller: _pageController,
       onPageChanged: (index) => setState(() => _currentIndex = index),
       children: _pages,
-      physics: const PageScrollPhysics(), // Standard page physics
-      // Prevent overscroll/bounce
+      physics: const PageScrollPhysics(),
       scrollBehavior: const ScrollBehavior().copyWith(
         overscroll: false,
         scrollbars: false,
@@ -366,35 +169,132 @@ class _StudentPageState extends State<StudentPage> {
     );
   }
 
-  BottomNavigationBar _buildBottomNavigationBar(BuildContext context) {
-    return BottomNavigationBar(
-      currentIndex: _currentIndex,
-      onTap: _onTabTapped,
-      items: _buildBottomNavItems(),
-      selectedItemColor: Theme.of(context).colorScheme.primary,
-      unselectedItemColor: Colors.grey.shade600,
-      showUnselectedLabels: true,
-      type: BottomNavigationBarType.fixed,
-      elevation: 8,
-      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
-      unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+  ClipRRect _buildBottomNavigationBar(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryColor = theme.colorScheme.primary;
+    final primaryVariant = Color.alphaBlend(
+      primaryColor.withOpacity(0.7),
+      Colors.black,
+    );
+
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(
+        top: Radius.circular(24),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              primaryColor,
+              primaryVariant,
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.25),
+              blurRadius: 15,
+              spreadRadius: 3,
+              offset: const Offset(0, -3),
+            ),
+          ],
+          border: Border(
+            top: BorderSide(
+              color: Colors.white.withOpacity(0.1),
+              width: 1,
+            ),
+          ),
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: _onTabTapped,
+          items: _buildBottomNavItems(),
+          selectedItemColor: Colors.white,
+          unselectedItemColor: Colors.white.withOpacity(0.7),
+          showUnselectedLabels: true,
+          showSelectedLabels: true,
+          type: BottomNavigationBarType.fixed,
+          elevation: 0,
+          selectedLabelStyle: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 12,
+            letterSpacing: 0.5,
+          ),
+          unselectedLabelStyle: TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 12,
+            letterSpacing: 0.3,
+          ),
+          backgroundColor: Colors.transparent,
+          iconSize: 26,
+          selectedFontSize: 12,
+          unselectedFontSize: 12,
+        ),
+      ),
     );
   }
 
   List<BottomNavigationBarItem> _buildBottomNavItems() {
-    return const [
+    return [
       BottomNavigationBarItem(
-        icon: Icon(Icons.home_outlined),
-        activeIcon: Icon(Icons.home),
+        icon: Container(
+          padding: const EdgeInsets.all(8),
+          child: const Icon(Icons.home_outlined),
+        ),
+        activeIcon: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              colors: [
+                Colors.white.withOpacity(0.3),
+                Colors.white.withOpacity(0.1),
+              ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.white.withOpacity(0.3),
+                blurRadius: 8,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          child: const Icon(Icons.home),
+        ),
         label: "Dashboard",
       ),
       BottomNavigationBarItem(
-        icon: Icon(Icons.class_outlined),
-        activeIcon: Icon(Icons.class_),
+        icon: Container(
+          padding: const EdgeInsets.all(8),
+          child: const Icon(Icons.class_outlined),
+        ),
+        activeIcon: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              colors: [
+                Colors.white.withOpacity(0.3),
+                Colors.white.withOpacity(0.1),
+              ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.white.withOpacity(0.3),
+                blurRadius: 8,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          child: const Icon(Icons.class_),
+        ),
         label: "My Class",
       ),
-      // Removed Reading Level tab
     ];
   }
 }
@@ -435,9 +335,7 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
           _profilePictureUrl = fullProfileUrl;
         });
       }
-
     } catch (e) {
-
       try {
         final Student student = await Student.fromPrefs();
         final String? fullProfileUrl = await _buildProfilePictureUrl(
@@ -476,18 +374,16 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
     }
 
     try {
-      // If already a full URL (starts with http/https), use it as is
-      if (profilePicture.startsWith('http://') || profilePicture.startsWith('https://')) {
+      if (profilePicture.startsWith('http://') ||
+          profilePicture.startsWith('https://')) {
         debugPrint('🖼️ Profile picture is already a full URL');
         return profilePicture;
       }
-      
-      // Get public URL from Supabase storage 'materials' bucket (matches UserService.uploadProfilePicture)
+
       final supabase = Supabase.instance.client;
-      final bucketBaseUrl = supabase.storage
-          .from('materials')
-          .getPublicUrl(profilePicture);
-      
+      final bucketBaseUrl =
+          supabase.storage.from('materials').getPublicUrl(profilePicture);
+
       debugPrint('🖼️ Normalized profile picture URL: $bucketBaseUrl');
       return bucketBaseUrl;
     } catch (e) {
@@ -504,8 +400,9 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
       onSelected: (value) => _handleMenuSelection(value, context),
       itemBuilder: (context) => _buildMenuItems(context),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 4,
+      elevation: 8,
       color: Theme.of(context).colorScheme.surface,
+      shadowColor: Colors.black.withOpacity(0.2),
     );
   }
 
@@ -528,9 +425,8 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder:
-          (context) =>
-              _ProfileModalContainer(child: const StudentProfilePage()),
+      builder: (context) =>
+          _ProfileModalContainer(child: const StudentProfilePage()),
     );
     await _loadStudentData();
   }
@@ -540,14 +436,13 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder:
-          (context) => _ProfileModalContainer(
-            heightFactor: 0.4,
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: TTSSettingsModal(ttsHelper: widget.ttsHelper),
-            ),
-          ),
+      builder: (context) => _ProfileModalContainer(
+        heightFactor: 0.4,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: TTSSettingsModal(ttsHelper: widget.ttsHelper),
+        ),
+      ),
     );
   }
 
@@ -588,25 +483,6 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
         ),
       ),
       const PopupMenuDivider(),
-      // PopupMenuItem<String>(
-      //   value: 'settings',
-      //   height: 48,
-      //   child: SizedBox(
-      //     width: double.infinity,
-      //     child: Row(
-      //       mainAxisSize: MainAxisSize.min,
-      //       mainAxisAlignment: MainAxisAlignment.start,
-      //       children: [
-      //         Icon(Icons.settings, size: 20, color: Colors.blue),
-      //         const SizedBox(width: 12),
-      //         Text(
-      //           'Settings',
-      //           style: theme.textTheme.bodyMedium?.copyWith(color: textColor),
-      //         ),
-      //       ],
-      //     ),
-      //   ),
-      // ),
       PopupMenuItem<String>(
         value: 'logout',
         height: 48,
@@ -634,53 +510,69 @@ class _ProfilePopupMenuState extends State<_ProfilePopupMenu> {
 
   Widget _buildProfileAvatar({required double radius}) {
     final studentName = _student?.studentName ?? "Student";
-    final initials =
-        _student?.avatarLetter ??
-        (studentName.isNotEmpty ? studentName[0].toUpperCase() : "S");
+    
+    // NEW: Generate initials from first letter of each word in full name
+    final String initials = _generateInitials(studentName);
 
     return CircleAvatar(
       radius: radius,
-      backgroundColor:
-          _profilePictureUrl == null
-              ? Theme.of(context).colorScheme.primary
-              : null,
-      child:
-          _profilePictureUrl == null
-              ? Text(
-                initials,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: radius * 0.9,
-                ),
-              )
-              : ClipOval(
-                child: FadeInImage.assetNetwork(
-                  placeholder: 'assets/placeholder/avatar_placeholder.jpg',
-                  image: _profilePictureUrl!,
-                  fit: BoxFit.cover,
-                  width: radius * 2,
-                  height: radius * 2,
-                  imageErrorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Theme.of(context).colorScheme.primary,
-                      child: Center(
-                        child: Text(
-                          initials,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: radius * .6,
-                          ),
+      backgroundColor: _profilePictureUrl == null
+          ? Theme.of(context).colorScheme.primary
+          : null,
+      child: _profilePictureUrl == null
+          ? Text(
+              initials,
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: radius * 0.7, // Slightly smaller for 2+ letters
+              ),
+            )
+          : ClipOval(
+              child: FadeInImage.assetNetwork(
+                placeholder: 'assets/placeholder/avatar_placeholder.jpg',
+                image: _profilePictureUrl!,
+                fit: BoxFit.cover,
+                width: radius * 2,
+                height: radius * 2,
+                imageErrorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Theme.of(context).colorScheme.primary,
+                    child: Center(
+                      child: Text(
+                        initials,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: radius * 0.7,
                         ),
                       ),
-                    );
-                  },
-                  fadeInDuration: const Duration(milliseconds: 300),
-                  fadeOutDuration: const Duration(milliseconds: 100),
-                ),
+                    ),
+                  );
+                },
+                fadeInDuration: const Duration(milliseconds: 300),
+                fadeOutDuration: const Duration(milliseconds: 100),
               ),
+            ),
     );
+  }
+
+  // NEW: Helper function to generate initials from full name
+  String _generateInitials(String fullName) {
+    if (fullName.isEmpty) return "S";
+    
+    // Split the name by spaces and filter out empty strings
+    final nameParts = fullName.trim().split(' ').where((part) => part.isNotEmpty).toList();
+    
+    if (nameParts.isEmpty) return "S";
+    
+    if (nameParts.length == 1) {
+      // Single name: return first letter
+      return nameParts[0][0].toUpperCase();
+    } else {
+      // Multiple names: return first letter of first and last name
+      return '${nameParts.first[0]}${nameParts.last[0]}'.toUpperCase();
+    }
   }
 }
 
@@ -693,18 +585,19 @@ class _ProfileModalContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       child: FractionallySizedBox(
         heightFactor: heightFactor,
         child: Container(
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 20,
-                spreadRadius: 2,
+                color: Colors.black.withOpacity(0.25),
+                blurRadius: 32,
+                spreadRadius: 4,
+                offset: const Offset(0, -8),
               ),
             ],
           ),
@@ -722,13 +615,14 @@ class _LogoutProgressDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             CircularProgressIndicator(
+              strokeWidth: 3,
               valueColor: AlwaysStoppedAnimation<Color>(
                 Theme.of(context).colorScheme.primary,
               ),
@@ -755,7 +649,7 @@ class _LogoutErrorDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: const Text('Logout Failed'),
       content: const Text('Unable to logout. Please try again.'),
       actions: [
@@ -780,7 +674,7 @@ class _LogoutConfirmationDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       title: Column(
         children: [
           Icon(
@@ -791,17 +685,18 @@ class _LogoutConfirmationDialog extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             "Are you leaving?",
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(context)
+                .textTheme
+                .titleLarge
+                ?.copyWith(fontWeight: FontWeight.bold),
           ),
         ],
       ),
       content: Text(
         "We hope to see you again soon! Are you sure you want to log out?",
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: Theme.of(context).colorScheme.onSurface,
-        ),
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
         textAlign: TextAlign.center,
       ),
       actions: [
@@ -847,9 +742,9 @@ class _DialogButton extends StatelessWidget {
       style: ElevatedButton.styleFrom(
         backgroundColor: color,
         foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        elevation: 2,
+        elevation: 4,
         shadowColor: color.withOpacity(0.4),
       ),
       onPressed: onPressed,

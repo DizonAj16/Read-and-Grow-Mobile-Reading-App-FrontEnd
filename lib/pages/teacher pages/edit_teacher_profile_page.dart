@@ -757,6 +757,7 @@ class _EditTeacherProfilePageState extends State<EditTeacherProfilePage> {
                                         'Save Changes',
                                         style: textTheme.titleMedium?.copyWith(
                                           fontWeight: FontWeight.w600,
+                                          color: colorScheme.onPrimary,
                                         ),
                                       ),
                                     ],

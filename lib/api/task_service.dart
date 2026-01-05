@@ -6,37 +6,45 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class TaskService {
   /// Fetch all quizzes for a given class
-  static Future<List<Map<String, dynamic>>> fetchTasksForClass(
-    String classId,
-  ) async {
-    try {
-      final supabase = Supabase.instance.client;
-      final response = await supabase
-          .from('quizzes')
-          .select(
-            'id, title, task_id, class_room_id, tasks(id, title, created_at)',
-          )
-          .eq('class_room_id', classId);
+/// Fetch all quizzes for a given class WITH assignments
+static Future<List<Map<String, dynamic>>> fetchTasksForClass(
+  String classId,
+) async {
+  try {
+    final supabase = Supabase.instance.client;
+    
+    // Fetch quizzes with their assignments directly
+    final response = await supabase
+        .from('quizzes')
+        .select('''
+          id, 
+          title, 
+          task_id, 
+          class_room_id,
+          tasks(id, title, created_at),
+          assignments!inner(id, due_date)
+        ''')
+        .eq('class_room_id', classId);
 
-      final list = List<Map<String, dynamic>>.from(response);
+    final list = List<Map<String, dynamic>>.from(response);
 
-      // Sort by tasks.created_at descending
-      list.sort((a, b) {
-        final aDate = a['tasks']?['created_at'] != null
-            ? DateTime.parse(a['tasks']['created_at'])
-            : DateTime.fromMillisecondsSinceEpoch(0);
-        final bDate = b['tasks']?['created_at'] != null
-            ? DateTime.parse(b['tasks']['created_at'])
-            : DateTime.fromMillisecondsSinceEpoch(0);
-        return bDate.compareTo(aDate);
-      });
+    // Sort by tasks.created_at descending
+    list.sort((a, b) {
+      final aDate = a['tasks']?['created_at'] != null
+          ? DateTime.parse(a['tasks']['created_at'])
+          : DateTime.fromMillisecondsSinceEpoch(0);
+      final bDate = b['tasks']?['created_at'] != null
+          ? DateTime.parse(b['tasks']['created_at'])
+          : DateTime.fromMillisecondsSinceEpoch(0);
+      return bDate.compareTo(aDate);
+    });
 
-      return list;
-    } catch (e) {
-      debugPrint("❌ Error fetching assignments: $e");
-      return [];
-    }
+    return list;
+  } catch (e) {
+    debugPrint("❌ Error fetching assignments: $e");
+    return [];
   }
+}
 
   /// Fetch quiz info along with questions, options, and correct answers
 /// Fetch quiz info along with questions, options, and correct answers

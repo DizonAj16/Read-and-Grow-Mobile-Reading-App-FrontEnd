@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
 import '../../../../api/classroom_service.dart';
-import '../../student_quiz_pages.dart';
+import 'student_quiz_pages.dart';
 
 class StudentTasksPage extends StatelessWidget {
   final String classId;

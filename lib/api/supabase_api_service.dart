@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/tabs/add_lesson_with_essay_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -21,7 +22,9 @@ class ApiService {
       // Backend validation: Check file size
       final sizeValidation = await validateFileSize(file);
       if (!sizeValidation.isValid) {
-        debugPrint('❌ [UPLOAD_FILE] File size validation failed: ${sizeValidation.getDetailedInfo()}');
+        debugPrint(
+          '❌ [UPLOAD_FILE] File size validation failed: ${sizeValidation.getDetailedInfo()}',
+        );
         throw FileSizeLimitException(
           FileValidator.backendLimitMessage(FileValidator.defaultMaxSizeMB),
           actualSizeMB: sizeValidation.actualSizeMB,
@@ -1000,6 +1003,104 @@ class ApiService {
     } else {
       debugPrint('Error adding lesson: ${response.body}');
       return null;
+    }
+  }
+
+  // Add to ApiService class
+  static Future<Map<String, dynamic>?> addEssayAssignment({
+    required String taskId,
+    required String title,
+    required List<EssayQuestion> questions,
+    required String classRoomId,
+    required String assignmentId,
+  }) async {
+    try {
+      // Use Supabase client instead of HTTP
+      final essayResponse =
+          await supabase
+              .from('essay_assignments')
+              .insert({
+                'assignment_id': assignmentId,
+                'task_id': taskId,
+                'title': title,
+                'class_room_id': classRoomId,
+              })
+              .select()
+              .single();
+
+      final essayId = essayResponse['id'].toString();
+      print('✅ Essay assignment created with ID: $essayId');
+
+      // Add essay questions
+      for (var i = 0; i < questions.length; i++) {
+        final q = questions[i];
+        try {
+          final questionData = {
+            'essay_assignment_id': essayId,
+            'question_text': q.questionText,
+            'sort_order': i,
+            'word_limit': q.wordLimit,
+          };
+
+          if (q.questionImageUrl != null && q.questionImageUrl!.isNotEmpty) {
+            questionData['question_image_url'] = q.questionImageUrl;
+          }
+
+          await supabase.from('essay_questions').insert(questionData);
+
+          print('✅ Essay question ${i + 1} added');
+        } catch (e) {
+          print('⚠️ Failed to add essay question ${i + 1}: $e');
+        }
+      }
+
+      return {'essay_id': essayId};
+    } catch (e) {
+      print('❌ Failed to create essay assignment: $e');
+      return null;
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>?> getEssaySubmissions({
+    required String classRoomId,
+    required String assignmentId,
+  }) async {
+    try {
+      // Simpler query without joins
+      final response = await supabase
+          .from('student_essay_responses')
+          .select('*')
+          .eq('assignment_id', assignmentId)
+          .order('submitted_at', ascending: false);
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('❌ Error fetching essay submissions: $e');
+      return null;
+    }
+  }
+
+  // Method to grade an essay
+  static Future<bool> gradeEssay({
+    required String submissionId,
+    required double score,
+    required String feedback,
+  }) async {
+    try {
+      await supabase
+          .from('student_essay_responses')
+          .update({
+            'teacher_score': score,
+            'teacher_feedback': feedback,
+            'is_graded': true,
+            'graded_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', submissionId);
+
+      return true;
+    } catch (e) {
+      print('❌ Error grading essay: $e');
+      return false;
     }
   }
 }

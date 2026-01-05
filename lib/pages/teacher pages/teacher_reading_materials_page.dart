@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async';
+import 'package:deped_reading_app_laravel/pages/teacher%20pages/reading_materials_grading_page.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -157,7 +158,6 @@ class _TeacherReadingMaterialsPageState
   Timer? _audioRecordingTimer;
   int _audioRecordingSeconds = 0;
 
-  @override
   @override
   void initState() {
     super.initState();
@@ -3010,7 +3010,20 @@ class _TeacherReadingMaterialsPageState
               if (value == 'edit') {
                 _showUploadDialog(materialToEdit: material);
               } else if (value == 'submissions') {
-                _viewSubmissions(material);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => ReadingMaterialGradingPage(
+                          materialId: material.id,
+                          materialTitle: material.title,
+                          onWillPop: () {
+                            // Optional callback when returning
+                            _loadData();
+                          },
+                        ),
+                  ),
+                );
               } else if (value == 'delete') {
                 _deleteMaterial(material);
               }
@@ -3031,9 +3044,9 @@ class _TeacherReadingMaterialsPageState
                     value: 'submissions',
                     child: Row(
                       children: [
-                        Icon(Icons.people, size: 20),
+                        Icon(Icons.grading, size: 20),
                         SizedBox(width: 10),
-                        Text("View Submissions"),
+                        Text("Grade Submissions"),
                       ],
                     ),
                   ),
@@ -3110,167 +3123,153 @@ class _TeacherReadingMaterialsPageState
     final primaryColor = Theme.of(context).colorScheme.primary;
     final isMobile = MediaQuery.of(context).size.width < 600;
 
-    return WillPopScope(
-      onWillPop: () async {
-        if (widget.onWillPop != null) {
-          widget.onWillPop!();
-          return false;
-        }
-        return true;
-      },
-      child: Scaffold(
-        backgroundColor: Colors.grey[50],
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          backgroundColor: Colors.white,
-          elevation: 0,
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Stack(
+      children: [
+        Container(
+          color: Colors.grey[50],
+          child: Column(
             children: [
-              Text(
-                widget.classId != null
-                    ? 'Classroom Materials'
-                    : 'Reading Materials',
-                style: TextStyle(
-                  fontSize: isMobile ? 18 : 20,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.grey[900],
-                ),
-              ),
+              // Classroom indicator if classId is provided
               if (widget.classId != null && _className != null)
-                Text(
-                  _className!,
-                  style: TextStyle(
-                    fontSize: isMobile ? 12 : 14,
-                    color: Colors.grey[600],
-                  ),
-                ),
-            ],
-          ),
-        ),
-        body: SafeArea(
-          child:
-              _isLoading
-                  ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(
-                          color: primaryColor,
-                          strokeWidth: 2.5,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          widget.classId != null
-                              ? 'Loading Classroom Materials...'
-                              : 'Loading Materials...',
+                Container(
+                  padding: EdgeInsets.all(isMobile ? 12 : 16),
+                  color: Colors.blue[50],
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.class_rounded,
+                        color: Colors.blue[700],
+                        size: isMobile ? 18 : 20,
+                      ),
+                      SizedBox(width: isMobile ? 8 : 12),
+                      Expanded(
+                        child: Text(
+                          'Classroom: $_className',
                           style: TextStyle(
+                            color: Colors.blue[700],
                             fontSize: isMobile ? 14 : 16,
-                            color: Colors.grey[600],
                             fontWeight: FontWeight.w500,
                           ),
-                        ),
-                      ],
-                    ),
-                  )
-                  : Column(
-                    children: [
-                      if (widget.classId != null)
-                        Container(
-                          padding: EdgeInsets.all(isMobile ? 12 : 16),
-                          color: Colors.blue[50],
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.info_outline,
-                                color: Colors.blue[700],
-                                size: isMobile ? 18 : 20,
-                              ),
-                              SizedBox(width: isMobile ? 8 : 12),
-                              Expanded(
-                                child: Text(
-                                  'These materials are assigned to this classroom only',
-                                  style: TextStyle(
-                                    color: Colors.blue[700],
-                                    fontSize: isMobile ? 12 : 14,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      Expanded(
-                        child: RefreshIndicator(
-                          onRefresh: _handleRefresh,
-                          color: primaryColor,
-                          backgroundColor: Colors.white,
-                          child:
-                              _materials.isEmpty
-                                  ? Center(
-                                    child: Padding(
-                                      padding: EdgeInsets.all(
-                                        isMobile ? 24 : 32,
-                                      ),
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.library_books_outlined,
-                                            size: isMobile ? 60 : 80,
-                                            color: Colors.grey[400],
-                                          ),
-                                          SizedBox(height: isMobile ? 16 : 24),
-                                          Text(
-                                            widget.classId != null
-                                                ? 'No Classroom Materials Yet'
-                                                : 'No Reading Materials Yet',
-                                            style: TextStyle(
-                                              fontSize: isMobile ? 16 : 18,
-                                              color: Colors.grey[600],
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                          SizedBox(height: isMobile ? 8 : 12),
-                                          Text(
-                                            widget.classId != null
-                                                ? 'Tap + to upload or assign materials'
-                                                : 'Tap + to upload your first material',
-                                            style: TextStyle(
-                                              fontSize: isMobile ? 12 : 14,
-                                              color: Colors.grey[500],
-                                            ),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  )
-                                  : ListView.builder(
-                                    controller: _scrollController,
-                                    padding: EdgeInsets.all(isMobile ? 12 : 16),
-                                    itemCount: _materials.length,
-                                    itemBuilder: (context, index) {
-                                      final material = _materials[index];
-                                      return _buildMaterialItem(
-                                        material,
-                                        index,
-                                      );
-                                    },
-                                  ),
                         ),
                       ),
                     ],
                   ),
+                ),
+              Expanded(
+                child:
+                    _isLoading
+                        ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              CircularProgressIndicator(
+                                color: primaryColor,
+                                strokeWidth: 2.5,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                widget.classId != null
+                                    ? 'Loading Classroom Materials...'
+                                    : 'Loading Materials...',
+                                style: TextStyle(
+                                  fontSize: isMobile ? 14 : 16,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                        : Column(
+                          children: [
+                            Expanded(
+                              child: RefreshIndicator(
+                                onRefresh: _handleRefresh,
+                                color: primaryColor,
+                                backgroundColor: Colors.white,
+                                child:
+                                    _materials.isEmpty
+                                        ? Center(
+                                          child: Padding(
+                                            padding: EdgeInsets.all(
+                                              isMobile ? 24 : 32,
+                                            ),
+                                            child: Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Icon(
+                                                  Icons.library_books_outlined,
+                                                  size: isMobile ? 60 : 80,
+                                                  color: Colors.grey[400],
+                                                ),
+                                                SizedBox(
+                                                  height: isMobile ? 16 : 24,
+                                                ),
+                                                Text(
+                                                  widget.classId != null
+                                                      ? 'No Classroom Materials Yet'
+                                                      : 'No Reading Materials Yet',
+                                                  style: TextStyle(
+                                                    fontSize:
+                                                        isMobile ? 16 : 18,
+                                                    color: Colors.grey[600],
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                                SizedBox(
+                                                  height: isMobile ? 8 : 12,
+                                                ),
+                                                Text(
+                                                  widget.classId != null
+                                                      ? 'Tap + to upload or assign materials'
+                                                      : 'Tap + to upload your first material',
+                                                  style: TextStyle(
+                                                    fontSize:
+                                                        isMobile ? 12 : 14,
+                                                    color: Colors.grey[500],
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        )
+                                        : ListView.builder(
+                                          controller: _scrollController,
+                                          padding: EdgeInsets.all(
+                                            isMobile ? 12 : 16,
+                                          ),
+                                          itemCount: _materials.length,
+                                          itemBuilder: (context, index) {
+                                            final material = _materials[index];
+                                            return _buildMaterialItem(
+                                              material,
+                                              index,
+                                            );
+                                          },
+                                        ),
+                              ),
+                            ),
+                          ],
+                        ),
+              ),
+            ],
+          ),
         ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: _showUploadDialog,
-          backgroundColor: primaryColor,
-          foregroundColor: Colors.white,
-          child: Icon(Icons.add, size: isMobile ? 24 : 28),
+        // Floating Action Button
+        Positioned(
+          bottom: isMobile ? 16 : 20,
+          right: isMobile ? 16 : 20,
+          child: FloatingActionButton(
+            onPressed: _showUploadDialog,
+            backgroundColor: primaryColor,
+            foregroundColor: Colors.white,
+            child: Icon(Icons.add, size: isMobile ? 24 : 28),
+          ),
         ),
-      ),
+      ],
     );
   }
 

@@ -340,7 +340,7 @@ Future<void> _handleSuccess(String message) async {
               ),
           const SizedBox(height: 8),
           Text(
-            selectedTab == 0 ? "Create New Class" : "Create Sdtudent Account",
+            selectedTab == 0 ? "Create New Class" : "Create Student Account",
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.bold,
               color: Theme.of(context).colorScheme.primary,

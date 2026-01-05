@@ -1,6 +1,5 @@
 import 'package:deped_reading_app_laravel/api/supabase_auth_service.dart';
 import 'package:deped_reading_app_laravel/models/student_model.dart';
-import 'package:deped_reading_app_laravel/pages/student%20pages/student%20class%20pages/student_class_page.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -8,7 +7,6 @@ import 'package:percent_indicator/percent_indicator.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'student page widgets/horizontal_card.dart';
 import 'student page widgets/activity_tile.dart';
-import 'enhanced_reading_level_page.dart';
 import 'student_badges_page.dart';
 import 'my_grades_page.dart';
 
@@ -780,7 +778,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
 
           const SizedBox(height: 24),
 
-          // Stats Grid
+          // Stats Grid - UPDATED HERE
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -794,13 +792,13 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
                   Icons.check_circle,
                   "Completed",
                   _completedTasks.toString(),
-                  Colors.green,
+                  Colors.green, // Green for Completed
                 ),
                 _progressStat(
                   Icons.check,
                   "Correct",
                   _totalCorrect.toString(),
-                  _primaryColor,
+                  Colors.green, // Changed to green for Correct
                 ),
                 _progressStat(
                   Icons.close,

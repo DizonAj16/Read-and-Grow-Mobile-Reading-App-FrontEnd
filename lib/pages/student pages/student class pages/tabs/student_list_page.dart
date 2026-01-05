@@ -1,5 +1,4 @@
 import 'package:deped_reading_app_laravel/api/classroom_service.dart';
-import 'package:deped_reading_app_laravel/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:deped_reading_app_laravel/pages/student%20pages/student%20class%20pages/widgets/student_view_page.dart';
 import 'package:deped_reading_app_laravel/models/student_model.dart';
@@ -44,22 +43,23 @@ class _StudentListPageState extends State<StudentListPage> {
       // Get the current authenticated user from Supabase
       final supabase = Supabase.instance.client;
       final currentUser = supabase.auth.currentUser;
-      
+
       if (currentUser == null) {
         debugPrint('No authenticated user found');
         await _getCurrentStudentIdFromPrefs();
         return;
       }
-      
+
       debugPrint('Authenticated user ID: ${currentUser.id}');
-      
+
       // Query the students table to get the student record for this user
-      final response = await supabase
-          .from('students')
-          .select('id, student_name')
-          .eq('id', currentUser.id)
-          .maybeSingle();
-      
+      final response =
+          await supabase
+              .from('students')
+              .select('id, student_name')
+              .eq('id', currentUser.id)
+              .maybeSingle();
+
       if (response != null) {
         _currentStudentId = response['id'] as String;
         debugPrint('Current student ID from Supabase: $_currentStudentId');
@@ -79,19 +79,27 @@ class _StudentListPageState extends State<StudentListPage> {
   Future<void> _getCurrentStudentIdFromPrefs() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+
       // Try common keys for student ID (UUID as string)
-      final possibleKeys = ['student_id', 'id', 'userId', 'studentId', 'user_id'];
-      
+      final possibleKeys = [
+        'student_id',
+        'id',
+        'userId',
+        'studentId',
+        'user_id',
+      ];
+
       for (final key in possibleKeys) {
         final value = prefs.getString(key);
         if (value != null && value.isNotEmpty) {
           _currentStudentId = value;
-          debugPrint('Found student ID from SharedPreferences ($key): $_currentStudentId');
+          debugPrint(
+            'Found student ID from SharedPreferences ($key): $_currentStudentId',
+          );
           return;
         }
       }
-      
+
       debugPrint('No student ID found in SharedPreferences');
     } catch (e) {
       debugPrint('Error getting student ID from SharedPreferences: $e');
@@ -109,7 +117,7 @@ class _StudentListPageState extends State<StudentListPage> {
       final fetchedStudents = await ClassroomService.getStudentsByClass(
         widget.classId,
       );
-      
+
       if (!mounted) return;
 
       // Sort students with current student first
@@ -131,28 +139,31 @@ class _StudentListPageState extends State<StudentListPage> {
     if (_currentStudentId == null) {
       debugPrint('No current student ID found, sorting alphabetically');
       // Sort alphabetically if no current student ID
-      students.sort((a, b) => a.studentName.toLowerCase().compareTo(b.studentName.toLowerCase()));
+      students.sort(
+        (a, b) =>
+            a.studentName.toLowerCase().compareTo(b.studentName.toLowerCase()),
+      );
       setState(() {
         _students = students;
         _isLoading = false;
       });
       return;
     }
-    
+
     // Sort the list: current student first, then others alphabetically by name
     students.sort((a, b) {
       final bool aIsCurrent = a.id == _currentStudentId;
       final bool bIsCurrent = b.id == _currentStudentId;
-      
+
       // If a is current student, it should come first
       if (aIsCurrent && !bIsCurrent) return -1;
       // If b is current student, it should come first
       if (!aIsCurrent && bIsCurrent) return 1;
-      
+
       // If neither or both are current student, sort alphabetically by name
       return a.studentName.toLowerCase().compareTo(b.studentName.toLowerCase());
     });
-    
+
     setState(() {
       _students = students;
       _isLoading = false;
@@ -162,7 +173,7 @@ class _StudentListPageState extends State<StudentListPage> {
   void _showErrorSnackbar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        backgroundColor: Colors.orange[400],
+        backgroundColor: Theme.of(context).colorScheme.primary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         content: Row(
@@ -187,7 +198,7 @@ class _StudentListPageState extends State<StudentListPage> {
             child: RefreshIndicator(
               key: _refreshIndicatorKey,
               onRefresh: _fetchStudents,
-              color: Colors.blue,
+              color: Theme.of(context).colorScheme.primary,
               backgroundColor: Colors.white,
               child: _StudentListContent(
                 isLoading: _isLoading,
@@ -221,9 +232,12 @@ class _StudentListHeader extends StatelessWidget {
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 40),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [kPrimaryColor, Color(0xFFB71C1C)],
+            colors: [
+              Theme.of(context).colorScheme.primary,
+              Color(0xFFB71C1C)
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -333,9 +347,12 @@ class _LoadingView extends StatelessWidget {
             height: 90,
           ),
           const SizedBox(height: 20),
-          const Text(
+          Text(
             "Loading Students...",
-            style: TextStyle(fontSize: 16, color: Colors.blueGrey),
+            style: TextStyle(
+              fontSize: 16,
+              color: Theme.of(context).colorScheme.primary,
+            ),
           ),
         ],
       ),
@@ -355,16 +372,23 @@ class _ErrorView extends StatelessWidget {
         children: [
           Lottie.asset('assets/animations/error.json', width: 150, height: 150),
           const SizedBox(height: 20),
-          const Text(
+          Text(
             "Failed to load students",
             style: TextStyle(
               fontSize: 18,
-              color: Colors.red,
+              color: Theme.of(context).colorScheme.primary,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 10),
-          ElevatedButton(onPressed: onRetry, child: const Text("Retry")),
+          ElevatedButton(
+            onPressed: onRetry,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text("Retry"),
+          ),
         ],
       ),
     );
@@ -387,7 +411,7 @@ class _EmptyView extends StatelessWidget {
             "No classmates yet!",
             style: TextStyle(
               fontSize: 22,
-              color: Colors.blue[800],
+              color: Theme.of(context).colorScheme.primary,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -510,27 +534,28 @@ class _StudentCard extends StatelessWidget {
     return null; // fallback to avatar initials
   }
 
-// In the _StudentCard class, update the _navigateToStudentProfile method:
+  // In the _StudentCard class, update the _navigateToStudentProfile method:
 
-void _navigateToStudentProfile(
-  BuildContext context,
-  String name,
-  String avatarLetter,
-  String? profileUrl,
-) {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => StudentProfilePage(
-        name: name,
-        avatarLetter: avatarLetter,
-        avatarColor: Colors.blue,
-        profileUrl: profileUrl,
-        studentId: student.id, // Pass the student ID here
+  void _navigateToStudentProfile(
+    BuildContext context,
+    String name,
+    String avatarLetter,
+    String? profileUrl,
+  ) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (_) => StudentProfilePage(
+              name: name,
+              avatarLetter: avatarLetter,
+              avatarColor: Theme.of(context).colorScheme.primary,
+              profileUrl: profileUrl,
+              studentId: student.id,
+            ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 class _PageIndicators extends StatelessWidget {
@@ -562,8 +587,8 @@ class _PageIndicators extends StatelessWidget {
                 borderRadius: BorderRadius.circular(4),
                 color:
                     currentPage == index
-                        ? Colors.blue[700]
-                        : Colors.blue.withOpacity(0.3),
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.primary.withOpacity(0.3),
               ),
             ),
           );
@@ -598,26 +623,28 @@ class StudentCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade300),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+          ),
         ),
         child: Stack(
           children: [
-            if (isCurrentUser) _buildCurrentUserBadge(),
-            _buildStudentContent(),
+            if (isCurrentUser) _buildCurrentUserBadge(context),
+            _buildStudentContent(context),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCurrentUserBadge() {
+  Widget _buildCurrentUserBadge(BuildContext context) {
     return Positioned(
       top: 8,
       right: 8,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: const Color.fromARGB(255, 243, 33, 33),
+          color: Theme.of(context).colorScheme.primary,
           borderRadius: BorderRadius.circular(8),
         ),
         child: const Text(
@@ -632,7 +659,7 @@ class StudentCard extends StatelessWidget {
     );
   }
 
-  Widget _buildStudentContent() {
+  Widget _buildStudentContent(BuildContext context) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -640,7 +667,7 @@ class StudentCard extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const SizedBox(height: 8),
-            _buildAvatar(),
+            _buildAvatar(context),
             const SizedBox(height: 8),
             _buildStudentName(),
           ],
@@ -649,13 +676,16 @@ class StudentCard extends StatelessWidget {
     );
   }
 
-  Widget _buildAvatar() {
+  Widget _buildAvatar(BuildContext context) {
     return Container(
       width: 100,
       height: 100,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.blue[300]!, width: 2),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.primary,
+          width: 2,
+        ),
       ),
       child: ClipOval(
         child:
@@ -664,16 +694,16 @@ class StudentCard extends StatelessWidget {
                   placeholder: 'assets/placeholder/avatar_placeholder.jpg',
                   image: profileUrl!,
                   fit: BoxFit.cover,
-                  imageErrorBuilder: (_, __, ___) => _buildAvatarFallback(),
+                  imageErrorBuilder: (_, __, ___) => _buildAvatarFallback(context),
                 )
-                : _buildAvatarFallback(),
+                : _buildAvatarFallback(context),
       ),
     );
   }
 
-  Widget _buildAvatarFallback() {
+  Widget _buildAvatarFallback(BuildContext context) {
     return Container(
-      color: Colors.blue[300],
+      color: Theme.of(context).colorScheme.primary,
       alignment: Alignment.center,
       child: Text(
         avatarLetter.toUpperCase(),

@@ -4,10 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:video_player/video_player.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:photo_view/photo_view.dart';
-import 'package:photo_view/photo_view_gallery.dart';
-
 import 'package:deped_reading_app_laravel/api/comprehension_quiz_service.dart';
-import 'package:deped_reading_app_laravel/pages/student%20pages/student_quiz_pages.dart';
+import 'package:deped_reading_app_laravel/pages/student%20pages/student%20class%20pages/tabs/student_quiz_pages.dart';
 
 class LessonReaderPage extends StatefulWidget {
   final String taskId;
@@ -103,7 +101,9 @@ class _LessonReaderPageState extends State<LessonReaderPage> {
     debugPrint('--- START _loadMaterial ---');
     debugPrint('taskId: ${widget.taskId}');
     debugPrint('classRoomId: ${widget.classRoomId}');
-    debugPrint('fromQuizReview: ${widget.fromQuizReview}'); // NEW: Log the source
+    debugPrint(
+      'fromQuizReview: ${widget.fromQuizReview}',
+    ); // NEW: Log the source
 
     try {
       // Fetch material from task_materials
@@ -717,12 +717,22 @@ class _LessonReaderPageState extends State<LessonReaderPage> {
   }
 
   // NEW: Handle navigation back based on source
+  // Updated back navigation logic
+  // Updated back navigation logic
   void _handleBackNavigation() {
+    debugPrint('🎯 [BACK] Handling back navigation');
+    debugPrint('🎯 [BACK] fromQuizReview: ${widget.fromQuizReview}');
+    debugPrint('🎯 [BACK] viewOnly: ${widget.viewOnly}');
+
     if (widget.fromQuizReview) {
-      // Coming from quiz review - navigate back to ClassContentScreen
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      // Coming from quiz review - go back to ClassContentScreen
+      // We need to return a special result and let ClassContentScreen handle the navigation
+      Navigator.of(context).pop('back_to_class_content');
+    } else if (widget.viewOnly) {
+      // Regular viewOnly mode - just close the material
+      Navigator.of(context).pop();
     } else {
-      // Coming from view material - just close the material
+      // Regular lesson flow - just go back
       Navigator.of(context).pop();
     }
   }
@@ -752,6 +762,7 @@ class _LessonReaderPageState extends State<LessonReaderPage> {
                   onPressed: _handleBackNavigation, // Updated
                 ),
               ),
+      // In the build() method, update the bottomNavigationBar for viewOnly mode:
       bottomNavigationBar:
           _isFullScreen
               ? null
@@ -775,91 +786,96 @@ class _LessonReaderPageState extends State<LessonReaderPage> {
                       ),
                     ],
                   ),
-                  child: widget.viewOnly
-                      ? // When in viewOnly mode
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: _handleBackNavigation, // Updated
-                              style: ElevatedButton.styleFrom(
-                                padding: EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                backgroundColor:
-                                    Theme.of(context).colorScheme.primary,
-                                elevation: 3,
-                                shadowColor: Theme.of(
-                                  context,
-                                ).colorScheme.primary.withOpacity(0.3),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.arrow_back,
-                                    size: 20,
-                                    color:
-                                        Theme.of(context).colorScheme.onPrimary,
-                                  ),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    widget.fromQuizReview
-                                        ? 'Back to Tasks'  // NEW: Different text based on source
-                                        : 'Close Material', // NEW: Different text based on source
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onPrimary,
+                  child:
+                      widget.viewOnly
+                          ? // When in viewOnly mode
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: _handleBackNavigation, // Updated
+                                  style: ElevatedButton.styleFrom(
+                                    padding: EdgeInsets.symmetric(vertical: 14),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
+                                    backgroundColor:
+                                        Theme.of(context).colorScheme.primary,
+                                    elevation: 3,
+                                    shadowColor: Theme.of(
+                                      context,
+                                    ).colorScheme.primary.withOpacity(0.3),
                                   ),
-                                ],
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.arrow_back,
+                                        size: 20,
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onPrimary,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        widget.fromQuizReview
+                                            ? 'Back to Lessons' // Updated text
+                                            : 'Close Material',
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.onPrimary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
+                            ],
+                          )
+                          : // Normal mode - single button for regular lesson flow
+                          ElevatedButton.icon(
+                            onPressed:
+                                _isCompleting ? null : _handleDoneReading,
+                            icon:
+                                _isCompleting
+                                    ? SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onPrimary,
+                                      ),
+                                    )
+                                    : Icon(Icons.quiz, size: 22),
+                            label: Text(
+                              _fileUrl == null
+                                  ? 'Proceed to Quiz'
+                                  : 'Done Reading • Take Quiz',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              padding: EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.primary,
+                              foregroundColor:
+                                  Theme.of(context).colorScheme.onPrimary,
+                              elevation: 4,
+                              shadowColor: Theme.of(
+                                context,
+                              ).colorScheme.primary.withOpacity(0.3),
                             ),
                           ),
-                        ],
-                      )
-                      : // Normal mode - single button for regular lesson flow
-                      ElevatedButton.icon(
-                        onPressed:
-                            _isCompleting ? null : _handleDoneReading,
-                        icon:
-                            _isCompleting
-                                ? SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color:
-                                        Theme.of(context).colorScheme.onPrimary,
-                                  ),
-                                )
-                                : Icon(Icons.quiz, size: 22),
-                        label: Text(
-                          _fileUrl == null
-                              ? 'Proceed to Quiz'
-                              : 'Done Reading • Take Quiz',
-                          style: TextStyle(fontSize: 16),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          backgroundColor:
-                              Theme.of(context).colorScheme.primary,
-                          foregroundColor:
-                              Theme.of(context).colorScheme.onPrimary,
-                          elevation: 4,
-                          shadowColor: Theme.of(
-                            context,
-                          ).colorScheme.primary.withOpacity(0.3),
-                        ),
-                      ),
                 ),
               ),
       body:

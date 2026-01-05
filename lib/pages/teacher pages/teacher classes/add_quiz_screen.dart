@@ -54,60 +54,87 @@ Future<void> _loadQuizData() async {
 
   try {
     final quiz = widget.initialQuizData!['quiz'] as Map<String, dynamic>?;
-    final questions = widget.initialQuizData!['questions'] as List<dynamic>?;
+    final questions = widget.initialQuizData!['questions'];
 
     if (quiz != null) {
       _quizTitleController.text = quiz['title']?.toString() ?? '';
     }
 
-    if (questions != null && questions.isNotEmpty) {
-      _questions = questions.map<QuizQuestion>((q) {
-        // Use the factory method from QuizQuestion
-        final question = QuizQuestion.fromMap(q);
+    if (questions != null && questions is List) {
+      // Check if questions are already QuizQuestion objects or raw data
+      if (questions.isNotEmpty && questions.first is QuizQuestion) {
+        // Already QuizQuestion objects - just use them directly
+        _questions = List<QuizQuestion>.from(questions);
         
         // Load option images for multiple choice with images
-        if (question.type == QuestionType.multipleChoiceWithImages && 
-            question.optionImages != null) {
-          final optionImagesMap = question.optionImages!;
-          final questionIndex = questions.indexOf(q);
-          _optionImages[questionIndex] = {};
+        for (int i = 0; i < _questions.length; i++) {
+          final q = _questions[i];
           
-          for (var entry in optionImagesMap.entries) {
-            final optIndex = int.tryParse(entry.key);
-            if (optIndex != null) {
-              _optionImages[questionIndex]![optIndex] = entry.value;
+          // Load option images
+          if (q.type == QuestionType.multipleChoiceWithImages && 
+              q.optionImages != null) {
+            final optionImagesMap = q.optionImages!;
+            _optionImages[i] = {};
+            
+            for (var entry in optionImagesMap.entries) {
+              final optIndex = int.tryParse(entry.key);
+              if (optIndex != null && optIndex < (q.options?.length ?? 0)) {
+                _optionImages[i]![optIndex] = entry.value;
+              }
             }
           }
+          
+          // Load question image
+          if ((q.type == QuestionType.fillInTheBlankWithImage || 
+               q.type == QuestionType.multipleChoiceWithImages) && 
+              q.questionImageUrl != null) {
+            _questionImages[i] = q.questionImageUrl;
+          }
         }
-        
-        // Load question image for fill in the blank with image AND multiple choice with images
-        if ((question.type == QuestionType.fillInTheBlankWithImage || 
-             question.type == QuestionType.multipleChoiceWithImages) && 
-            question.questionImageUrl != null) {
-          final questionIndex = questions.indexOf(q);
-          _questionImages[questionIndex] = question.questionImageUrl;
-        }
-        
-        // Debug log
-        debugPrint("📥 Loaded question: ${question.questionText}");
-        debugPrint("  Type: ${question.type}");
-        debugPrint("  Question Image URL: ${question.questionImageUrl}");
-        debugPrint("  Options: ${question.options}");
-        debugPrint("  Correct Answer: ${question.correctAnswer}");
-        
-        return question;
-      }).toList();
+      } else {
+        // Raw data - need to convert using QuizQuestion.fromMap
+        _questions = questions.map<QuizQuestion>((q) {
+          final question = QuizQuestion.fromMap(q is Map<String, dynamic> ? q : {});
+          
+          // Load option images for multiple choice with images
+          if (question.type == QuestionType.multipleChoiceWithImages && 
+              question.optionImages != null) {
+            final optionImagesMap = question.optionImages!;
+            final questionIndex = questions.indexOf(q);
+            _optionImages[questionIndex] = {};
+            
+            for (var entry in optionImagesMap.entries) {
+              final optIndex = int.tryParse(entry.key);
+              if (optIndex != null) {
+                _optionImages[questionIndex]![optIndex] = entry.value;
+              }
+            }
+          }
+          
+          // Load question image
+          if ((question.type == QuestionType.fillInTheBlankWithImage || 
+               question.type == QuestionType.multipleChoiceWithImages) && 
+              question.questionImageUrl != null) {
+            final questionIndex = questions.indexOf(q);
+            _questionImages[questionIndex] = question.questionImageUrl;
+          }
+          
+          return question;
+        }).toList();
+      }
     }
     
     debugPrint("✅ Total questions loaded: ${_questions.length}");
   } catch (e) {
     debugPrint('❌ Error loading quiz data: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Error loading quiz: $e'),
-        backgroundColor: Colors.red,
-      ),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading quiz: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   } finally {
     if (mounted) {
       setState(() => _isLoadingData = false);
@@ -638,7 +665,7 @@ Widget _buildQuestionImageUpload(QuizQuestion q, int questionIndex) {
                       borderRadius: BorderRadius.circular(8),
                       child: Image.network(
                         q.questionImageUrl!,
-                        fit: BoxFit.cover,
+                        fit: BoxFit.contain,
                         width: double.infinity,
                         height: double.infinity,
                       ),
@@ -968,7 +995,7 @@ void _initializeQuestionOptions(QuizQuestion q, int questionIndex) {
                                     borderRadius: BorderRadius.circular(8),
                                     child: Image.network(
                                       pair.rightItemUrl!,
-                                      fit: BoxFit.cover,
+                                      fit: BoxFit.contain,
                                     ),
                                   ),
                           ),
@@ -1079,7 +1106,7 @@ void _initializeQuestionOptions(QuizQuestion q, int questionIndex) {
                                       borderRadius: BorderRadius.circular(8),
                                       child: Image.network(
                                         optionImage!,
-                                        fit: BoxFit.cover,
+                                        fit: BoxFit.contain,
                                         width: double.infinity,
                                         height: double.infinity,
                                       ),

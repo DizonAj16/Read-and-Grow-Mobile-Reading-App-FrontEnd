@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:deped_reading_app_laravel/api/classroom_service.dart';
+import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/tabs/essay_grading_tab.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/tabs/students_management_page.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/tabs/materials_page.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20classes/tabs/tasks_page.dart';
@@ -640,13 +641,13 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
             ),
             MaterialsPage(classId: widget.classDetails['id'].toString()),
             TasksPage(classId: widget.classDetails['id'].toString()),
-            // Add the 3 new pages here - pass classId to filter content by classroom
-            ReadingRecordingsGradingPage(
-              classId: widget.classDetails['id'].toString(),
-            ),
-            ViewGradedRecordingsPage(
-              classId: widget.classDetails['id'].toString(),
-            ),
+            // // Add the 3 new pages here - pass classId to filter content by classroom
+            // ReadingRecordingsGradingPage(
+            //   classId: widget.classDetails['id'].toString(),
+            // ),
+            // ViewGradedRecordingsPage(
+            //   classId: widget.classDetails['id'].toString(),
+            // ),
             TeacherReadingMaterialsPage(
               classId: widget.classDetails['id'].toString(),
             ),
@@ -661,6 +662,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
               teacherId:
                   widget.classDetails['teacher_id'].toString(), // If available
             ),
+            EssayGradingTabPage(classId: widget.classDetails['id'].toString()),
           ],
         ),
       ),
@@ -676,8 +678,8 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
       _buildTabItem(Icons.people_outline, Icons.people, "Students"),
       _buildTabItem(Icons.assignment_outlined, Icons.assignment, "Materials"),
       _buildTabItem(Icons.task_outlined, Icons.task, "Tasks"),
-      _buildTabItem(Icons.mic_outlined, Icons.mic, "Grade"),
-      _buildTabItem(Icons.check_circle_outline, Icons.check_circle, "Graded"),
+      // _buildTabItem(Icons.mic_outlined, Icons.mic, "Grade"),
+      // _buildTabItem(Icons.check_circle_outline, Icons.check_circle, "Graded"),
       _buildTabItem(
         Icons.library_books_outlined,
         Icons.library_books,
@@ -688,11 +690,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> {
         Icons.trending_up,
         "Progress",
       ), // New progress tab
-      _buildTabItem(
-        Icons.analytics_outlined,
-        Icons.analytics,
-        "Analytics",
-      ),
+      _buildTabItem(Icons.analytics_outlined, Icons.analytics, "Analytics"),
     ];
 
     return Container(

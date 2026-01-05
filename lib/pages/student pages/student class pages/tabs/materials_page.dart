@@ -29,10 +29,6 @@ class _MaterialsPageState extends State<MaterialsPage> {
   late List<MaterialModel> _materials;
   late bool _isLoading;
   late bool _hasError;
-  bool _accessStateReady = false;
-  Set<int> _unlockedMaterialIds = {};
-  Set<int> _completedMaterialIds = {};
-  int? _firstMaterialId;
   final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey = GlobalKey();
 
   @override
@@ -46,35 +42,26 @@ class _MaterialsPageState extends State<MaterialsPage> {
     _materials = [];
     _isLoading = true;
     _hasError = false;
-    _accessStateReady = false;
-    _unlockedMaterialIds = {};
-    _completedMaterialIds = {};
-    _firstMaterialId = null;
   }
 
   Future<void> _loadMaterials() async {
     setState(() {
       _isLoading = true;
       _hasError = false;
-      _accessStateReady = false;
     });
 
     try {
-      final data =
-      await MaterialService.getClassroomMaterials(widget.classId);
+      final data = await MaterialService.getClassroomMaterials(widget.classId);
 
       setState(() {
         _materials = data;
       });
-
-      await _loadAccessState();
 
       print("✅ Materials loaded: ${data.length}");
     } catch (e) {
       print("❌ Error loading materials: $e");
       setState(() {
         _hasError = true;
-        _accessStateReady = true;
       });
     } finally {
       setState(() {
@@ -83,95 +70,7 @@ class _MaterialsPageState extends State<MaterialsPage> {
     }
   }
 
-  Future<void> _loadAccessState() async {
-    if (_materials.isEmpty) {
-      setState(() {
-        _firstMaterialId = null;
-        _accessStateReady = true;
-      });
-      return;
-    }
-
-    final sortedMaterials = List<MaterialModel>.from(_materials)
-      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-    final firstId = sortedMaterials.isNotEmpty ? sortedMaterials.first.id : null;
-
-    final user = _supabase.auth.currentUser;
-    if (user == null) {
-      setState(() {
-        _firstMaterialId = firstId;
-        _unlockedMaterialIds = {};
-        _completedMaterialIds = {};
-        _accessStateReady = true;
-      });
-      return;
-    }
-
-    try {
-      final unlockedRes = await _supabase
-          .from('quiz_completions')
-          .select('next_material_unlocked')
-          .eq('student_id', user.id)
-          .not('next_material_unlocked', 'is', null);
-
-      final unlockedSet = <int>{};
-      for (final row in unlockedRes) {
-        final dynamic val = row['next_material_unlocked'];
-        if (val is int) {
-          unlockedSet.add(val);
-        } else if (val is num) {
-          unlockedSet.add(val.toInt());
-        }
-      }
-
-      final completedRes = await _supabase
-          .from('lesson_readings')
-          .select('material_id')
-          .eq('student_id', user.id)
-          .eq('is_completed', true);
-
-      final completedSet = <int>{};
-      for (final row in completedRes) {
-        final dynamic val = row['material_id'];
-        if (val is int) {
-          completedSet.add(val);
-        } else if (val is num) {
-          completedSet.add(val.toInt());
-        }
-      }
-
-      setState(() {
-        _firstMaterialId = firstId;
-        _unlockedMaterialIds = unlockedSet;
-        _completedMaterialIds = completedSet;
-        _accessStateReady = true;
-      });
-    } catch (e) {
-      print('❌ Error loading material access state: $e');
-      setState(() {
-        _firstMaterialId = firstId;
-        _accessStateReady = true;
-      });
-    }
-  }
-
-  bool _isMaterialUnlocked(MaterialModel material) {
-    if (_firstMaterialId != null && material.id == _firstMaterialId) {
-      return true;
-    }
-    if (_completedMaterialIds.contains(material.id)) {
-      return true;
-    }
-    if (_unlockedMaterialIds.contains(material.id)) {
-      return true;
-    }
-    return false;
-  }
-
-
-  // NEW: Get full file URL using base URL from shared preferences
-  // NEW: Get full file URL using base URL from shared preferences
-  // UPDATED: Get full file URL - just return the original since it's already complete
+  // Get full file URL
   Future<String> _getFullFileUrl(String filePath) async {
     try {
       print('🟡 DEBUG: Getting full URL for path: $filePath');
@@ -227,9 +126,7 @@ class _MaterialsPageState extends State<MaterialsPage> {
     }
   }
 
-  // NEW: Download and open file with external app
-  // NEW: Download and open file with external app
-  // NEW: Download and open file with external app
+  // Download and open file with external app
   Future<void> _downloadAndOpenFile(
     MaterialModel material,
     String fullUrl,
@@ -254,8 +151,7 @@ class _MaterialsPageState extends State<MaterialsPage> {
 
       final directory = await getTemporaryDirectory();
 
-      // Get file extension from the URL, not from material.materialFileUrl
-      // since material.materialFileUrl might be a path, not a full URL
+      // Get file extension from the URL
       final fileExtension = fullUrl.split('.').last;
       final file = File(
         '${directory.path}/${material.materialTitle}.$fileExtension',
@@ -291,7 +187,7 @@ class _MaterialsPageState extends State<MaterialsPage> {
             Text(message, style: const TextStyle(color: Colors.white)),
           ],
         ),
-        duration: const Duration(minutes: 1), // Long duration for download
+        duration: const Duration(minutes: 1),
       ),
     );
   }
@@ -310,13 +206,11 @@ class _MaterialsPageState extends State<MaterialsPage> {
               color: Colors.blue,
               backgroundColor: Colors.white,
               child: _ContentBuilder(
-                isLoading: _isLoading || !_accessStateReady,
+                isLoading: _isLoading,
                 hasError: _hasError,
                 materials: _materials,
                 onRetry: _loadMaterials,
                 onMaterialTap: _handleMaterialTap,
-                onLockedTap: _handleLockedMaterialTap,
-                isMaterialUnlocked: _isMaterialUnlocked,
               ),
             ),
           ),
@@ -389,19 +283,6 @@ class _MaterialsPageState extends State<MaterialsPage> {
     }
   }
 
-  void _handleLockedMaterialTap(MaterialModel material) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Unlock "${material.materialTitle}" by passing the previous quiz.',
-        ),
-        backgroundColor: Colors.orange[700],
-        duration: const Duration(seconds: 3),
-      ),
-    );
-  }
-
   void _navigateToPdfViewer(String url) {
     print('🟡 DEBUG: Navigating to PDF viewer with URL: $url');
     Navigator.push(
@@ -437,7 +318,7 @@ class _MaterialsPageState extends State<MaterialsPage> {
   }
 }
 
-// NEW: Image Viewer Page
+// Image Viewer Page
 class ImageViewerPage extends StatelessWidget {
   final String imageUrl;
 
@@ -464,7 +345,7 @@ class ImageViewerPage extends StatelessWidget {
   }
 }
 
-// NEW: Video Viewer Page
+// Video Viewer Page
 class VideoViewerPage extends StatefulWidget {
   final String videoUrl;
 
@@ -599,7 +480,7 @@ class _VideoViewerPageState extends State<VideoViewerPage> {
   }
 }
 
-// NEW: Audio Viewer Page
+// Audio Viewer Page
 class AudioViewerPage extends StatefulWidget {
   final String audioUrl;
   final String title;
@@ -794,8 +675,6 @@ class _ContentBuilder extends StatelessWidget {
   final List<MaterialModel> materials;
   final VoidCallback onRetry;
   final Function(MaterialModel) onMaterialTap;
-  final Function(MaterialModel) onLockedTap;
-  final bool Function(MaterialModel) isMaterialUnlocked;
 
   const _ContentBuilder({
     required this.isLoading,
@@ -803,8 +682,6 @@ class _ContentBuilder extends StatelessWidget {
     required this.materials,
     required this.onRetry,
     required this.onMaterialTap,
-    required this.onLockedTap,
-    required this.isMaterialUnlocked,
   });
 
   @override
@@ -815,8 +692,6 @@ class _ContentBuilder extends StatelessWidget {
     return _MaterialListView(
       materials: materials,
       onMaterialTap: onMaterialTap,
-      onLockedTap: onLockedTap,
-      isMaterialUnlocked: isMaterialUnlocked,
     );
   }
 }
@@ -921,14 +796,10 @@ class _EmptyView extends StatelessWidget {
 class _MaterialListView extends StatelessWidget {
   final List<MaterialModel> materials;
   final Function(MaterialModel) onMaterialTap;
-  final Function(MaterialModel) onLockedTap;
-  final bool Function(MaterialModel) isMaterialUnlocked;
 
   const _MaterialListView({
     required this.materials,
     required this.onMaterialTap,
-    required this.onLockedTap,
-    required this.isMaterialUnlocked,
   });
 
   @override
@@ -940,15 +811,7 @@ class _MaterialListView extends StatelessWidget {
       itemBuilder: (context, index) {
         return _MaterialCard(
           material: materials[index],
-          isLocked: !isMaterialUnlocked(materials[index]),
-          onTap: () {
-            final material = materials[index];
-            if (isMaterialUnlocked(material)) {
-              onMaterialTap(material);
-            } else {
-              onLockedTap(material);
-            }
-          },
+          onTap: () => onMaterialTap(materials[index]),
         );
       },
     );
@@ -958,12 +821,10 @@ class _MaterialListView extends StatelessWidget {
 class _MaterialCard extends StatelessWidget {
   final MaterialModel material;
   final VoidCallback onTap;
-  final bool isLocked;
 
   const _MaterialCard({
     required this.material,
     required this.onTap,
-    required this.isLocked,
   });
 
   IconData _getMaterialIcon() {
@@ -1014,204 +875,151 @@ class _MaterialCard extends StatelessWidget {
     final materialColor = _getMaterialColor();
     final textTheme = Theme.of(context).textTheme;
 
-    return Opacity(
-      opacity: isLocked ? 0.85 : 1,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blueGrey.withOpacity(0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          color: isLocked ? Colors.grey.shade100 : Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.blueGrey.withOpacity(isLocked ? 0.05 : 0.1),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: onTap,
-            splashColor: isLocked
-                ? Colors.grey.withOpacity(0.1)
-                : materialColor.withOpacity(0.2),
-            highlightColor: materialColor.withOpacity(0.1),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Container(
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: materialColor.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: materialColor.withOpacity(0.3),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Icon(
-                          _getMaterialIcon(),
-                          size: 28,
-                          color: materialColor,
-                        ),
-                      ),
-                      if (isLocked)
-                        Positioned(
-                          right: -4,
-                          top: -4,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: Colors.redAccent,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.lock,
-                              size: 14,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                    ],
+          onTap: onTap,
+          splashColor: materialColor.withOpacity(0.2),
+          highlightColor: materialColor.withOpacity(0.1),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: materialColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: materialColor.withOpacity(0.3),
+                      width: 1.5,
+                    ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          material.materialTitle,
-                          style: textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.blueGrey.shade800,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                  child: Icon(
+                    _getMaterialIcon(),
+                    size: 28,
+                    color: materialColor,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        material.materialTitle,
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.blueGrey.shade800,
                         ),
-                        const SizedBox(height: 4),
-                        if (material.description != null &&
-                            material.description!.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Text(
-                              material.description!,
-                              style: textTheme.bodySmall?.copyWith(
-                                color: Colors.blueGrey.shade600,
-                                fontStyle: FontStyle.italic,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      if (material.description != null &&
+                          material.description!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            material.description!,
+                            style: textTheme.bodySmall?.copyWith(
+                              color: Colors.blueGrey.shade600,
+                              fontStyle: FontStyle.italic,
                             ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            if (material.fileSize != null)
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.description,
-                                    size: 14,
-                                    color: Colors.blueGrey.shade400,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    material.fileSize!,
-                                    style: textTheme.labelSmall?.copyWith(
-                                      color: Colors.blueGrey.shade500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            if (material.fileSize != null)
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 8),
-                                child: Container(
-                                  width: 4,
-                                  height: 4,
-                                  decoration: BoxDecoration(
-                                    color: Colors.blueGrey.shade300,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              ),
+                        ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          if (material.fileSize != null)
                             Row(
                               children: [
                                 Icon(
-                                  Icons.calendar_today,
+                                  Icons.description,
                                   size: 14,
                                   color: Colors.blueGrey.shade400,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  _formatDate(material.createdAt),
+                                  material.fileSize!,
                                   style: textTheme.labelSmall?.copyWith(
                                     color: Colors.blueGrey.shade500,
                                   ),
                                 ),
                               ],
                             ),
-                          ],
-                        ),
-                        if (isLocked)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.lock_outline,
-                                  size: 16,
-                                  color: Colors.redAccent.shade200,
+                          if (material.fileSize != null)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              child: Container(
+                                width: 4,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: Colors.blueGrey.shade300,
+                                  shape: BoxShape.circle,
                                 ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    'Locked • Finish the previous quiz to unlock',
-                                    style: textTheme.bodySmall?.copyWith(
-                                      color: Colors.redAccent.shade200,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.calendar_today,
+                                size: 14,
+                                color: Colors.blueGrey.shade400,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                _formatDate(material.createdAt),
+                                style: textTheme.labelSmall?.copyWith(
+                                  color: Colors.blueGrey.shade500,
+                                ),
+                              ),
+                            ],
                           ),
-                      ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: materialColor,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.arrow_forward_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    onPressed: onTap,
+                    padding: const EdgeInsets.all(8),
+                    constraints: const BoxConstraints(
+                      minWidth: 40,
+                      minHeight: 40,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: isLocked ? Colors.grey : materialColor,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        isLocked
-                            ? Icons.lock_outline
-                            : Icons.arrow_forward_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      onPressed: onTap,
-                      padding: const EdgeInsets.all(8),
-                      constraints: const BoxConstraints(
-                        minWidth: 40,
-                        minHeight: 40,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),

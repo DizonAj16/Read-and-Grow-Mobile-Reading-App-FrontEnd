@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:deped_reading_app_laravel/pages/student%20pages/quiz_review_page.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -241,6 +240,7 @@ class _MyGradesPageState extends State<MyGradesPage>
             id,
             score,
             max_score,
+            attempt_number,  
             submitted_at,
             assignment_id,
             assignments(
@@ -270,7 +270,10 @@ class _MyGradesPageState extends State<MyGradesPage>
             'task_title': task?['title'] ?? 'Untitled Task',
             'score': submission['score'] ?? 0,
             'max_score': submission['max_score'] ?? 0,
+            'attempt_number': submission['attempt_number'] ?? 1, // Add this
             'submitted_at': submission['submitted_at'],
+            'assignment_id': submission['assignment_id'], // Add this
+
             'type': 'quiz',
           });
         }
@@ -412,28 +415,29 @@ class _MyGradesPageState extends State<MyGradesPage>
           ],
         ),
       ),
-      body: isLoading
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+      body:
+          isLoading
+              ? const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text(
+                      'Loading Grades & Analytics...',
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              )
+              : TabBarView(
+                controller: _tabController,
                 children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text(
-                    'Loading Grades & Analytics...',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
-                  ),
+                  _buildQuizScoresTab(),
+                  _buildReadingGradesTab(),
+                  _buildAnalyticsTab(),
                 ],
               ),
-            )
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildQuizScoresTab(),
-                _buildReadingGradesTab(),
-                _buildAnalyticsTab(),
-              ],
-            ),
     );
   }
 
@@ -471,8 +475,7 @@ class _MyGradesPageState extends State<MyGradesPage>
 
     // Calculate additional statistics
     final quizScores =
-        (analyticsData['recentScores'] as List<dynamic>?)?.cast<double>() ??
-            [];
+        (analyticsData['recentScores'] as List<dynamic>?)?.cast<double>() ?? [];
     final quizCount = analyticsData['quizCount'] ?? 0;
     final readingCount = analyticsData['readingCount'] ?? 0;
     final overallQuizScore = analyticsData['overallQuizScore'] ?? 0;
@@ -480,10 +483,12 @@ class _MyGradesPageState extends State<MyGradesPage>
     final totalAttempts = analyticsData['totalAttempts'] ?? 0;
 
     // Calculate stats
-    final averageScore = totalAttempts > 0
-        ? (((overallQuizScore * quizCount) + (overallReadingScore * readingCount)) /
-            totalAttempts)
-        : 0;
+    final averageScore =
+        totalAttempts > 0
+            ? (((overallQuizScore * quizCount) +
+                    (overallReadingScore * readingCount)) /
+                totalAttempts)
+            : 0;
 
     final bestScore =
         quizScores.isNotEmpty ? quizScores.reduce((a, b) => a > b ? a : b) : 0;
@@ -556,12 +561,15 @@ class _MyGradesPageState extends State<MyGradesPage>
                       ),
                       // Improvement indicator
                       Container(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
-                          color: isImproving
-                              ? Colors.green.withOpacity(0.3)
-                              : Colors.red.withOpacity(0.3),
+                          color:
+                              isImproving
+                                  ? Colors.green.withOpacity(0.3)
+                                  : Colors.red.withOpacity(0.3),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Row(
@@ -615,7 +623,8 @@ class _MyGradesPageState extends State<MyGradesPage>
                       ),
                       _buildStatCard(
                         title: 'Consistency',
-                        value: '${(consistencyScore * 100).toStringAsFixed(0)}%',
+                        value:
+                            '${(consistencyScore * 100).toStringAsFixed(0)}%',
                         icon: Icons.timeline,
                         color: Colors.white,
                         showTrend: false,
@@ -689,8 +698,10 @@ class _MyGradesPageState extends State<MyGradesPage>
                         ),
                       ),
                       Container(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.grey[100],
                           borderRadius: BorderRadius.circular(12),
@@ -706,10 +717,7 @@ class _MyGradesPageState extends State<MyGradesPage>
                     ],
                   ),
                   const SizedBox(height: 12),
-                  SizedBox(
-                    height: 200,
-                    child: _buildTrendChart(),
-                  ),
+                  SizedBox(height: 200, child: _buildTrendChart()),
                 ],
               ),
             ),
@@ -966,10 +974,7 @@ class _MyGradesPageState extends State<MyGradesPage>
               const SizedBox(width: 6),
               Text(
                 '$count activities',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: color.withOpacity(0.8),
-                ),
+                style: TextStyle(fontSize: 12, color: color.withOpacity(0.8)),
               ),
             ],
           ),
@@ -980,8 +985,7 @@ class _MyGradesPageState extends State<MyGradesPage>
 
   Widget _buildEnhancedScoreDistribution() {
     final recentScores =
-        (analyticsData['recentScores'] as List<dynamic>?)?.cast<double>() ??
-            [];
+        (analyticsData['recentScores'] as List<dynamic>?)?.cast<double>() ?? [];
 
     if (recentScores.isEmpty) {
       return Center(
@@ -1008,7 +1012,8 @@ class _MyGradesPageState extends State<MyGradesPage>
       } else if (percentage >= 60) {
         distribution['Good (60-79%)'] = distribution['Good (60-79%)']! + 1;
       } else if (percentage >= 40) {
-        distribution['Average (40-59%)'] = distribution['Average (40-59%)']! + 1;
+        distribution['Average (40-59%)'] =
+            distribution['Average (40-59%)']! + 1;
       } else {
         distribution['Needs Improvement (<40%)'] =
             distribution['Needs Improvement (<40%)']! + 1;
@@ -1016,59 +1021,63 @@ class _MyGradesPageState extends State<MyGradesPage>
     }
 
     return Column(
-      children: distribution.entries.map((entry) {
-        final count = entry.value;
-        final percentage = recentScores.isNotEmpty
-            ? (count / recentScores.length * 100)
-            : 0;
+      children:
+          distribution.entries.map((entry) {
+            final count = entry.value;
+            final percentage =
+                recentScores.isNotEmpty
+                    ? (count / recentScores.length * 100)
+                    : 0;
 
-        Color getColor(String category) {
-          if (category.contains('Excellent')) return Colors.green;
-          if (category.contains('Good')) return Colors.blue;
-          if (category.contains('Average')) return Colors.orange;
-          return Colors.red;
-        }
+            Color getColor(String category) {
+              if (category.contains('Excellent')) return Colors.green;
+              if (category.contains('Good')) return Colors.blue;
+              if (category.contains('Average')) return Colors.orange;
+              return Colors.red;
+            }
 
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    entry.key,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.blueGrey[700],
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        entry.key,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.blueGrey[700],
+                        ),
+                      ),
+                      Text(
+                        '$count (${percentage.toStringAsFixed(1)}%)',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: getColor(entry.key),
+                        ),
+                      ),
+                    ],
                   ),
-                  Text(
-                    '$count (${percentage.toStringAsFixed(1)}%)',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: getColor(entry.key),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: percentage / 100,
+                      minHeight: 8,
+                      backgroundColor: Colors.grey[200],
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        getColor(entry.key),
+                      ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: percentage / 100,
-                  minHeight: 8,
-                  backgroundColor: Colors.grey[200],
-                  valueColor: AlwaysStoppedAnimation<Color>(getColor(entry.key)),
-                ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
+            );
+          }).toList(),
     );
   }
 
@@ -1119,10 +1128,7 @@ class _MyGradesPageState extends State<MyGradesPage>
           ),
           const SizedBox(height: 12),
           if (strengths.isEmpty)
-            Text(
-              'No data available',
-              style: TextStyle(color: Colors.grey[600]),
-            )
+            Text('No data available', style: TextStyle(color: Colors.grey[600]))
           else
             ...strengths.entries.map((entry) {
               return Padding(
@@ -1141,8 +1147,10 @@ class _MyGradesPageState extends State<MyGradesPage>
                       ),
                     ),
                     Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: color.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
@@ -1390,12 +1398,12 @@ class _MyGradesPageState extends State<MyGradesPage>
   // Helper method to calculate consistency
   double _calculateConsistency(List<double> scores) {
     if (scores.length < 2) return 1.0;
-    
+
     double sum = 0;
     for (int i = 1; i < scores.length; i++) {
-      sum += (scores[i] - scores[i-1]).abs();
+      sum += (scores[i] - scores[i - 1]).abs();
     }
-    
+
     final averageDifference = sum / (scores.length - 1);
     // Convert to consistency score (1.0 = perfect consistency)
     return 1.0 - averageDifference;
@@ -1436,7 +1444,8 @@ class _MyGradesPageState extends State<MyGradesPage>
   }
 
   Widget _buildTrendChart() {
-    final scores = (analyticsData['recentScores'] as List?)?.cast<double>() ?? [];
+    final scores =
+        (analyticsData['recentScores'] as List?)?.cast<double>() ?? [];
 
     if (scores.isEmpty) {
       return Center(
@@ -1521,10 +1530,7 @@ class _MyGradesPageState extends State<MyGradesPage>
               Expanded(
                 child: Text(
                   key,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.blueGrey[700],
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.blueGrey[700]),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1580,10 +1586,7 @@ class _MyGradesPageState extends State<MyGradesPage>
               Expanded(
                 child: Text(
                   key,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.blueGrey[700],
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.blueGrey[700]),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1805,9 +1808,7 @@ class _MyGradesPageState extends State<MyGradesPage>
       }
     }
 
-    recommendations.add(
-      const SizedBox(height: 12),
-    );
+    recommendations.add(const SizedBox(height: 12));
 
     recommendations.add(
       Text(
@@ -1820,9 +1821,7 @@ class _MyGradesPageState extends State<MyGradesPage>
       ),
     );
 
-    recommendations.add(
-      const SizedBox(height: 8),
-    );
+    recommendations.add(const SizedBox(height: 8));
 
     final generalTips = [
       'Review mistakes from previous quizzes',
@@ -1841,10 +1840,7 @@ class _MyGradesPageState extends State<MyGradesPage>
               Icon(Icons.check_circle, color: Colors.green, size: 16),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  tip,
-                  style: TextStyle(color: Colors.grey[700]),
-                ),
+                child: Text(tip, style: TextStyle(color: Colors.grey[700])),
               ),
             ],
           ),
@@ -1855,7 +1851,7 @@ class _MyGradesPageState extends State<MyGradesPage>
     return recommendations;
   }
 
-  // Original quiz scores and reading grades tabs remain the same
+  // Then modify the ListTile to include attempt badge:
   Widget _buildQuizScoresTab() {
     final primaryColor = _getPrimaryColor();
     final primaryLight = _getPrimaryColor(0.1);
@@ -1898,6 +1894,7 @@ class _MyGradesPageState extends State<MyGradesPage>
           final scoreValue = ((score['score'] ?? 0) as num).toDouble();
           final maxScore = ((score['max_score'] ?? 0) as num).toDouble();
           final scorePercent = maxScore > 0 ? (scoreValue / maxScore) : 0.0;
+          final attemptNumber = score['attempt_number'] ?? 1;
 
           return Container(
             margin: const EdgeInsets.only(bottom: 16),
@@ -1905,128 +1902,180 @@ class _MyGradesPageState extends State<MyGradesPage>
               borderRadius: BorderRadius.circular(16),
               elevation: 2,
               color: Colors.white,
-              child: ListTile(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => QuizReviewPage(
-                        submissionId: score['id'].toString(),
-                        studentId: supabase.auth.currentUser!.id,
+              child: Stack(
+                children: [
+                  ListTile(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (_) => QuizReviewPage(
+                                submissionId: score['id'].toString(),
+                                studentId: supabase.auth.currentUser!.id,
+                              ),
+                        ),
+                      );
+                    },
+                    contentPadding: const EdgeInsets.all(20),
+                    leading: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        gradient: _getScoreGradient(
+                          scorePercent.toDouble(),
+                          primaryColor,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _getScoreColor(
+                              scorePercent.toDouble(),
+                            ).withOpacity(0.3),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        _getScoreIcon(scorePercent.toDouble()),
+                        color: Colors.white,
+                        size: 24,
                       ),
                     ),
-                  );
-                },
-                contentPadding: const EdgeInsets.all(20),
-                leading: Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    gradient: _getScoreGradient(
-                      scorePercent.toDouble(),
-                      primaryColor,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color:
-                            _getScoreColor(scorePercent.toDouble()).withOpacity(0.3),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    _getScoreIcon(scorePercent.toDouble()),
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-                title: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 200),
-                  child: Text(
-                    score['quiz_title'] ?? 'Untitled Quiz',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: Colors.blueGrey[800],
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (score['task_title'] != null)
-                      Container(
-                        margin: const EdgeInsets.only(top: 4),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: primaryLight,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          score['task_title'],
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: primaryColor,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    const SizedBox(height: 8),
-                    _buildDateTimeDisplay(score['submitted_at']),
-                  ],
-                ),
-                trailing: SizedBox(
-                  width: 80,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _getScoreColor(scorePercent).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: _getScoreColor(scorePercent).withOpacity(0.3),
-                          ),
-                        ),
-                        child: Text(
-                          '${scoreValue.toInt()}/${maxScore.toInt()}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: _getScoreColor(scorePercent),
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${(scorePercent * 100).toStringAsFixed(0)}%',
+                    title: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 200),
+                      child: Text(
+                        score['quiz_title'] ?? 'Untitled Quiz',
                         style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.blueGrey[800],
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (score['task_title'] != null)
+                          Container(
+                            margin: const EdgeInsets.only(top: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: primaryLight,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              score['task_title'],
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: primaryColor,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        const SizedBox(height: 8),
+                        _buildDateTimeDisplay(score['submitted_at']),
+                      ],
+                    ),
+                    trailing: SizedBox(
+                      width: 80,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _getScoreColor(
+                                scorePercent,
+                              ).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _getScoreColor(
+                                  scorePercent,
+                                ).withOpacity(0.3),
+                              ),
+                            ),
+                            child: Text(
+                              '${scoreValue.toInt()}/${maxScore.toInt()}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: _getScoreColor(scorePercent),
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${(scorePercent * 100).toStringAsFixed(0)}%',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   ),
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
+
+                  // Attempt count badge at top right
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _getAttemptColor(attemptNumber),
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 2,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.repeat_rounded,
+                            size: 12,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Attempt $attemptNumber',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           );
@@ -2134,9 +2183,10 @@ class _MyGradesPageState extends State<MyGradesPage>
                                 ? Icons.star_rounded
                                 : Icons.star_border_rounded,
                             size: 16,
-                            color: starIndex < score.round()
-                                ? Colors.amber[600]
-                                : Colors.grey[300],
+                            color:
+                                starIndex < score.round()
+                                    ? Colors.amber[600]
+                                    : Colors.grey[300],
                           );
                         }),
                       ),
@@ -2148,12 +2198,12 @@ class _MyGradesPageState extends State<MyGradesPage>
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color:
-                              _getScoreColor(scorePercent).withOpacity(0.1),
+                          color: _getScoreColor(scorePercent).withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: _getScoreColor(scorePercent)
-                                .withOpacity(0.3),
+                            color: _getScoreColor(
+                              scorePercent,
+                            ).withOpacity(0.3),
                             width: 1,
                           ),
                         ),
@@ -2193,9 +2243,9 @@ class _MyGradesPageState extends State<MyGradesPage>
                       children: [
                         if (grade['teacher_comments'] != null &&
                             grade['teacher_comments'].toString().isNotEmpty &&
-                            !grade['teacher_comments']
-                                .toString()
-                                .startsWith('{'))
+                            !grade['teacher_comments'].toString().startsWith(
+                              '{',
+                            ))
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
@@ -2396,6 +2446,20 @@ class _MyGradesPageState extends State<MyGradesPage>
         'Invalid date',
         style: TextStyle(fontSize: 12, color: Colors.grey[600]),
       );
+    }
+  }
+
+  // Simple color coding for attempt numbers
+  Color _getAttemptColor(int attemptNumber) {
+    switch (attemptNumber) {
+      case 1:
+        return Colors.green;
+      case 2:
+        return Colors.orange;
+      case 3:
+        return Colors.red;
+      default:
+        return Colors.purple;
     }
   }
 }

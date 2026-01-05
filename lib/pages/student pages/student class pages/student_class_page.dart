@@ -147,6 +147,7 @@ class _StudentClassPageState extends State<StudentClassPage> {
   }
 
   Future<void> _joinClass(String classCode) async {
+    // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -155,22 +156,49 @@ class _StudentClassPageState extends State<StudentClassPage> {
 
     try {
       final res = await ClassroomService.joinClass(classCode);
-      await Future.delayed(const Duration(seconds: 3));
 
+      // Remove loading dialog
       if (!mounted) return;
       Navigator.pop(context);
 
-      if (res['success'] == true)  {
+      if (res['success'] == true) {
         _showSuccessSnackBar("Successfully joined the class!");
         _classCodeController.clear();
         await _refresh();
       } else {
-        print("Failed: ${res['message']}");
+        // Show error based on API response
+        final errorMessage = res['message'] ?? "Failed to join class";
+
+        // Handle specific error messages
+        String userFriendlyMessage = errorMessage;
+        if (errorMessage.toLowerCase().contains('not found') ||
+            errorMessage.toLowerCase().contains('invalid') ||
+            errorMessage.toLowerCase().contains('does not exist')) {
+          userFriendlyMessage =
+              "Class code not found or invalid. Please check the code and try again.";
+        } else if (errorMessage.toLowerCase().contains('already')) {
+          userFriendlyMessage = "You're already enrolled in this class.";
+        } else if (errorMessage.toLowerCase().contains('expired')) {
+          userFriendlyMessage =
+              "This class code has expired. Please ask your teacher for a new one.";
+        }
+
+        _showErrorSnackBar(userFriendlyMessage);
       }
-    } catch (_) {
+    } catch (e) {
+      // Handle network/connection errors
       if (mounted) Navigator.pop(context);
-      _showErrorSnackBar("Network error. Try again.");
-    } finally {}
+
+      String errorMessage =
+          "Network error. Please check your connection and try again.";
+      if (e.toString().contains('timeout') ||
+          e.toString().contains('timed out')) {
+        errorMessage = "Request timed out. Please try again.";
+      }
+
+      _showErrorSnackBar(errorMessage);
+      debugPrint("Join class error: $e");
+    }
   }
 
   void _showSuccessSnackBar(String message) {
@@ -185,7 +213,7 @@ class _StudentClassPageState extends State<StudentClassPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         backgroundColor:
-            isSuccess ? Colors.green.shade600 : Colors.red.shade700,
+            isSuccess ? Colors.green.shade600 : Colors.red.shade600,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
@@ -194,44 +222,34 @@ class _StudentClassPageState extends State<StudentClassPage> {
             Icon(
               isSuccess ? Icons.check_circle : Icons.error_outline,
               color: Colors.white,
+              size: 24,
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 12),
             Expanded(
               child: Text(
                 message,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
                 ),
               ),
             ),
           ],
         ),
-        duration: const Duration(seconds: 3),
+        duration: const Duration(seconds: 4), // Longer duration for errors
+        action:
+            !isSuccess
+                ? SnackBarAction(
+                  label: 'Dismiss',
+                  textColor: Colors.white,
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  },
+                )
+                : null,
       ),
     );
-  }
-
-  void _handleErrorMessage(String apiMessage) {
-    final message = _getErrorMessageFromApi(apiMessage);
-    _showErrorSnackBar(message);
-  }
-
-  String _getErrorMessageFromApi(String apiMessage) {
-    if (apiMessage.contains("grade does not match")) {
-      return "Your grade does not match this classroom";
-    } else if (apiMessage.contains("section does not match")) {
-      return "Your section does not match this classroom";
-    } else if (apiMessage.contains("not found")) {
-      return "Classroom doesn't exist";
-    } else if (apiMessage.contains("invalid")) {
-      return "Invalid classroom code";
-    } else if (apiMessage.contains("already in")) {
-      return "You are already in this class";
-    } else if (apiMessage.contains("already assigned")) {
-      return "You are already assigned to another class";
-    }
-    return "Something went wrong";
   }
 }
 

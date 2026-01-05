@@ -1,12 +1,10 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:deped_reading_app_laravel/pages/student%20pages/lesson_reader_page.dart';
 import 'package:deped_reading_app_laravel/widgets/audio_recorder_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import 'package:deped_reading_app_laravel/helper/QuizHelper.dart';
-import '../../../models/quiz_questions.dart';
+import '../../../../../models/quiz_questions.dart';
 
 enum StudentQuizOutcome { continueNext, exitSuccess, exitFailure }
 
@@ -46,14 +44,12 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
   bool _canProceedToNext = false;
 
   // Timer animation state
-  bool _showEnlargedTimer = false;
   late Timer _timerAnimationTimer;
 
   // Add this flag to prevent auto-submission after exit
   bool _preventAutoSubmit = false;
 
   // Add this variable to store lesson data
-  Map<String, dynamic> _lessonData = {};
 
   // Helper method to stop all timers
   void _stopAllTimers() {
@@ -77,15 +73,11 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
       if (quizHelper?.timeRemaining != null &&
           quizHelper!.timeRemaining <= 10) {
         if (mounted) {
-          setState(() {
-            _showEnlargedTimer = true;
-          });
+          setState(() {});
         }
       } else {
         if (mounted) {
-          setState(() {
-            _showEnlargedTimer = false;
-          });
+          setState(() {});
         }
       }
     });
@@ -131,13 +123,7 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
                 .maybeSingle();
 
         if (taskRes != null) {
-          setState(() {
-            _lessonData = {
-              'title': taskRes['title'] ?? 'Lesson',
-              'description': taskRes['description'],
-              'class_room_id': taskRes['class_room_id'],
-            };
-          });
+          setState(() {});
         }
       }
 
@@ -496,129 +482,39 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) {
-          return StatefulBuilder(
-            builder: (context, setDialogState) {
-              return AlertDialog(
-                backgroundColor: Colors.white,
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Animated progress indicator
-                    SizedBox(
-                      height: 80,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          CircularProgressIndicator(
-                            value:
-                                scoresComputed
-                                    ? (progressUpdated ? 0.66 : 0.33)
-                                    : 0.0,
-                            strokeWidth: 4,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                          if (submissionCreated)
-                            Icon(
-                              Icons.check_circle,
-                              color: Colors.green,
-                              size: 40,
-                            )
-                          else if (scoresComputed)
-                            Icon(
-                              Icons.analytics,
-                              color: Theme.of(context).colorScheme.primary,
-                              size: 30,
-                            ),
-                        ],
-                      ),
+        builder:
+            (context) => AlertDialog(
+              backgroundColor: Colors.white,
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Simple circular progress indicator
+                  CircularProgressIndicator(
+                    color: Theme.of(context).colorScheme.primary,
+                    strokeWidth: 3,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Single status text
+                  Text(
+                    'Submitting Quiz...',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
-                    const SizedBox(height: 16),
+                  ),
 
-                    // Main status text
-                    Text(
-                      submissionCreated
-                          ? 'Quiz Submitted!'
-                          : 'Submitting Quiz...',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color:
-                            submissionCreated
-                                ? Colors.green
-                                : Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    // Detailed progress steps
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Step 1: Computing scores
-                          _buildProgressStep(
-                            'Computing Scores',
-                            scoresComputed,
-                            submissionCreated,
-                          ),
-
-                          const SizedBox(height: 8),
-
-                          // Step 2: Uploading audio (if applicable)
-                          if (audioUploaded)
-                            _buildProgressStep(
-                              'Uploading Audio Recording',
-                              audioUploaded,
-                              submissionCreated,
-                            ),
-
-                          const SizedBox(height: 8),
-
-                          // Step 3: Updating Progress
-                          _buildProgressStep(
-                            'Updating Progress',
-                            progressUpdated,
-                            submissionCreated,
-                          ),
-
-                          const SizedBox(height: 8),
-
-                          // Step 4: Creating Submission
-                          _buildProgressStep(
-                            'Creating Submission',
-                            submissionCreated,
-                            submissionCreated,
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Sub-status text with details
-                    Text(
-                      _getSubStatusText(
-                        scoresComputed,
-                        progressUpdated,
-                        submissionCreated,
-                        audioUploaded,
-                      ),
-                      style: const TextStyle(fontSize: 14, color: Colors.grey),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
+                  // Optional: simple progress text
+                  const SizedBox(height: 8),
+                  Text(
+                    'Please wait while your answers are being submitted',
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
       ).then((_) {
         loadingDialogOpen = false;
       });
@@ -1119,11 +1015,7 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
     }
   }
 
-  Future<dynamic> _showQuizReviewDialog(
-    int score,
-    int totalQuestions, {
-    bool failedFirstOrSecond = false,
-  }) async {
+  Future<dynamic> _showQuizReviewDialog(int score, int totalQuestions) async {
     if (quizHelper == null) return false;
 
     final supabase = quizHelper!.supabase;
@@ -1745,6 +1637,7 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
                       children: [
                         // Review Lesson Button (Left side) - Navigates to lesson reader in viewOnly mode
                         // In the footer actions section of _showQuizReviewDialog()
+                        // In _showQuizReviewDialog() method, update the "Review Lesson" button:
                         if (widget.taskId != null &&
                             widget.taskId!.isNotEmpty &&
                             widget.classRoomId != null &&
@@ -1752,7 +1645,7 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
                           Expanded(
                             child: OutlinedButton(
                               onPressed: () {
-                                // Return a special value to indicate "Review Lesson" was clicked
+                                // Return a special value that indicates user wants to review lesson
                                 Navigator.pop(context, 'review_lesson');
                               },
                               style: OutlinedButton.styleFrom(
@@ -2268,9 +2161,8 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               // Option image
-                              // Option image
                               ImageWithFullScreen(
-                                imageUrl: optionImage!,
+                                imageUrl: optionImage,
                                 height: 100,
                                 width: double.infinity,
                                 fit: BoxFit.contain,
@@ -3082,59 +2974,6 @@ class _StudentQuizPageState extends State<StudentQuizPage> {
         ],
       ),
     );
-  }
-
-  Future<void> _navigateToLessonReaderDirectly() async {
-    debugPrint('🎯 STARTING _navigateToLessonReaderDirectly()');
-
-    if (widget.taskId == null ||
-        widget.taskId!.isEmpty ||
-        widget.classRoomId == null ||
-        widget.classRoomId!.isEmpty) {
-      debugPrint('❌ Missing required parameters for lesson navigation');
-      return;
-    }
-
-    try {
-      debugPrint('🧭 Navigating directly to LessonReaderPage');
-      debugPrint('📖 Task ID: ${widget.taskId}');
-      debugPrint('🏫 ClassRoom ID: ${widget.classRoomId}');
-      debugPrint('🎯 Quiz ID: ${widget.quizId}');
-
-      // Use Navigator.push with a new route
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder:
-              (context) => LessonReaderPage(
-                taskId: widget.taskId!,
-                assignmentId: widget.assignmentId,
-                classRoomId: widget.classRoomId!,
-                quizId: widget.quizId,
-                studentId: widget.studentId,
-                lessonTitle: widget.lessonTitle ?? 'Lesson Review',
-                viewOnly: true,
-              ),
-        ),
-      );
-
-      debugPrint('🔙 Returned from LessonReaderPage');
-
-      // After reviewing lesson, the user will be back at the ClassContentScreen
-      // No need to navigate back to the quiz since it was already submitted
-    } catch (e, stack) {
-      debugPrint('❌ Error navigating to lesson reader: $e');
-      debugPrint(stack.toString());
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
-    }
   }
 
   @override

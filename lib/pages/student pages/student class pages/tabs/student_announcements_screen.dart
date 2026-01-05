@@ -4,6 +4,8 @@ import 'package:deped_reading_app_laravel/constants.dart';
 import 'package:deped_reading_app_laravel/models/announcement_model.dart';
 import 'package:deped_reading_app_laravel/pages/teacher%20pages/teacher%20dashboard/cards/announcement_card.dart';
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
+import 'package:flutter_custom_clippers/flutter_custom_clippers.dart';
 
 class StudentAnnouncementsScreen extends StatefulWidget {
   final String classId;
@@ -25,18 +27,12 @@ class _StudentAnnouncementsScreenState
   List<Announcement> _announcements = [];
   bool _isLoading = true;
   bool _hasError = false;
-  final ScrollController _scrollController = ScrollController();
+  final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
     _loadAnnouncements();
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadAnnouncements() async {
@@ -62,125 +58,21 @@ class _StudentAnnouncementsScreenState
     }
   }
 
-  Widget _buildEmptyState() {
-    return SingleChildScrollView(
-      child: Container(
-        height: MediaQuery.of(context).size.height - 200,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.announcement_outlined, size: 80, color: Colors.grey[300]),
-              const SizedBox(height: 20),
-              const Text(
-                'No announcements yet',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey,
-                ),
-              ),
-              const SizedBox(height: 10),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 40),
-                child: Text(
-                  'Your teacher will post important updates and announcements here',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-              ),
-            ],
-          ),
+  void _showErrorSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white),
+            const SizedBox(width: 8),
+            Text(message, style: const TextStyle(color: Colors.white)),
+          ],
         ),
       ),
     );
-  }
-
-  Widget _buildErrorState() {
-    return SingleChildScrollView(
-      child: Container(
-        height: MediaQuery.of(context).size.height - 200,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
-              const SizedBox(height: 16),
-              const Text(
-                'Failed to load announcements',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey,
-                ),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton.icon(
-                onPressed: _loadAnnouncements,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Try Again'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLoadingState() {
-    return Center(
-      child: CircularProgressIndicator(
-        valueColor: AlwaysStoppedAnimation<Color>(
-          Theme.of(context).primaryColor,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAnnouncementsList() {
-    return ListView.builder(
-      padding: const EdgeInsets.only(
-        top: 16,
-        bottom: 20,
-        left: 16,
-        right: 16,
-      ),
-      itemCount: _announcements.length,
-      itemBuilder: (context, index) {
-        final announcement = _announcements[index];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: AnnouncementCard(
-            announcement: announcement,
-            showClassInfo: false,
-            isTeacher: false,
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildBodyContent() {
-    if (_isLoading) {
-      return _buildLoadingState();
-    }
-
-    if (_hasError) {
-      return _buildErrorState();
-    }
-
-    if (_announcements.isEmpty) {
-      return _buildEmptyState();
-    }
-
-    return _buildAnnouncementsList();
   }
 
   @override
@@ -189,25 +81,43 @@ class _StudentAnnouncementsScreenState
       backgroundColor: Colors.lightBlue[50],
       body: Column(
         children: [
-          // Header - Fixed height
-          _buildHeader(),
-          // Content - Takes remaining space
+          _AnnouncementsHeader(
+            className: widget.className,
+            announcementCount: _announcements.length,
+          ),
           Expanded(
             child: RefreshIndicator(
+              key: _refreshIndicatorKey,
               onRefresh: _loadAnnouncements,
-              color: Theme.of(context).primaryColor,
+              color: Theme.of(context).colorScheme.primary,
               backgroundColor: Colors.white,
-              child: _buildBodyContent(),
+              child: _AnnouncementsListContent(
+                isLoading: _isLoading,
+                hasError: _hasError,
+                announcements: _announcements,
+                onRetry: _loadAnnouncements,
+              ),
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildHeader() {
+class _AnnouncementsHeader extends StatelessWidget {
+  final String className;
+  final int announcementCount;
+
+  const _AnnouncementsHeader({
+    required this.className,
+    required this.announcementCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return ClipPath(
-      clipper: WaveClipper(),
+      clipper: WaveClipperOne(reverse: false),
       child: Container(
         height: 140,
         width: double.infinity,
@@ -221,23 +131,13 @@ class _StudentAnnouncementsScreenState
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // const SizedBox(height: 10),
-            // Text(
-            //   widget.className,
-            //   style: const TextStyle(
-            //     color: Colors.white,
-            //     fontSize: 20,
-            //     fontWeight: FontWeight.bold,
-            //   ),
-            //   textAlign: TextAlign.center,
-            // ),
-            // const SizedBox(height: 4),
-            const Text(
+            Text(
               "Announcements",
-              style: TextStyle(
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
+                fontFamily: 'ComicNeue',
                 shadows: [
                   Shadow(
                     color: Colors.black26,
@@ -247,15 +147,15 @@ class _StudentAnnouncementsScreenState
                 ],
               ),
             ),
-            // const SizedBox(height: 4),
-            // Text(
-            //   "${_announcements.length} announcement${_announcements.length != 1 ? 's' : ''}",
-            //   style: const TextStyle(
-            //     color: Colors.white70,
-            //     fontSize: 14,
-            //     fontWeight: FontWeight.w500,
-            //   ),
-            // ),
+            const SizedBox(height: 8),
+            Text(
+              "$announcementCount announcement${announcementCount != 1 ? 's' : ''}",
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ],
         ),
       ),
@@ -263,35 +163,168 @@ class _StudentAnnouncementsScreenState
   }
 }
 
-class WaveClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    var path = Path();
-    path.lineTo(0, size.height - 20);
-    var firstControlPoint = Offset(size.width / 4, size.height);
-    var firstEndPoint = Offset(size.width / 2, size.height - 30);
-    path.quadraticBezierTo(
-      firstControlPoint.dx,
-      firstControlPoint.dy,
-      firstEndPoint.dx,
-      firstEndPoint.dy,
-    );
-    var secondControlPoint = Offset(
-      size.width - (size.width / 4),
-      size.height - 60,
-    );
-    var secondEndPoint = Offset(size.width, size.height - 20);
-    path.quadraticBezierTo(
-      secondControlPoint.dx,
-      secondControlPoint.dy,
-      secondEndPoint.dx,
-      secondEndPoint.dy,
-    );
-    path.lineTo(size.width, 0);
-    path.close();
-    return path;
-  }
+class _AnnouncementsListContent extends StatelessWidget {
+  final bool isLoading;
+  final bool hasError;
+  final List<Announcement> announcements;
+  final VoidCallback onRetry;
+
+  const _AnnouncementsListContent({
+    required this.isLoading,
+    required this.hasError,
+    required this.announcements,
+    required this.onRetry,
+  });
 
   @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+  Widget build(BuildContext context) {
+    if (isLoading) return const _AnnouncementsLoadingView();
+    if (hasError) return _AnnouncementsErrorView(onRetry: onRetry);
+    if (announcements.isEmpty) return const _AnnouncementsEmptyView();
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(top: 16, bottom: 20, left: 16, right: 16),
+      physics: const BouncingScrollPhysics(),
+      itemCount: announcements.length,
+      itemBuilder: (context, index) {
+        return TweenAnimationBuilder<double>(
+          duration: Duration(milliseconds: 400 + (index * 100)),
+          tween: Tween(begin: 0.8, end: 1),
+          curve: Curves.easeOutBack,
+          builder: (context, scale, child) {
+            return Transform.scale(
+              scale: scale,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: AnnouncementCard(
+                  announcement: announcements[index],
+                  showClassInfo: false,
+                  isTeacher: false,
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _AnnouncementsLoadingView extends StatelessWidget {
+  const _AnnouncementsLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Lottie.asset(
+            'assets/animation/loading_rainbow.json',
+            width: 90,
+            height: 90,
+          ),
+          const SizedBox(height: 20),
+          Text(
+            "Loading Announcements...",
+            style: TextStyle(
+              fontSize: 16,
+              color: Theme.of(context).colorScheme.primary,
+              fontFamily: 'ComicNeue',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AnnouncementsErrorView extends StatelessWidget {
+  final VoidCallback onRetry;
+  const _AnnouncementsErrorView({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Lottie.asset(
+            'assets/animations/error.json',
+            width: 150,
+            height: 150,
+          ),
+          const SizedBox(height: 20),
+          Text(
+            "Failed to load announcements",
+            style: TextStyle(
+              fontSize: 18,
+              color: Theme.of(context).colorScheme.primary,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'ComicNeue',
+            ),
+          ),
+          const SizedBox(height: 10),
+          ElevatedButton(
+            onPressed: onRetry,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              "Retry",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AnnouncementsEmptyView extends StatelessWidget {
+  const _AnnouncementsEmptyView();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.7,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Lottie.asset(
+            'assets/animation/empty.json',
+            width: 250,
+            height: 250,
+          ),
+          const SizedBox(height: 20),
+          Text(
+            "No announcements yet!",
+            style: TextStyle(
+              fontSize: 22,
+              color: Theme.of(context).colorScheme.primary,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'ComicNeue',
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              'Your teacher will post important updates and announcements here',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+                fontFamily: 'ComicNeue',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import '../../widgets/appbar/theme_toggle_button.dart';
 import 'auth buttons widgets/signup_button.dart';
 import 'form fields widgets/password_text_field.dart';
@@ -666,52 +664,49 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
     }
   }
 
-
-Future<void> _showBriefSuccessDialog() async {
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    barrierColor: Colors.transparent,
-    builder: (context) => Center(
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Lottie.asset(
-              'assets/animation/success.json',
-              height: 80,
-              width: 80,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              "Redirecting to Login...",
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
+  Future<void> _showBriefSuccessDialog() async {
+    // Create a simple success dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withOpacity(0.3),
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          contentPadding: const EdgeInsets.all(25),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.check_circle, color: Colors.green, size: 70),
+              const SizedBox(height: 15),
+              Text(
+                "Success!",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-  
-  await Future.delayed(const Duration(seconds: 1));
-  if (mounted) Navigator.of(context).pop();
-}
+              const SizedBox(height: 10),
+              Text(
+                "Redirecting to Login...",
+                style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    await Future.delayed(const Duration(seconds: 1));
+
+    if (mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+  }
 
   void _handleErrorDialog({required String title, required String message}) {
     if (!mounted) return;
