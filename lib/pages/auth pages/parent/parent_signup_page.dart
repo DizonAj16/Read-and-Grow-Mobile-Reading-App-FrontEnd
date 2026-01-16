@@ -1,116 +1,147 @@
+import 'package:deped_reading_app_laravel/pages/auth%20pages/parent/parent_login_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../widgets/appbar/theme_toggle_button.dart';
-import 'auth buttons widgets/signup_button.dart';
-import 'form fields widgets/password_text_field.dart';
-import '../../widgets/navigation/page_transition.dart';
-import 'student_login_page.dart';
+import '../../../widgets/appbar/theme_toggle_button.dart';
+import '../auth buttons widgets/signup_button.dart';
+import '../form fields widgets/password_text_field.dart';
+import '../../../widgets/navigation/page_transition.dart';
 
-class StudentSignUpPage extends StatefulWidget {
-  const StudentSignUpPage({super.key});
+class ParentSignUpPage extends StatefulWidget {
+  const ParentSignUpPage({super.key});
 
   @override
-  State<StudentSignUpPage> createState() => _StudentSignUpPageState();
+  State<ParentSignUpPage> createState() => _ParentSignUpPageState();
 }
 
-class _StudentSignUpPageState extends State<StudentSignUpPage> {
-  final TextEditingController studentNameController = TextEditingController();
+class _ParentSignUpPageState extends State<ParentSignUpPage> {
+  final TextEditingController parentNameController = TextEditingController();
   final TextEditingController studentLRNController = TextEditingController();
-  final TextEditingController sectionController = TextEditingController();
-  final TextEditingController gradeController = TextEditingController();
-  final TextEditingController studentUsernameController =
+  final TextEditingController parentUsernameController =
       TextEditingController();
-  final TextEditingController studentPasswordController =
+  final TextEditingController parentPasswordController =
       TextEditingController();
   final TextEditingController confirmPasswordController =
       TextEditingController();
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   bool _autoValidate = false;
-
-  final List<String> _grades = ['1', '2', '3', '4', '5'];
-
-  // Store the Not Set reading level ID
-  String? _notSetReadingLevelId;
-
-  @override
-  void initState() {
-    super.initState();
-    // Fetch the Not Set reading level ID on initialization
-    _fetchNotSetReadingLevelId();
-  }
-
-  Future<void> _fetchNotSetReadingLevelId() async {
-    try {
-      final supabase = Supabase.instance.client;
-
-      // Query the reading_levels table for level 0 (Not Set)
-      final result =
-          await supabase
-              .from('reading_levels')
-              .select('id')
-              .eq('level_number', 0)
-              .maybeSingle();
-
-      if (result != null) {
-        setState(() {
-          _notSetReadingLevelId = result['id'] as String;
-        });
-        debugPrint('📚 Found Not Set reading level ID: $_notSetReadingLevelId');
-      } else {
-        debugPrint('⚠️ Could not find Not Set reading level (level 0)');
-      }
-    } catch (e) {
-      debugPrint('❌ Error fetching reading level ID: $e');
-    }
-  }
+  bool _isValidatingLRN = false;
+  String? _validatedStudentName;
+  String? _validatedStudentId;
+  bool _isLRNNotFound = false; // New flag to track LRN not found state
 
   @override
   void dispose() {
-    studentNameController.dispose();
+    parentNameController.dispose();
     studentLRNController.dispose();
-    sectionController.dispose();
-    gradeController.dispose();
-    studentUsernameController.dispose();
-    studentPasswordController.dispose();
+    parentUsernameController.dispose();
+    parentPasswordController.dispose();
     confirmPasswordController.dispose();
     super.dispose();
   }
 
-  Future<void> registerStudent() async {
+  Future<void> _validateLRN(String lrn) async {
+    if (lrn.trim().isEmpty) {
+      setState(() {
+        _validatedStudentName = null;
+        _validatedStudentId = null;
+        _isLRNNotFound = false;
+      });
+      return;
+    }
+
+    // Only validate if LRN is exactly 12 digits
+    if (!RegExp(r'^\d{12}$').hasMatch(lrn.trim())) {
+      setState(() {
+        _validatedStudentName = null;
+        _validatedStudentId = null;
+        _isLRNNotFound = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isValidatingLRN = true;
+      _isLRNNotFound = false;
+    });
+
+    try {
+      final supabase = Supabase.instance.client;
+      final studentResponse =
+          await supabase
+              .from('students')
+              .select('id, student_name, student_lrn')
+              .eq('student_lrn', lrn.trim())
+              .maybeSingle();
+
+      if (studentResponse != null && studentResponse['id'] != null) {
+        setState(() {
+          _validatedStudentName = studentResponse['student_name'] as String;
+          _validatedStudentId = studentResponse['id'] as String;
+          _isLRNNotFound = false;
+        });
+      } else {
+        setState(() {
+          _validatedStudentName = null;
+          _validatedStudentId = null;
+          _isLRNNotFound = true; // Set not found flag
+        });
+      }
+    } catch (e) {
+      debugPrint('Error validating LRN: $e');
+      setState(() {
+        _validatedStudentName = null;
+        _validatedStudentId = null;
+        _isLRNNotFound = false;
+      });
+    } finally {
+      setState(() => _isValidatingLRN = false);
+    }
+  }
+
+  Future<void> registerParent() async {
     if (!_formKey.currentState!.validate()) {
       setState(() => _autoValidate = true);
       return;
     }
 
+    // Validate LRN before proceeding
+    if (_validatedStudentId == null || _validatedStudentName == null) {
+      _handleErrorDialog(
+        title: "Invalid LRN",
+        message: "Please enter a valid student LRN that exists in the system.",
+      );
+      return;
+    }
+
     _showLoadingDialog("Creating your account...");
+
+    String? authUserId; // Track auth user ID for rollback
 
     try {
       final supabase = Supabase.instance.client;
+      final trimmedUsername = parentUsernameController.text.trim();
+      final trimmedPassword = parentPasswordController.text.trim();
+      final trimmedName = parentNameController.text.trim();
 
-      final trimmedUsername = studentUsernameController.text.trim();
-      final trimmedPassword = studentPasswordController.text.trim();
-      final trimmedName = studentNameController.text.trim();
-      final trimmedLRN = studentLRNController.text.trim();
-      final trimmedGrade = gradeController.text.trim();
-      final trimmedSection = sectionController.text.trim();
+      debugPrint('👨‍👩‍👧 [PARENT_REGISTER] Starting parent registration');
+      debugPrint(
+        '👨‍👩‍👧 [PARENT_REGISTER] Username: $trimmedUsername, Name: $trimmedName',
+      );
 
-      // ✅ IMPORTANT: @student.app is automatically appended in the backend
-      // Students only need to enter their username
-      final authEmail = "$trimmedUsername@student.app";
-
-      // 1️⃣ Check if username already exists
+      // 1️⃣ Check if username already exists in users table
       final existingUser =
           await supabase
               .from('users')
-              .select('id')
+              .select('id, role')
               .eq('username', trimmedUsername)
               .maybeSingle();
 
       if (existingUser != null) {
         Navigator.of(context).pop();
+        debugPrint('❌ [PARENT_REGISTER] Username already exists');
         _handleErrorDialog(
           title: "Registration Failed",
           message:
@@ -119,32 +150,18 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
         return;
       }
 
-      // 2️⃣ Check if LRN already exists
-      final existingLRN =
-          await supabase
-              .from('students')
-              .select('id')
-              .eq('student_lrn', trimmedLRN)
-              .maybeSingle();
-
-      if (existingLRN != null) {
-        Navigator.of(context).pop();
-        _handleErrorDialog(
-          title: "Registration Failed",
-          message: "LRN already registered. Please use a different LRN.",
-        );
-        return;
-      }
-
-      // 3️⃣ Create Supabase Auth account (using username-based email format)
+      // 2️⃣ Create Supabase Auth account
+      debugPrint('👨‍👩‍👧 [PARENT_REGISTER] Creating auth account...');
+      final email =
+          "$trimmedUsername@parent.app"; // NOTE: "@parent.app" is automatically appended to username for email
       final authResponse = await supabase.auth.signUp(
-        email: authEmail,
+        email: email,
         password: trimmedPassword,
-        data: {"username": trimmedUsername, "name": trimmedName},
       );
 
       if (authResponse.user == null) {
         Navigator.of(context).pop();
+        debugPrint('❌ [PARENT_REGISTER] Auth account creation failed');
         _handleErrorDialog(
           title: "Registration Failed",
           message: "Could not create authentication account. Please try again.",
@@ -152,102 +169,137 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
         return;
       }
 
-      final userId = authResponse.user!.id;
+      authUserId = authResponse.user!.id;
+      debugPrint('✅ [PARENT_REGISTER] Auth account created: $authUserId');
 
+      // 3️⃣ Insert into public.users table
+      debugPrint('👨‍👩‍👧 [PARENT_REGISTER] Creating users record...');
+      await supabase
+          .from('users')
+          .insert({
+            'id': authUserId,
+            'username': trimmedUsername,
+            'password': trimmedPassword,
+            'role': 'parent',
+          })
+          .select()
+          .single(); // Will throw if insertion fails
+
+      debugPrint('✅ [PARENT_REGISTER] Users record created');
+
+      // 4️⃣ Parse parent name into first_name and last_name
+      final nameParts =
+          trimmedName.split(' ').where((part) => part.isNotEmpty).toList();
+      final firstName = nameParts.isNotEmpty ? nameParts.first : trimmedName;
+      final lastName =
+          nameParts.length > 1
+              ? nameParts.sublist(1).join(' ')
+              : firstName; // Use first name as last name if only one name provided
+
+      debugPrint(
+        '👨‍👩‍👧 [PARENT_REGISTER] Parsed name - First: $firstName, Last: $lastName',
+      );
+
+      // 5️⃣ Insert into public.parents table
+      debugPrint('👨‍👩‍👧 [PARENT_REGISTER] Creating parents record...');
+      await supabase
+          .from('parents')
+          .insert({
+            'id': authUserId,
+            'first_name': firstName,
+            'last_name': lastName,
+            'parent_name': trimmedName, // Store full name for convenience
+            'username': trimmedUsername,
+            'email': email, // Use the same email as auth (username@parent.app)
+          })
+          .select()
+          .single(); // Will throw if insertion fails
+
+      debugPrint('✅ [PARENT_REGISTER] Parents record created');
+
+      // 6️⃣ Link parent to student via parent_student_relationships
+      debugPrint(
+        '👨‍👩‍👧 [PARENT_REGISTER] Linking to student: ${_validatedStudentId}',
+      );
       try {
-        // 4️⃣ Insert into users table with role='student'
-        await supabase.from('users').insert({
-          'id': userId,
-          'username': trimmedUsername,
-          'password': trimmedPassword,
-          'role': 'student',
+        await supabase.from('parent_student_relationships').insert({
+          'parent_id': authUserId,
+          'student_id': _validatedStudentId!,
+          'relationship_type': 'parent',
         });
+        debugPrint('✅ [PARENT_REGISTER] Linked to student successfully');
+      } catch (relError) {
+        debugPrint(
+          '⚠️ [PARENT_REGISTER] Failed to link to student (non-critical): $relError',
+        );
+        // Don't fail registration if relationship insert fails - parent can still log in
+      }
 
-        // 5️⃣ Insert into students table with Not Set reading level
-        // If we couldn't fetch the reading level ID, we'll still create the student
-        // The database constraint will handle the foreign key or allow null
-        final studentData = {
-          'id': userId,
-          'username': trimmedUsername,
-          'student_name': trimmedName,
-          'student_lrn': trimmedLRN,
-          'student_grade': trimmedGrade.isNotEmpty ? trimmedGrade : null,
-          'student_section': trimmedSection.isNotEmpty ? trimmedSection : null,
-          'reading_level_updated_at': DateTime.now().toIso8601String(),
-        };
+      debugPrint('✅ [PARENT_REGISTER] Registration completed successfully');
 
-        // Add reading level ID if available
-        if (_notSetReadingLevelId != null &&
-            _notSetReadingLevelId!.isNotEmpty) {
-          studentData['current_reading_level_id'] = _notSetReadingLevelId;
-          debugPrint(
-            '✅ Setting reading level to Not Set (ID: $_notSetReadingLevelId)',
-          );
-        } else {
-          debugPrint('⚠️ No reading level ID available, leaving as null');
-        }
+      if (mounted) {
+        Navigator.of(context).pop();
+        // Show login information dialog with credentials
+        await _showLoginInformationDialog(
+          username: trimmedUsername,
+          email: email,
+          password: trimmedPassword,
+          studentName: _validatedStudentName!,
+        );
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ [PARENT_REGISTER] Registration error: $e');
+      debugPrint('Stack trace: $stackTrace');
 
-        await supabase.from('students').insert(studentData);
-
-        // Debug: Verify the student was created with correct reading level
-        if (_notSetReadingLevelId != null) {
-          final verifyResult =
-              await supabase
-                  .from('students')
-                  .select('current_reading_level_id')
-                  .eq('id', userId)
-                  .maybeSingle();
-
-          if (verifyResult != null) {
-            final readingLevelId = verifyResult['current_reading_level_id'];
-            debugPrint('✅ Verified student reading level ID: $readingLevelId');
-          }
-        }
-
-        if (mounted) {
-          Navigator.of(context).pop();
-          // Show login information dialog first
-          await _showLoginInformationDialog(
-            username: trimmedUsername,
-            email: authEmail,
-            password: trimmedPassword,
-          );
-        }
-      } catch (insertError) {
-        debugPrint('❌ Error inserting student data: $insertError');
-
-        // Rollback: Delete auth user and users record if student insert failed
+      // Attempt rollback if we have an auth user ID
+      if (authUserId != null) {
         try {
-          await supabase.from('users').delete().eq('id', userId);
-          await supabase.auth.admin.deleteUser(userId);
-        } catch (rollbackError) {
-          debugPrint('⚠️ Rollback error: $rollbackError');
-        }
+          debugPrint('🧹 [PARENT_REGISTER] Attempting rollback...');
+          final supabase = Supabase.instance.client;
 
-        if (mounted) {
-          Navigator.of(context).pop();
-          _handleErrorDialog(
-            title: "Registration Failed",
-            message: "Failed to complete registration. Please try again.",
-          );
+          // Delete parent record if exists
+          try {
+            await supabase.from('parents').delete().eq('id', authUserId);
+          } catch (e) {
+            debugPrint('⚠️ [PARENT_REGISTER] Rollback parents: $e');
+          }
+
+          // Delete user record if exists
+          try {
+            await supabase.from('users').delete().eq('id', authUserId);
+          } catch (e) {
+            debugPrint('⚠️ [PARENT_REGISTER] Rollback users: $e');
+          }
+
+          // Delete auth user (admin required)
+          try {
+            await supabase.auth.admin.deleteUser(authUserId);
+          } catch (e) {
+            debugPrint('⚠️ [PARENT_REGISTER] Rollback auth: $e');
+          }
+        } catch (rollbackError) {
+          debugPrint('❌ [PARENT_REGISTER] Rollback failed: $rollbackError');
         }
       }
-    } catch (e) {
+
       Navigator.of(context).pop();
-      String errorMessage =
-          "An error occurred during registration. Please try again.";
+
+      // Provide user-friendly error message
+      String errorMessage = "Failed to sign up. Please try again.";
       final errorString = e.toString().toLowerCase();
       if (errorString.contains('duplicate') || errorString.contains('unique')) {
         errorMessage =
-            "Username or LRN already exists. Please use different credentials.";
+            "Username or email already exists. Please choose different credentials.";
       } else if (errorString.contains('foreign key') ||
           errorString.contains('constraint')) {
-        errorMessage = "Invalid data provided. Please check your information.";
-      } else if (errorString.contains('reading_level')) {
         errorMessage =
-            "There was an issue setting your reading level. Please contact support.";
+            "Invalid data provided. Please check your information and try again.";
+      } else if (errorString.contains('validation') ||
+          errorString.contains('required')) {
+        errorMessage = "Please fill in all required fields correctly.";
       }
-      _handleErrorDialog(title: "Error", message: errorMessage);
+
+      _handleErrorDialog(title: "Registration Error", message: errorMessage);
     }
   }
 
@@ -279,17 +331,6 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  if (_notSetReadingLevelId == null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      "Setting up reading level...",
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.surface.withOpacity(0.8),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -301,6 +342,7 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
     required String username,
     required String email,
     required String password,
+    required String studentName,
   }) async {
     await showDialog(
       context: context,
@@ -341,6 +383,47 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
                       color: Theme.of(context).colorScheme.primary,
                     ),
                     textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Linked Student Info
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.purple.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.school, color: Colors.purple, size: 24),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Linked Student",
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.purple[800],
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                studentName,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: Colors.grey[800],
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 8),
 
@@ -414,7 +497,7 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
 
                         // Username Information
                         _buildLoginInfoRow(
-                          icon: Icons.person,
+                          icon: Icons.person_outline,
                           label: "Username",
                           value: username,
                           isImportant: false,
@@ -461,7 +544,7 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Instructions
+                  // Important Instructions
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -488,19 +571,23 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
                         ),
                         const SizedBox(height: 8),
                         _buildInstructionItem(
-                          "1. Use the email and password above to log in",
+                          "1. You are now linked to $studentName",
                           context,
                         ),
                         _buildInstructionItem(
-                          "2. You cannot change your email format (@student.app is fixed)",
+                          "2. Save your login credentials in a secure place",
                           context,
                         ),
                         _buildInstructionItem(
-                          "3. Save this information in a secure place",
+                          "3. Use the email and password above to login",
                           context,
                         ),
                         _buildInstructionItem(
-                          "4. Contact your teacher if you forget your password",
+                          "4. You cannot change your email format (@parent.app is fixed)",
+                          context,
+                        ),
+                        _buildInstructionItem(
+                          "5. You can monitor your child's progress in the parent dashboard",
                           context,
                         ),
                       ],
@@ -518,7 +605,7 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
                       },
                       icon: Icon(Icons.login, size: 20),
                       label: Text(
-                        "Proceed to Login",
+                        "Proceed to Login Page",
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -540,6 +627,7 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
           ),
     );
   }
+
 
   Widget _buildLoginInfoRow({
     required IconData icon,
@@ -660,7 +748,7 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
     if (mounted) {
       Navigator.of(
         context,
-      ).pushReplacement(PageTransition(page: const StudentLoginPage()));
+      ).pushReplacement(PageTransition(page: ParentLoginPage()));
     }
   }
 
@@ -752,7 +840,7 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
   Widget _buildHeader(BuildContext context) => Column(
     children: [
       const SizedBox(height: 40),
-      // Instruction banner for @student.app
+      // Instruction banner for @parent.app
       Container(
         margin: const EdgeInsets.symmetric(horizontal: 20),
         padding: const EdgeInsets.all(16),
@@ -779,7 +867,7 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    "@student.app is automatically added in the backend.\nJust enter your username for login!",
+                    "@parent.app is automatically added in the backend.\nJust enter your username for login!",
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.9),
                       fontSize: 14,
@@ -796,31 +884,21 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
       CircleAvatar(
         radius: 80,
         backgroundColor: Theme.of(context).colorScheme.onPrimary,
-        child: Image.asset('assets/icons/graduating-student.png', width: 115),
+        child: Icon(
+          Icons.family_restroom,
+          size: 90,
+          color: Theme.of(context).colorScheme.primary,
+        ),
       ),
-      const SizedBox(height: 10),
+      const SizedBox(height: 5),
       Text(
-        "Student Sign Up",
+        "Parent Sign Up",
         style: Theme.of(context).textTheme.headlineMedium?.copyWith(
           color: Theme.of(context).colorScheme.onPrimary,
-          fontWeight: FontWeight.bold,
         ),
         textAlign: TextAlign.center,
       ),
-      const SizedBox(height: 8),
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 40),
-        child: Text(
-          "Create your account to start your reading journey",
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.9),
-            fontSize: 14,
-            fontStyle: FontStyle.italic,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ),
-      const SizedBox(height: 60),
+      const SizedBox(height: 80),
     ],
   );
 
@@ -839,8 +917,8 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
         children: [
           const SizedBox(height: 20),
           _buildTextField(
-            controller: studentNameController,
-            label: "Full Name",
+            controller: parentNameController,
+            label: "Parent Full Name",
             icon: Icons.person,
             hintText: "e.g. Maria Santos",
             validator:
@@ -852,62 +930,118 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
           const SizedBox(height: 20),
           _buildTextField(
             controller: studentLRNController,
-            label: "LRN",
+            label: "Student LRN",
             icon: Icons.confirmation_number,
             hintText: "e.g. 123456789012",
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return 'LRN is required';
+                return 'Student LRN is required';
               }
               if (!RegExp(r'^\d{12}$').hasMatch(value.trim())) {
                 return 'LRN must be exactly 12 digits';
               }
+              if (_validatedStudentId == null && _isLRNNotFound) {
+                return 'No student found with this LRN';
+              }
               return null;
             },
-          ),
-          const SizedBox(height: 20),
-          DropdownButtonFormField<String>(
-            value:
-                gradeController.text.isNotEmpty ? gradeController.text : null,
-            items:
-                _grades
-                    .map(
-                      (grade) => DropdownMenuItem(
-                        value: grade,
-                        child: Text("Grade $grade"),
+            onChanged: (value) {
+              _validateLRN(value);
+            },
+            suffixIcon:
+                _isValidatingLRN
+                    ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       ),
                     )
-                    .toList(),
-            onChanged: (value) {
-              setState(() => gradeController.text = value ?? '');
-            },
-            validator:
-                (value) =>
-                    value == null || value.isEmpty ? 'Grade is required' : null,
-            decoration: _dropdownDecoration(context),
+                    : _validatedStudentId != null
+                    ? Icon(Icons.check_circle, color: Colors.green, size: 24)
+                    : _isLRNNotFound
+                    ? Icon(Icons.error_outline, color: Colors.red, size: 24)
+                    : studentLRNController.text.isNotEmpty &&
+                        !RegExp(
+                          r'^\d{12}$',
+                        ).hasMatch(studentLRNController.text.trim())
+                    ? Icon(Icons.error, color: Colors.red, size: 24)
+                    : null,
           ),
+          // Student found indicator
+          if (_validatedStudentName != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.check_circle,
+                    color: Colors.green.shade700,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Student found: $_validatedStudentName',
+                      style: TextStyle(
+                        color: Colors.green.shade700,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          // No student found indicator (only when LRN is 12 digits and not found)
+          if (_isLRNNotFound &&
+              studentLRNController.text.trim().length == 12) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    color: Colors.red.shade700,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'No student found with this LRN',
+                      style: TextStyle(
+                        color: Colors.red.shade700,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 20),
-          _buildTextField(
-            controller: sectionController,
-            label: "Section",
-            icon: Icons.group,
-            hintText: "e.g. Section A",
-            validator:
-                (value) =>
-                    value == null || value.trim().isEmpty
-                        ? 'Section is required'
-                        : null,
-          ),
-          const SizedBox(height: 20),
-          // Enhanced Username field with @student.app instruction
+          // Enhanced Username field with @parent.app instruction
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TextFormField(
-                controller: studentUsernameController,
+                controller: parentUsernameController,
                 decoration: InputDecoration(
                   labelText: "Username",
-                  hintText: "Enter your username (no @student.app needed)",
+                  hintText: "Enter your username (no @parent.app needed)",
                   prefixIcon: Icon(
                     Icons.account_circle,
                     color: Theme.of(context).colorScheme.onSurface,
@@ -926,10 +1060,10 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
 
                   String input = value.trim();
                   if (input.contains('@')) {
-                    if (input.endsWith('@student.app')) {
-                      return 'Do not include @student.app. Just enter your username.';
+                    if (input.endsWith('@parent.app')) {
+                      return 'Do not include @parent.app. Just enter your username.';
                     }
-                    return 'Just enter your username. "@student.app" is added automatically.';
+                    return 'Just enter your username. "@parent.app" is added automatically.';
                   }
 
                   // Check for valid username format
@@ -952,7 +1086,7 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      "@student.app will be automatically added by the system",
+                      "@parent.app will be automatically added by the system",
                       style: TextStyle(
                         fontSize: 11,
                         color: Theme.of(
@@ -965,32 +1099,6 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 12),
-          PasswordTextField(
-            labelText: "Password",
-            controller: studentPasswordController,
-            hintText: "At least 6 characters",
-            validator:
-                (value) =>
-                    value == null || value.trim().isEmpty
-                        ? 'Password is required'
-                        : null,
-          ),
-          const SizedBox(height: 20),
-          PasswordTextField(
-            labelText: "Confirm Password",
-            controller: confirmPasswordController,
-            hintText: "Re-enter your password",
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Confirm Password is required';
-              }
-              if (value != studentPasswordController.text) {
-                return 'Passwords do not match';
-              }
-              return null;
-            },
           ),
           // Login format explanation box
           Container(
@@ -1027,7 +1135,7 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  "You enter: mariasantos\nYou login with: mariasantos@student.app",
+                  "You enter: mariasantos\nYou login with: mariasantos@parent.app",
                   style: TextStyle(
                     fontSize: 11,
                     color: Theme.of(
@@ -1038,41 +1146,34 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
               ],
             ),
           ),
-          // Show reading level info
-          if (_notSetReadingLevelId != null)
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                  width: 1,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    color: Theme.of(context).colorScheme.primary,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      "Your reading level will be set to 'Not Set' initially",
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.onSurface,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          SizedBox(height: _notSetReadingLevelId != null ? 10 : 0),
-          SignUpButton(text: "Sign Up", onPressed: registerStudent),
+          const SizedBox(height: 10),
+          PasswordTextField(
+            labelText: "Password",
+            controller: parentPasswordController,
+            hintText: "At least 6 characters",
+            validator:
+                (value) =>
+                    value == null || value.trim().isEmpty
+                        ? 'Password is required'
+                        : null,
+          ),
+          const SizedBox(height: 20),
+          PasswordTextField(
+            labelText: "Confirm Password",
+            controller: confirmPasswordController,
+            hintText: "Re-enter your password",
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Confirm Password is required';
+              }
+              if (value != parentPasswordController.text) {
+                return 'Passwords do not match';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 20),
+          SignUpButton(text: "Sign Up", onPressed: registerParent),
           const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1087,7 +1188,7 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
                 onPressed: () {
                   Navigator.of(
                     context,
-                  ).push(PageTransition(page: const StudentLoginPage()));
+                  ).push(PageTransition(page: ParentLoginPage()));
                 },
                 child: Text(
                   "Log In",
@@ -1103,35 +1204,18 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
     ),
   );
 
-  InputDecoration _dropdownDecoration(BuildContext context) => InputDecoration(
-    labelText: "Grade",
-    hintText: "Select your grade",
-    hintStyle: TextStyle(
-      fontStyle: FontStyle.italic,
-      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-    ),
-    labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-    filled: true,
-    fillColor: const Color.fromARGB(52, 158, 158, 158),
-    prefixIcon: Icon(
-      Icons.grade,
-      color: Theme.of(context).colorScheme.onSurface,
-    ),
-    border: const OutlineInputBorder(
-      borderRadius: BorderRadius.all(Radius.circular(12)),
-      borderSide: BorderSide.none,
-    ),
-  );
-
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
     String? hintText,
     String? Function(String?)? validator,
+    void Function(String)? onChanged,
+    Widget? suffixIcon,
   }) {
     return TextFormField(
       controller: controller,
+      onChanged: onChanged,
       decoration: InputDecoration(
         labelText: label,
         hintText: hintText,
@@ -1143,6 +1227,7 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
         filled: true,
         fillColor: const Color.fromARGB(52, 158, 158, 158),
         prefixIcon: Icon(icon, color: Theme.of(context).colorScheme.onSurface),
+        suffixIcon: suffixIcon,
         border: const OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(12)),
           borderSide: BorderSide.none,

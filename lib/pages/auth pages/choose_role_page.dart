@@ -1,10 +1,8 @@
-import 'package:deped_reading_app_laravel/pages/auth%20pages/parent_login_page.dart';
-import 'package:deped_reading_app_laravel/pages/auth%20pages/student_signup_page.dart';
-import 'package:deped_reading_app_laravel/pages/auth%20pages/teacher_login_page.dart';
-import 'package:deped_reading_app_laravel/pages/auth%20pages/teacher_signup_page.dart';
+import 'package:deped_reading_app_laravel/pages/auth%20pages/login_page.dart';
+import 'package:deped_reading_app_laravel/pages/auth%20pages/student/student_signup_page.dart';
+import 'package:deped_reading_app_laravel/pages/auth%20pages/teacher/teacher_signup_page.dart';
 import 'package:flutter/material.dart';
-import 'student_login_page.dart';
-import 'admin_login_page.dart';
+
 import '../../widgets/navigation/page_transition.dart';
 
 class ChooseRolePage extends StatelessWidget {
@@ -18,25 +16,25 @@ class ChooseRolePage extends StatelessWidget {
           icon: Icons.school_outlined,
           label: 'Student',
           color: Colors.blue,
-          onTap: () => Navigator.of(context).push(PageTransition(page: StudentLoginPage())),
+          onTap: () => Navigator.of(context).push(PageTransition(page: LoginPage(loginType: LoginType.student))),
         ),
         _roleOption(
           icon: Icons.person_2_outlined,
           label: 'Teacher',
           color: Colors.orange,
-          onTap: () => Navigator.of(context).push(PageTransition(page: TeacherLoginPage())),
+          onTap: () => Navigator.of(context).push(PageTransition(page: LoginPage(loginType: LoginType.teacher))),
         ),
         _roleOption(
           icon: Icons.admin_panel_settings_outlined,
           label: 'Admin',
           color: Colors.green,
-          onTap: () => Navigator.of(context).push(PageTransition(page: AdminLoginPage())),
+          onTap: () => Navigator.of(context).push(PageTransition(page: LoginPage(loginType: LoginType.admin))),
         ),
         _roleOption(
           icon: Icons.family_restroom,
           label: 'Parent',
           color: Colors.purple,
-          onTap: () => Navigator.of(context).push(PageTransition(page: ParentLoginPage())),
+          onTap: () => Navigator.of(context).push(PageTransition(page: LoginPage(loginType: LoginType.admin))),
         ),
       ];
     } else {

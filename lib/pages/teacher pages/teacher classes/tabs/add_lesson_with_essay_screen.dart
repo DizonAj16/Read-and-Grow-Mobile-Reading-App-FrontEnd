@@ -24,7 +24,7 @@ class _AddLessonWithEssayScreenState extends State<AddLessonWithEssayScreen> {
   // Lesson controllers
   final _lessonTitleController = TextEditingController();
   final _lessonDescController = TextEditingController();
-  final _lessonTimeController = TextEditingController();
+  // final _lessonTimeController = TextEditingController();
   bool _unlocksNextLevel = false;
 
   // Essay controllers
@@ -356,15 +356,15 @@ class _AddLessonWithEssayScreenState extends State<AddLessonWithEssayScreen> {
       _validationErrors['essayTitle'] = 'Essay title is required';
     }
 
-    // Validate time limit
-    if (_lessonTimeController.text.trim().isEmpty) {
-      _validationErrors['timeLimit'] = 'Time limit is required';
-    } else {
-      final timeLimit = int.tryParse(_lessonTimeController.text.trim());
-      if (timeLimit == null || timeLimit <= 0) {
-        _validationErrors['timeLimit'] = 'Please enter a valid time limit';
-      }
-    }
+    // // Validate time limit
+    // if (_lessonTimeController.text.trim().isEmpty) {
+    //   _validationErrors['timeLimit'] = 'Time limit is required';
+    // } else {
+    //   final timeLimit = int.tryParse(_lessonTimeController.text.trim());
+    //   if (timeLimit == null || timeLimit <= 0) {
+    //     _validationErrors['timeLimit'] = 'Please enter a valid time limit';
+    //   }
+    // }
 
     // Validate lesson material
     if (_uploadedFileUrl == null) {
@@ -453,7 +453,7 @@ class _AddLessonWithEssayScreenState extends State<AddLessonWithEssayScreen> {
         classRoomId: widget.classDetails['id'] as String,
         title: _lessonTitleController.text,
         description: _lessonDescController.text,
-        timeLimitMinutes: int.tryParse(_lessonTimeController.text),
+        // timeLimitMinutes: int.tryParse(_lessonTimeController.text),
         unlocksNextLevel: _unlocksNextLevel,
       );
 
@@ -969,40 +969,40 @@ class _AddLessonWithEssayScreenState extends State<AddLessonWithEssayScreen> {
                       ),
                       keyboardType: TextInputType.multiline,
                     ),
+                    // const SizedBox(height: 12),
+                    // TextField(
+                    //   controller: _lessonTimeController,
+                    //   decoration: InputDecoration(
+                    //     labelText: 'Time Limit (minutes)',
+                    //     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    //     prefixIcon: const Icon(Icons.timer),
+                    //     filled: true,
+                    //     fillColor: Colors.grey[50],
+                    //     errorText: _getFieldError('timeLimit'),
+                    //     errorStyle: const TextStyle(fontSize: 12),
+                    //   ),
+                    //   keyboardType: TextInputType.number,
+                    //   onChanged: (_) => _clearFieldError('timeLimit'),
+                    // ),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: _lessonTimeController,
-                      decoration: InputDecoration(
-                        labelText: 'Time Limit (minutes)',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        prefixIcon: const Icon(Icons.timer),
-                        filled: true,
-                        fillColor: Colors.grey[50],
-                        errorText: _getFieldError('timeLimit'),
-                        errorStyle: const TextStyle(fontSize: 12),
-                      ),
-                      keyboardType: TextInputType.number,
-                      onChanged: (_) => _clearFieldError('timeLimit'),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[50],
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey[300]!),
-                      ),
-                      child: SwitchListTile(
-                        title: const Text(
-                          'Unlocks Next Level',
-                          style: TextStyle(fontWeight: FontWeight.w500),
-                        ),
-                        subtitle: const Text('Enable to allow progression to next level'),
-                        value: _unlocksNextLevel,
-                        onChanged: (val) => setState(() => _unlocksNextLevel = val),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
+                    // Container(
+                    //   padding: const EdgeInsets.all(12),
+                    //   decoration: BoxDecoration(
+                    //     color: Colors.grey[50],
+                    //     borderRadius: BorderRadius.circular(8),
+                    //     border: Border.all(color: Colors.grey[300]!),
+                    //   ),
+                    //   child: SwitchListTile(
+                    //     title: const Text(
+                    //       'Unlocks Next Level',
+                    //       style: TextStyle(fontWeight: FontWeight.w500),
+                    //     ),
+                    //     subtitle: const Text('Enable to allow progression to next level'),
+                    //     value: _unlocksNextLevel,
+                    //     onChanged: (val) => setState(() => _unlocksNextLevel = val),
+                    //     contentPadding: EdgeInsets.zero,
+                    //   ),
+                    // ),
                   ],
                 ),
               ),
@@ -1192,7 +1192,7 @@ class _AddLessonWithEssayScreenState extends State<AddLessonWithEssayScreen> {
     }
     _lessonTitleController.dispose();
     _lessonDescController.dispose();
-    _lessonTimeController.dispose();
+    // _lessonTimeController.dispose();
     _essayTitleController.dispose();
     super.dispose();
   }

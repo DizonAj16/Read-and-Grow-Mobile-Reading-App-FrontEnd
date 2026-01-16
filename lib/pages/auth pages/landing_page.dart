@@ -1,6 +1,6 @@
-import 'package:deped_reading_app_laravel/pages/auth%20pages/parent_signup_page.dart';
-import 'package:deped_reading_app_laravel/pages/auth%20pages/student_signup_page.dart';
-import 'package:deped_reading_app_laravel/pages/auth%20pages/teacher_signup_page.dart';
+import 'package:deped_reading_app_laravel/pages/auth%20pages/parent/parent_signup_page.dart';
+import 'package:deped_reading_app_laravel/pages/auth%20pages/student/student_signup_page.dart';
+import 'package:deped_reading_app_laravel/pages/auth%20pages/teacher/teacher_signup_page.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../../constants.dart';

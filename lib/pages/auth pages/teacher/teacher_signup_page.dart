@@ -1,12 +1,12 @@
-import 'package:deped_reading_app_laravel/pages/auth%20pages/teacher_login_page.dart';
+import 'package:deped_reading_app_laravel/pages/auth%20pages/teacher/teacher_login_page.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/services.dart';
-import '../../widgets/appbar/theme_toggle_button.dart';
-import 'auth buttons widgets/signup_button.dart';
-import 'form fields widgets/password_text_field.dart';
-import '../../widgets/navigation/page_transition.dart';
+import '../../../widgets/appbar/theme_toggle_button.dart';
+import '../auth buttons widgets/signup_button.dart';
+import '../form fields widgets/password_text_field.dart';
+import '../../../widgets/navigation/page_transition.dart';
 
 class TeacherSignUpPage extends StatefulWidget {
   const TeacherSignUpPage({super.key});

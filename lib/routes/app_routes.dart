@@ -1,10 +1,10 @@
 import 'package:deped_reading_app_laravel/models/teacher_model.dart';
-import 'package:deped_reading_app_laravel/pages/auth%20pages/teacher_login_page.dart';
+import 'package:deped_reading_app_laravel/pages/auth%20pages/teacher/teacher_login_page.dart';
 import 'package:flutter/material.dart';
 import '../pages/admin pages/admin_page.dart';
-import '../pages/auth pages/student_login_page.dart';
-import '../pages/auth pages/teacher_signup_page.dart';
-import '../pages/auth pages/student_signup_page.dart';
+import '../pages/auth pages/student/student_login_page.dart';
+import '../pages/auth pages/teacher/teacher_signup_page.dart';
+import '../pages/auth pages/student/student_signup_page.dart';
 import '../pages/student pages/student_page.dart';
 import '../pages/teacher pages/teacher_page.dart';
 

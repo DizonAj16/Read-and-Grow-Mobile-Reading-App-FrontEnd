@@ -5,78 +5,55 @@ class SupabaseAuthService {
   static final _supabase = Supabase.instance.client;
 
   /// Login with email + password using Supabase Auth
-  /// Supports both email and username (for students, converts username to email format)
+  /// Supports both email and username (auto-detects role and converts format)
   static Future<Map<String, dynamic>> login(String emailOrUsername, String password) async {
     String email = emailOrUsername;
     
-    // If input doesn't contain @, try to convert it to email format
+    // If input doesn't contain @, try to detect role and convert format
     if (!emailOrUsername.contains('@')) {
-      // First try: assume it's a student username (format: username@student.app)
-      email = '$emailOrUsername@student.app';
+      // Try to find user in database to determine role
+      final userCheck = await _supabase
+          .from('users')
+          .select('id, role, username')
+          .eq('username', emailOrUsername)
+          .maybeSingle();
       
-      try {
-        // Try logging in with student email format
-        final response = await _supabase.auth.signInWithPassword(
-          email: email,
-          password: password,
-        );
+      if (userCheck != null) {
+        final role = userCheck['role'] as String?;
         
-        if (response.user != null) {
-          // Success with student format
-          final user = response.user!;
-          final roleRow = await _supabase
-              .from('users')
-              .select('role')
-              .eq('id', user.id)
-              .maybeSingle();
-          
-          final role = roleRow?['role'] ?? 'student';
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('id', user.id);
-          await prefs.setString('role', role);
-          
-          return {
-            'user': user.toJson(),
-            'role': role,
-          };
-        }
-      } catch (e) {
-        // Student format failed, try to find teacher email
-        try {
-          // Try to find teacher email
-          final userCheck = await _supabase
-              .from('users')
-              .select('id, role')
-              .eq('username', emailOrUsername)
-              .maybeSingle();
-          
-          if (userCheck != null) {
-            final role = userCheck['role'] as String?;
-            if (role == 'teacher') {
-              final teacherCheck = await _supabase
-                  .from('teachers')
-                  .select('teacher_email')
-                  .eq('id', userCheck['id'])
-                  .maybeSingle();
-              
-              if (teacherCheck != null && teacherCheck['teacher_email'] != null) {
-                email = teacherCheck['teacher_email'] as String;
-              } else {
-                // Couldn't find teacher email, rethrow original error
-                throw e;
-              }
+        // Determine email format based on role
+        switch (role) {
+          case 'student':
+            email = '$emailOrUsername@student.app';
+            break;
+          case 'teacher':
+            // Try to get teacher email from teachers table
+            final teacherCheck = await _supabase
+                .from('teachers')
+                .select('teacher_email')
+                .eq('id', userCheck['id'])
+                .maybeSingle();
+            
+            if (teacherCheck != null && teacherCheck['teacher_email'] != null) {
+              email = teacherCheck['teacher_email'] as String;
             } else {
-              // Not a teacher, rethrow original error
-              throw e;
+              // Fallback to gmail format
+              email = '$emailOrUsername@gmail.com';
             }
-          } else {
-            // User not found, rethrow original error
-            throw e;
-          }
-        } catch (e2) {
-          // If we can't find teacher email, rethrow original error
-          throw e;
+            break;
+          case 'parent':
+            email = '$emailOrUsername@parent.app';
+            break;
+          case 'admin':
+            // For admin, we need the actual email
+            throw Exception('Please use your full email address for admin login');
+          default:
+            // Default to student format
+            email = '$emailOrUsername@student.app';
         }
+      } else {
+        // User not found in database, default to student format
+        email = '$emailOrUsername@student.app';
       }
     }
     
@@ -162,26 +139,25 @@ class SupabaseAuthService {
     final role = userProfile?['role'] as String?;
     
     if (role == 'teacher') {
-      // Get teacher-specific data from teachers table
       roleProfile = await _supabase
           .from('teachers')
           .select()
           .eq('id', user.id)
           .maybeSingle();
     } else if (role == 'student') {
-      // Get student-specific data from students table
       roleProfile = await _supabase
           .from('students')
           .select()
           .eq('id', user.id)
           .maybeSingle();
     } else if (role == 'parent') {
-      // Get parent-specific data from parents table
       roleProfile = await _supabase
           .from('parents')
           .select()
           .eq('id', user.id)
           .maybeSingle();
+    } else if (role == 'admin') {
+      roleProfile = userProfile;
     }
 
     return {
@@ -190,35 +166,27 @@ class SupabaseAuthService {
     };
   }
 
-  /// Admin login (if you want to keep it)
-  static Future<Map<String, dynamic>> adminLogin(String email, String password) async {
-    final response = await _supabase.auth.signInWithPassword(
-      email: email,
-      password: password,
-    );
+  /// Check if user is logged in
+  static bool isLoggedIn() {
+    return _supabase.auth.currentUser != null;
+  }
 
-    final user = response.user;
-    if (user == null) {
-      return {'success': false, 'message': 'Invalid credentials'};
-    }
+  /// Get current user ID
+  static String? getCurrentUserId() {
+    return _supabase.auth.currentUser?.id;
+  }
 
-    final profile = await _supabase
+  /// Get current user role
+  static Future<String?> getCurrentUserRole() async {
+    final userId = getCurrentUserId();
+    if (userId == null) return null;
+    
+    final roleRow = await _supabase
         .from('users')
-        .select()
-        .eq('id', user.id)
+        .select('role')
+        .eq('id', userId)
         .maybeSingle();
-
-    if (profile?['role'] == 'admin') {
-      return {
-        'success': true,
-        'user': user.toJson(),
-        'role': 'admin',
-      };
-    }
-
-    return {
-      'success': false,
-      'message': 'Not an admin',
-    };
+    
+    return roleRow?['role'] as String?;
   }
 }

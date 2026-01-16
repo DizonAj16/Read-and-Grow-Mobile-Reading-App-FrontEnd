@@ -197,7 +197,7 @@ class _StudentEssayPageState extends State<StudentEssayPage> {
           .from('essay_questions')
           .select('*')
           .eq('essay_assignment_id', _essayAssignmentId!)
-          .order('sort_order')
+          .order('sort_order', ascending: true) // Ensure this is ASCENDING
           .timeout(const Duration(seconds: 30));
 
       if (questionsRes == null) {

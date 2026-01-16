@@ -29,7 +29,7 @@ class _AddLessonWithQuizScreenState extends State<AddLessonWithQuizScreen> {
   final _lessonTitleController = TextEditingController();
   final _lessonDescController = TextEditingController();
   final _lessonTimeController = TextEditingController();
-  bool _unlocksNextLevel = false;
+  // bool _unlocksNextLevel = false;
 
   // Quiz controllers
   final _quizTitleController = TextEditingController();
@@ -729,7 +729,7 @@ class _AddLessonWithQuizScreenState extends State<AddLessonWithQuizScreen> {
         title: _lessonTitleController.text,
         description: _lessonDescController.text,
         timeLimitMinutes: int.tryParse(_lessonTimeController.text),
-        unlocksNextLevel: _unlocksNextLevel,
+          // unlocksNextLevel: _unlocksNextLevel,
       );
 
       if (lesson == null) {
@@ -2077,28 +2077,28 @@ class _AddLessonWithQuizScreenState extends State<AddLessonWithQuizScreen> {
                       keyboardType: TextInputType.number,
                       onChanged: (_) => _clearFieldError('timeLimit'),
                     ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[50],
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey[300]!),
-                      ),
-                      child: SwitchListTile(
-                        title: const Text(
-                          'Unlocks Next Level',
-                          style: TextStyle(fontWeight: FontWeight.w500),
-                        ),
-                        subtitle: const Text(
-                          'Enable to allow progression to next level',
-                        ),
-                        value: _unlocksNextLevel,
-                        onChanged:
-                            (val) => setState(() => _unlocksNextLevel = val),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
+                    // const SizedBox(height: 12),
+                    // Container(
+                    //   padding: const EdgeInsets.all(12),
+                    //   decoration: BoxDecoration(
+                    //     color: Colors.grey[50],
+                    //     borderRadius: BorderRadius.circular(8),
+                    //     border: Border.all(color: Colors.grey[300]!),
+                    //   ),
+                    //   child: SwitchListTile(
+                    //     title: const Text(
+                    //       'Unlocks Next Level',
+                    //       style: TextStyle(fontWeight: FontWeight.w500),
+                    //     ),
+                    //     subtitle: const Text(
+                    //       'Enable to allow progression to next level',
+                    //     ),
+                    //     value: _unlocksNextLevel,
+                    //     onChanged:
+                    //         (val) => setState(() => _unlocksNextLevel = val),
+                    //     contentPadding: EdgeInsets.zero,
+                    //   ),
+                    // ),
                   ],
                 ),
               ),

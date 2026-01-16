@@ -71,6 +71,7 @@ dependencies:
   pdfx: ^2.9.2
   pdf: ^3.11.3
   printing: ^5.14.2
+  audio_session: ^0.1.25
 
 
 dev_dependencies:

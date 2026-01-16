@@ -1951,7 +1951,7 @@ class _LessonCardState extends State<_LessonCard> {
           .eq('assignment_id', assignmentId)
           .eq('student_id', user.id)
           .eq('is_graded', true)
-          .order('essay_questions(sort_order)');
+          .order('essay_questions(sort_order)', ascending: true);
 
       return (gradedResponses as List<dynamic>).cast<Map<String, dynamic>>();
     } catch (e) {
@@ -2002,7 +2002,7 @@ class _LessonCardState extends State<_LessonCard> {
           .eq('assignment_id', assignmentId)
           .eq('student_id', user.id)
           .eq('is_graded', true)
-          .order('essay_questions(sort_order)');
+          .order('essay_questions(sort_order)', ascending: true);
 
       if (!mounted) return;
       Navigator.pop(context); // Close loading dialog

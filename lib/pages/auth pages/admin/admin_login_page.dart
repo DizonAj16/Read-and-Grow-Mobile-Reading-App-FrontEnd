@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../widgets/appbar/theme_toggle_button.dart';
-import '../../widgets/navigation/page_transition.dart';
-import '../student pages/student_dashboard_page.dart';
-import '../parent pages/parent_dashboard_page.dart';
-import 'auth buttons widgets/login_button.dart';
-import 'form fields widgets/password_text_field.dart';
-import 'form fields widgets/email_text_field.dart';
-import '../admin pages/admin_page.dart';
+import '../../../widgets/appbar/theme_toggle_button.dart';
+import '../../../widgets/navigation/page_transition.dart';
+import '../../student pages/student_dashboard_page.dart';
+import '../../parent pages/parent_dashboard_page.dart';
+import '../auth buttons widgets/login_button.dart';
+import '../form fields widgets/password_text_field.dart';
+import '../form fields widgets/email_text_field.dart';
+import '../../admin pages/admin_page.dart';
 
 class AdminLoginPage extends StatefulWidget {
   const AdminLoginPage({super.key});
