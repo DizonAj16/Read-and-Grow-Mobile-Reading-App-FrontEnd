@@ -34,7 +34,7 @@ class ChooseRolePage extends StatelessWidget {
           icon: Icons.family_restroom,
           label: 'Parent',
           color: Colors.purple,
-          onTap: () => Navigator.of(context).push(PageTransition(page: LoginPage(loginType: LoginType.admin))),
+          onTap: () => Navigator.of(context).push(PageTransition(page: LoginPage(loginType: LoginType.parent))),
         ),
       ];
     } else {

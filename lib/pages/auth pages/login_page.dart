@@ -42,7 +42,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _autoValidate = false;
 
   // Role-specific configurations
-  Map<LoginType, Map<String, dynamic>> _roleConfigs = {
+  final Map<LoginType, Map<String, dynamic>> _roleConfigs = {
     LoginType.universal: {
       'title': 'Login',
       'subtitle': 'Sign in to your account',
