@@ -1,4 +1,4 @@
-import 'package:deped_reading_app_laravel/pages/auth%20pages/teacher/teacher_login_page.dart';
+import 'package:deped_reading_app_laravel/pages/auth%20pages/login_page.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -636,9 +636,11 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
     // Show a brief success animation before navigating
     await _showBriefSuccessDialog();
     if (mounted) {
-      Navigator.of(
-        context,
-      ).pushReplacement(PageTransition(page: const TeacherLoginPage()));
+                  Navigator.of(context).pushReplacement(
+                    PageTransition(
+                      page: LoginPage(loginType: LoginType.teacher),
+                    ),
+                  );
     }
   }
 
@@ -990,9 +992,11 @@ class _TeacherSignUpPageState extends State<TeacherSignUpPage> {
               ),
               TextButton(
                 onPressed: () {
-                  Navigator.of(
-                    context,
-                  ).push(PageTransition(page: const TeacherLoginPage()));
+                  Navigator.of(context).push(
+                    PageTransition(
+                      page: LoginPage(loginType: LoginType.teacher),
+                    ),
+                  );
                 },
                 child: Text(
                   "Log In",

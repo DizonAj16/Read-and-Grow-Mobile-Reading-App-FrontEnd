@@ -1,4 +1,4 @@
-import 'package:deped_reading_app_laravel/pages/auth%20pages/parent/parent_login_page.dart';
+import 'package:deped_reading_app_laravel/pages/auth%20pages/login_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
@@ -628,7 +628,6 @@ class _ParentSignUpPageState extends State<ParentSignUpPage> {
     );
   }
 
-
   Widget _buildLoginInfoRow({
     required IconData icon,
     required String label,
@@ -748,7 +747,7 @@ class _ParentSignUpPageState extends State<ParentSignUpPage> {
     if (mounted) {
       Navigator.of(
         context,
-      ).pushReplacement(PageTransition(page: ParentLoginPage()));
+      ).pushReplacement(PageTransition(page: LoginPage(loginType: LoginType.parent)));
     }
   }
 
@@ -1186,9 +1185,11 @@ class _ParentSignUpPageState extends State<ParentSignUpPage> {
               ),
               TextButton(
                 onPressed: () {
-                  Navigator.of(
-                    context,
-                  ).push(PageTransition(page: ParentLoginPage()));
+                  Navigator.of(context).push(
+                    PageTransition(
+                      page: LoginPage(loginType: LoginType.parent),
+                    ),
+                  );
                 },
                 child: Text(
                   "Log In",

@@ -1,3 +1,4 @@
+import 'package:deped_reading_app_laravel/pages/auth%20pages/login_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
@@ -6,7 +7,6 @@ import '../../../widgets/appbar/theme_toggle_button.dart';
 import '../auth buttons widgets/signup_button.dart';
 import '../form fields widgets/password_text_field.dart';
 import '../../../widgets/navigation/page_transition.dart';
-import 'student_login_page.dart';
 
 class StudentSignUpPage extends StatefulWidget {
   const StudentSignUpPage({super.key});
@@ -658,9 +658,9 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
     // Show a brief success animation before navigating
     await _showBriefSuccessDialog();
     if (mounted) {
-      Navigator.of(
-        context,
-      ).pushReplacement(PageTransition(page: const StudentLoginPage()));
+      Navigator.of(context).pushReplacement(
+        PageTransition(page: LoginPage(loginType: LoginType.student)),
+      );
     }
   }
 
@@ -1085,9 +1085,11 @@ class _StudentSignUpPageState extends State<StudentSignUpPage> {
               ),
               TextButton(
                 onPressed: () {
-                  Navigator.of(
-                    context,
-                  ).push(PageTransition(page: const StudentLoginPage()));
+                  Navigator.of(context).push(
+                    PageTransition(
+                      page: LoginPage(loginType: LoginType.student),
+                    ),
+                  );
                 },
                 child: Text(
                   "Log In",
